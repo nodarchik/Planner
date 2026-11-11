@@ -2,6 +2,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
+import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
 import { rebuildPT } from './pathtracer.js';
 
 const BASE = import.meta.env.BASE_URL;
@@ -53,3 +54,4 @@ export function upgradeMaterials(registry) { const tl = new THREE.TextureLoader(
       tl.load(`${BASE}assets/textures/${set}_${file}.webp`, t => { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(1 / size, 1 / size); t.anisotropy = 4;
         mats.forEach(m => { m[slot] = t; m.needsUpdate = true; }); end(); }, undefined, () => { console.warn(`scan ${set}_${file} not loaded; keeping the procedural map`); end(); }); } }
 }
+export function loadSkyHDR() { begin(); return new RGBELoader().loadAsync(`${BASE}assets/hdri/sky_2k.hdr`).finally(end); }

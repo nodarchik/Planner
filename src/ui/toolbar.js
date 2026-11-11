@@ -1,5 +1,7 @@
 import { CUT, DPR, camera, clampables, renderer, scene, state, world } from '../scene.js';
-import { nightLights, skyDay, skyNight, sun } from '../lighting.js';
+import { SKY, nightLights, setSun, sun, useHDRI } from '../lighting.js';
+import { loadSkyHDR } from '../assets.js';
+import { plan } from '../plan/plan.js';
 import { emissives } from '../materials.js';
 import { bloom, composer } from '../post.js';
 import { dimGroup } from './dims.js';
@@ -10,8 +12,8 @@ import { rebuildPT } from '../pathtracer.js';
 export function setMood(n) {
   state.night = n;
   document.getElementById('mday').setAttribute('aria-pressed', !n); document.getElementById('mnight').setAttribute('aria-pressed', n);
-  scene.environment = n ? skyNight : skyDay; scene.background = n ? skyNight : skyDay;
-  sun.visible = !n;
+  scene.environment = n ? SKY.night : SKY.day; scene.background = n ? SKY.night : SKY.back;
+  sun.visible = !n && SKY.sunUp;
   nightLights.forEach(l => l.visible = n);
   emissives.forEach(m => m.emissiveIntensity = n ? m.userData.night : m.userData.day);
   bloom.strength = n ? .22 : .12;
@@ -49,3 +51,15 @@ addEventListener('resize', resize); resize();
 { const sp = document.getElementById('spec'), ly = document.getElementById('layouts'), narrow = () => innerWidth <= 700;
   sp.addEventListener('toggle', () => { if (sp.open && narrow()) ly.open = false; }); ly.addEventListener('toggle', () => { if (ly.open && narrow()) sp.open = false; });
   if (narrow()) { sp.open = false; ly.open = false; } }
+
+/* ================= sun: month + time of day ================= */
+const SUNKEY = 'palace1-sun-v1', MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const sunTime = document.getElementById('sunTime'), sunMonth = document.getElementById('sunMonth'), sunInfo = document.getElementById('sunInfo');
+MONTHS.forEach((m, i) => sunMonth.add(new Option(m, i + 1)));
+export function applySun(save) { const month = +sunMonth.value, hour = +sunTime.value, s = setSun(month, hour), hh = Math.floor(hour), mm = Math.round((hour - hh) * 60);
+  sunInfo.textContent = `${hh}:${String(mm).padStart(2, '0')} · sun ${s.el > 0 ? `${Math.round(s.az)}° / ${Math.round(s.el)}° up` : 'down'}${plan.meta.north === null ? ' · north not set' : ''}`;
+  if (save) { try { localStorage.setItem(SUNKEY, JSON.stringify({ month, hour })); } catch (e) {} }
+  setMood(state.night); }
+{ let d = plan.meta.sun; try { d = JSON.parse(localStorage.getItem(SUNKEY) || 'null') || d; } catch (e) {} sunMonth.value = d.month; sunTime.value = d.hour; setSun(d.month, d.hour); }
+sunTime.oninput = () => applySun(true); sunMonth.onchange = () => applySun(true);
+export function loadSky() { loadSkyHDR().then(t => { useHDRI(t); applySun(false); }).catch(err => console.warn('sky HDRI not loaded; keeping the procedural sky', err)); }

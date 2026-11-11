@@ -135,3 +135,6 @@ canvas{touch-action:none}
   .editbar{left:8px;right:8px;top:auto;bottom:calc(8px + env(safe-area-inset-bottom,0px));max-width:none;z-index:7}
   .selpanel:not([hidden]) ~ .editbar,.editbar:has(~ .selpanel:not([hidden])){display:none}
 }
+.sunctl{display:flex;align-items:center;gap:8px}
+.sunctl .sel{max-width:74px}
+.sunctl input[type=range]{width:120px;accent-color:var(--accent)}

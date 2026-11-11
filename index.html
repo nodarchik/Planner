@@ -44,6 +44,11 @@
     <button id="mday" aria-pressed="true">Day</button>
     <button id="mnight" aria-pressed="false">Night</button>
   </div>
+  <div class="sunctl" role="group" aria-label="Sun">
+    <select id="sunMonth" class="sel" aria-label="Month"></select>
+    <input id="sunTime" type="range" min="5" max="21" step="0.25" aria-label="Time of day">
+    <span class="status" id="sunInfo"></span>
+  </div>
   <div class="seg" role="group" aria-label="Overlays">
     <button id="tlab" aria-pressed="true">Rooms</button>
     <button id="tdim" aria-pressed="false">Dims</button>
@@ -58,7 +63,7 @@
     <option value="midcentury">Style: Mid-century</option>
   </select>
   <div class="seg"><button id="move" aria-pressed="false">Edit plan</button></div>
-  <div class="seg"><button id="photo" aria-pressed="false">Photo render</button></div>
+  <div class="seg"><button id="photo" aria-pressed="false">Photo render</button><button id="still" disabled title="Path-traced 2560 × 1440 PNG of the current view">Save 2K still</button></div>
   <span class="status" id="status"></span>
 </div>
 

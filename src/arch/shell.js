@@ -46,7 +46,12 @@ function buildLeaves(w) {
   for (const o of openingsOf(w)) { const lf = o.leaf; if (!lf) continue;
     const along = lf.hinge === 'start' ? o.a : o.b, closed = lf.hinge === 'start' ? 1 : -1, face = faceCoord(w.id, lf.swing), sw = lf.swing === 'S' || lf.swing === 'E' ? 1 : -1;
     const ang = lf.open * Math.PI / 180, opt = lf.handle ? { handle: lf.handle } : {}, m = M[lf.material || 'skirting'];
-    if (axis === 'y') door(face, along, 0, closed, o.w, ang, -sw * closed, m, opt); else door(along, face, closed, 0, o.w, ang, sw * closed, m, opt); }
+    if (axis === 'y') door(face, along, 0, closed, o.w, ang, -sw * closed, m, opt); else door(along, face, closed, 0, o.w, ang, sw * closed, m, opt);
+    // light switch on the latch side, on the face the door opens towards, 0.12 from the frame, centre 1.05 above the floor
+    const latch = lf.hinge === 'start' ? o.b + .12 : o.a - .2, [x1, y1, x2, y2] = wallRect(w); if (latch < (axis === 'x' ? x1 : y1) + .05 || latch + .08 > (axis === 'x' ? x2 : y2) - .05) continue;
+    const d1 = face, d2 = face + sw * .008, d3 = face + sw * .012, lo = Math.min, hi = Math.max;
+    if (axis === 'x') { B(latch, lo(d1, d2), latch + .08, hi(d1, d2), 1.01, 1.09, M.lacquerCream, { cast: false }); B(latch + .02, lo(d2, d3), latch + .06, hi(d2, d3), 1.03, 1.07, M.ceramic, { cast: false }); }
+    else { B(lo(d1, d2), latch, hi(d1, d2), latch + .08, 1.01, 1.09, M.lacquerCream, { cast: false }); B(lo(d2, d3), latch + .02, hi(d2, d3), latch + .06, 1.03, 1.07, M.ceramic, { cast: false }); } }
 }
 
 export function buildArchitecture() {

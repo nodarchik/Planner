@@ -6,11 +6,11 @@ import { PUBLISHED, bbox, plan, setPlan } from './plan/plan.js';
 import { buildAll, refreshOverlays } from './build.js';
 import { composer } from './post.js';
 import { labels } from './ui/dims.js';
-import { setMood } from './ui/toolbar.js';
+import { loadSky, setMood } from './ui/toolbar.js';
 import { setView } from './ui/views.js';
 import { loadEdits } from './ui/editor.js';
 import { loadStyle } from './ui/style.js';
-import { rebuildPT } from './pathtracer.js';
+import { rebuildPT, stillTick } from './pathtracer.js';
 
 // extent of the ceilings: the camera counts as inside (wide lens, ceiling shown) within it
 const ROOF = bbox(plan.ceilings.flatMap(c => [[c.rect[0], c.rect[1]], [c.rect[2], c.rect[3]]]));
@@ -22,7 +22,7 @@ async function build() {
   try { buildAll(); } catch (err) { console.error('stored edits could not be built; using the published plan', err); setPlan(PUBLISHED); buildAll(); }
   setMood(false); setView('overview', true);
   loader.hidden = true;
-  upgradeMaterials(textured); whenIdle(refreshOverlays); // scanned detail maps and models arrive after the first frame
+  upgradeMaterials(textured); loadSky(); whenIdle(refreshOverlays); // scanned detail maps and models arrive after the first frame
 }
 
 window.__sceneTriangles = () => { let n = 0; scene.traverse(o => { if (o.isMesh && o.geometry) n += (o.geometry.index ? o.geometry.index.count : o.geometry.attributes.position.count) / 3; }); return Math.round(n); }; // budget check
@@ -41,7 +41,7 @@ function tick(now) {
   renderer.toneMappingExposure = (state.night ? 1.1 : 1.0) * (state.photo ? (inside ? 2.3 : 1.25) : 1);
   if (state.photo && state.pt) {
     if (state.ptDirty) { state.ptDirty = false; state.pt.setScene(scene, camera); }
-    state.pt.renderSample(); statusEl.textContent = `Photo · ${Math.floor(state.pt.samples)} samples`;
+    state.pt.renderSample(); if (!stillTick()) statusEl.textContent = `Photo · ${Math.floor(state.pt.samples)} samples`;
   } else composer.render();
   const w = innerWidth, h = innerHeight;
   for (const l of labels) { const on = l.group === 'room' ? state.showRooms && camera.position.y > H : l.group === 'furn' ? state.showFurn && !!l.grp : state.showDims;

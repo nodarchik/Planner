@@ -35,6 +35,11 @@ export const loose = {
   organicRug(it) { livingRug(...it.center, it.rx, it.ry); },
   light(it) { lamp(it.pos[0], it.pos[1], it.h, hex(it.color), it.intensity); },
   wallPanel(it) { const { F, L } = framed(it); F.B(0, 0, L, it.depth, it.h[0], it.h[1], mat(it.material, 'lacquerCream')); },
+  // wall fittings (positions come from site measurements, PLAN.md Phase 9): from = centre along the wall for socket / switch
+  socket(it) { const { F } = framed({ ...it, to: it.from }), h = it.h ?? .3; F.B(-.04, 0, .04, .008, h - .04, h + .04, M.lacquerCream, { cast: false }); F.C(0, .008, .018, h - .0005, h + .0005, M.ceramic, { cast: false }); },
+  switch(it) { const { F } = framed({ ...it, to: it.from }), h = it.h ?? 1.05; F.B(-.04, 0, .04, .008, h - .04, h + .04, M.lacquerCream, { cast: false }); F.B(-.02, .008, .02, .012, h - .02, h + .02, M.ceramic, { cast: false }); },
+  acUnit(it) { const { F, L } = framed(it), h = it.h ?? 2.3; group(it, () => { F.RB(0, 0, L, .21, h, h + .29, .04, M.ceramic); F.B(.04, .19, L - .04, .215, h + .02, h + .06, M.plastic); }, it.name || 'AC unit'); },
+  radiator(it) { const { F, L } = framed(it), [h1, h2] = it.h || [.15, .75]; group(it, () => { F.RB(0, .03, L, .1, h1, h2, .01, M.ceramic); for (let u = .04; u < L - .02; u += .05) F.B(u, .1, u + .012, .104, h1 + .03, h2 - .03, M.ceramic, { cast: false }); }, it.name || 'Radiator'); },
   // procedural plant; with "model" the procedural one is the placeholder until the GLB arrives
   planter(it) { const [x, y] = it.pos; beginG(it.name || 'Planter'); if (it.pot) pot(x, y, it.pot[0], it.pot[1], it.pot[2], M[it.pot[3]]); PLANTS[it.plant](x, y, it.scale ?? 1); const g = state.CUR; endG();
     if (it.model) swapIn(g, it.model, { width: it.width, pos: it.pos }); },
