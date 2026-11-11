@@ -899,7 +899,9 @@ addEventListener('resize', resize); resize();
 
 
 /* ================= drag & drop furniture ================= */
-const LKEY = 'palace1-pos-v2';
+// storage: one plan, so one key per kind (v3); keys of the removed layouts (…-v2:<layout>, palace1-layout-v4) are deleted once
+const LKEY = 'palace1-pos-v3';
+try { Object.keys(localStorage).filter(k => /^palace1-(pos-v2|style-v2|types-v2|layout-v4)/.test(k)).forEach(k => localStorage.removeItem(k)); } catch (e) {}
 const ray = new THREE.Raycaster(), ndc = new V2(), dragPlane = new THREE.Plane(new V3(0, 1, 0), 0), hitP = new V3();
 let moveMode = false, sel = null, drag = null, selBox = null, photoWasOn = false;
 const selPanel = document.getElementById('selpanel'), hintEl = document.getElementById('hint');
@@ -919,8 +921,8 @@ function attachLabels() {
     let best = null; for (const b of boxes) if (L.p.x >= b.bb.min.x - .05 && L.p.x <= b.bb.max.x + .05 && L.p.z >= b.bb.min.z - .05 && L.p.z <= b.bb.max.z + .05 && (!best || b.area < best.area)) best = b;
     if (best) { L.grp = best.g; L.local = best.g.worldToLocal(L.p.clone()); } }
 }
-function saveLayout() { try { const d = movables.map(g => [+(g.position.x.toFixed(3)), +(g.position.z.toFixed(3)), +(g.rotation.y.toFixed(4)), +(g.scale.x.toFixed(4)), +(g.scale.y.toFixed(4)), +(g.scale.z.toFixed(4))]); localStorage.setItem(keyFor(LKEY), JSON.stringify(d)); } catch (e) {} }
-function loadLayout() { try { const d = JSON.parse(localStorage.getItem(keyFor(LKEY)) || 'null'); if (!Array.isArray(d) || d.length !== movables.length) return;
+function saveLayout() { try { const d = movables.map(g => [+(g.position.x.toFixed(3)), +(g.position.z.toFixed(3)), +(g.rotation.y.toFixed(4)), +(g.scale.x.toFixed(4)), +(g.scale.y.toFixed(4)), +(g.scale.z.toFixed(4))]); localStorage.setItem(LKEY, JSON.stringify(d)); } catch (e) {} }
+function loadLayout() { try { const d = JSON.parse(localStorage.getItem(LKEY) || 'null'); if (!Array.isArray(d) || d.length !== movables.length) return;
   d.forEach(([x, z, r, sx, sy, sz], i) => { const g = movables[i]; g.position.x = x; g.position.z = z; g.rotation.y = r; if (sx) applyScale(g, sx, sy, sz); }); } catch (e) {} }
 function fmtPos(g) { const deg = Math.round(((-g.rotation.y * 180 / Math.PI) % 360 + 360) % 360);
   const dx = g.position.x - g.userData.home.x, dz = g.position.z - g.userData.home.z;
@@ -995,7 +997,7 @@ addEventListener('keydown', ev => {
 
 
 /* ================= colours, finishes and style presets ================= */
-const SKEY = 'palace1-style-v2', DS = THREE.DoubleSide;
+const SKEY = 'palace1-style-v3', DS = THREE.DoubleSide;
 const CAT = {};
 ['boucle', 'boucleOat', 'linenWhite', 'linenSand', 'linenSage', 'linenOut', 'velvetTerra', 'velvetSage', 'velvetToffee', 'velvetChoco', 'towel', 'rattan'].forEach(k => CAT[k] = 'fab');
 ['walnut', 'oakFurn', 'rattanDark'].forEach(k => CAT[k] = 'wood');
@@ -1071,9 +1073,9 @@ function applyPart(g, key, fin, color, save = true) {
 }
 function resetLook(g, quiet) { g.traverse(o => { if (o.isMesh && o.userData.mkey) o.material = M[o.userData.mkey]; }); g.userData.custom = {}; if (!quiet) { saveStyle(); rebuildPT(); } }
 function saveStyle() { try { const custom = {}; movables.forEach((g, i) => { if (Object.keys(g.userData.custom).length) custom[i] = g.userData.custom; });
-  localStorage.setItem(keyFor(SKEY), JSON.stringify({ preset: curPreset, custom })); } catch (e) {} }
-function loadStyle() { let d = null; try { d = JSON.parse(localStorage.getItem(keyFor(SKEY)) || 'null'); } catch (e) {}
-  applyPreset(d && d.preset || (LAYOUTS[curLiving] && LAYOUTS[curLiving].preset) || 'warm');
+  localStorage.setItem(SKEY, JSON.stringify({ preset: curPreset, custom })); } catch (e) {} }
+function loadStyle() { let d = null; try { d = JSON.parse(localStorage.getItem(SKEY) || 'null'); } catch (e) {}
+  applyPreset(d && d.preset || LAYOUTS.soft.preset);
   if (d && d.custom) for (const i in d.custom) { const g = movables[i]; if (!g) continue; for (const k in d.custom[i]) { const c = d.custom[i][k]; if (CAT[k]) applyPart(g, k, c.fin, c.color, false); } } }
 function partsOf(g) { const cnt = {}; g.traverse(o => { const k = o.isMesh && o.userData.mkey; if (k && CAT[k]) cnt[k] = (cnt[k] || 0) + 1; });
   return Object.keys(cnt).sort((a, b) => cnt[b] - cnt[a]).slice(0, 6); }
@@ -1465,8 +1467,7 @@ const LAYOUTS = {
       beginG('Office rug'); RB(10.7, 4.85, 13.3, 6.35, 0, .012, .05, M.rug, { cast: false }); endG();
     } },
 };
-const curLiving = 'soft', LIVKEY = 'palace1-layout-v4', TKEY = 'palace1-types-v2';
-const keyFor = k => k + ':' + curLiving;
+const TKEY = 'palace1-types-v3';
 function applyLayout() { // builds the Soft classic plan once at start-up
   const L = LAYOUTS.soft;
   buildArchVar();
@@ -1480,8 +1481,8 @@ function applyLayout() { // builds the Soft classic plan once at start-up
   zoneLabels(L); attachLabels();
   renderPlanNotes(); rebuildPT();
 }
-function saveTypes() { try { const d = {}; movables.forEach((g, i) => { if (g.userData.type) d[i] = g.userData.design; }); localStorage.setItem(keyFor(TKEY), JSON.stringify(d)); } catch (e) {} }
-function loadTypes() { let d = null; try { d = JSON.parse(localStorage.getItem(keyFor(TKEY)) || 'null'); } catch (e) {} if (!d) return;
+function saveTypes() { try { const d = {}; movables.forEach((g, i) => { if (g.userData.type) d[i] = g.userData.design; }); localStorage.setItem(TKEY, JSON.stringify(d)); } catch (e) {} }
+function loadTypes() { let d = null; try { d = JSON.parse(localStorage.getItem(TKEY) || 'null'); } catch (e) {} if (!d) return;
   for (const i in d) { const g = movables[i]; if (g && g.userData.type && DESIGNS[g.userData.type].items[d[i]] && g.userData.design !== d[i]) replaceWith(g, g.userData.type, d[i]); } }
 function renderPlanNotes() { const L = LAYOUTS.soft;
   document.getElementById('planNotes').innerHTML = `<div class="note"><b>${L.name}</b><span class="why">${L.why}</span><span class="met">${L.met}</span></div>`
