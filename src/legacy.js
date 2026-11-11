@@ -720,6 +720,9 @@ function hobAt(x0, y0) { return P({ color: 0xffffff, map: planar(hobTex, x0, y0,
 function artAt(tex, a, h1, w, h, flip) { return P({ color: 0xffffff, roughness: .92, map: planar(tex, a, h1, w, h, flip) }); }
 function namedTyped(name, type, d, x, y, face = 0, opts) { const g = typed(type, d, x, y, face, opts); g.name = name; return g; }
 function buildFurniture() { // loose items outside LAYOUTS.soft.build(): bedroom 2 bed group, curtains, west balcony, general lamps
+  // Removed pre-Soft items drew from the seeded generator: the old bedroom 1 bed (288 numbers, here) and the east-balcony herb planter (55, below).
+  // Skip the same amounts so plants, drapes, hanging garments and books stay identical to the baseline screenshots.
+  for (let i = 0; i < 288; i++) rand();
   /* ---- Bedroom 1 curtains ---- */
   curtain('y', .1, 1.25, 1.6, .02, 2.74, M.sheer); curtain('y', .1, 3.63, 3.95, .02, 2.74, M.sheer);
   /* ---- Bedroom 2 (5.06 × 3.05) ---- */
@@ -736,8 +739,6 @@ function buildFurniture() { // loose items outside LAYOUTS.soft.build(): bedroom
   namedTyped('Lounge chair (loggia)', 'armchair', 4, -1.05, 2.2, FACE.W); namedTyped('Lounge chair (loggia)', 'armchair', 4, -1.05, 3.3, FACE.W);
   namedTyped('Side table (loggia)', 'sidetable', 0, -1.25, 2.75);
   G('Planter (W)', () => { pot(-1.5, 6.6, .2, .16, .46, M.stoneware); snake(-1.5, 6.6, 1); }); G('Planter (W)', () => { pot(-1.5, 1.0, .18, .14, .42, M.stonewareDark); fig(-1.5, 1.0, .75); });
-  // the herb planter that stood on the east balcony before the Soft classic plan drew 55 numbers from the seeded generator here;
-  // skip them so plants, hanging garments and books stay identical to the baseline screenshots
   for (let i = 0; i < 55; i++) rand();
 }
 
@@ -1514,6 +1515,7 @@ function tick(now) {
   controls.update();
   const inside = camera.position.y < H - .05 && camera.position.x > -0.25 && camera.position.x < 13.87 && camera.position.z > -0.29 && camera.position.z < 9.3;
   const fov = (inside ? 62 : 42) + (innerWidth < 600 ? 14 : 0); if (Math.abs(camera.fov - fov) > .01) { camera.fov += (fov - camera.fov) * .15; if (Math.abs(camera.fov - fov) < .05) camera.fov = fov; camera.updateProjectionMatrix(); if (photo && pt) pt.updateCamera(); }
+  window.__settled = !anim && camera.fov === fov; // camera at rest: read by tools/shot.py
   if (ceiling) { ceiling.visible = inside; if (lastCeil !== inside) { lastCeil = inside; rebuildPT(); } }
   renderer.toneMappingExposure = (night ? 1.1 : 1.0) * (photo ? (inside ? 2.3 : 1.25) : 1);
   if (photo && pt) {
