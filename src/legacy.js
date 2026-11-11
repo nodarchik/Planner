@@ -196,11 +196,6 @@ const hobTex = canvasTex(700, 400, (g, w, h) => {
   [[.25, .3, .2], [.25, .72, .14], [.72, .3, .14], [.72, .7, .2]].forEach(([x, y, r]) => { g.beginPath(); g.arc(x * w, y * h, r * h, 0, 7); g.stroke(); });
   g.fillStyle = 'rgba(255,255,255,.35)'; for (let i = 0; i < 6; i++) { g.beginPath(); g.arc(w * (.38 + i * .045), h * .93, 3, 0, 7); g.fill(); }
 });
-const hobTex2 = canvasTex(400, 700, (g, w, h) => {
-  g.fillStyle = '#0c0c0d'; g.fillRect(0, 0, w, h); g.strokeStyle = 'rgba(255,255,255,.22)'; g.lineWidth = 3;
-  [[.3, .25, .2], [.72, .25, .14], [.3, .72, .14], [.7, .72, .2]].forEach(([x, y, r]) => { g.beginPath(); g.arc(x * w, y * h, r * w, 0, 7); g.stroke(); });
-  g.fillStyle = 'rgba(255,255,255,.35)'; for (let i = 0; i < 6; i++) { g.beginPath(); g.arc(w * .08, h * (.38 + i * .045), 3, 0, 7); g.fill(); }
-});
 function planar(tex, u0, v0, w, h, flipU = false) { const t = tex.clone(); t.needsUpdate = true; t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping;
   if (flipU) { t.repeat.set(-1 / w, 1 / h); t.offset.set((u0 + w) / w, -v0 / h); } else { t.repeat.set(1 / w, 1 / h); t.offset.set(-u0 / w, -v0 / h); } return t; }
 
@@ -298,14 +293,8 @@ function buildMaterials() {
     water: P({ color: 0xd8eef0, roughness: .02, transmission: 1, thickness: .2, ior: 1.33 }),
     mirror: P({ color: 0xf2f2f2, metalness: 1, roughness: .015 }),
     blackGlass: P({ color: 0x08080a, roughness: .06, clearcoat: 1, clearcoatRoughness: .02 }),
-    hob: P({ color: 0xffffff, map: planar(hobTex, 2.63, 5.90, .70, .40), roughness: .06, clearcoat: 1, clearcoatRoughness: .02 }),
-    hobB: P({ color: 0xffffff, map: planar(hobTex2, 5.30, 8.57, .40, .60), roughness: .06, clearcoat: 1, clearcoatRoughness: .02 }),
-    screenB: P({ color: 0x050506, roughness: .08, clearcoat: 1, emissive: 0xffffff, emissiveMap: planar(tvTex, 2.15, 1.0, 1.40, .78), emissiveIntensity: 0, nightIntensity: 1.6 }),
     screen: P({ color: 0x050506, roughness: .08, clearcoat: 1, emissive: 0xffffff, emissiveMap: planar(tvTex, 7.51, 1.01, 1.38, .76), emissiveIntensity: 0, nightIntensity: 1.6 }),
-    art1: P({ color: 0xffffff, roughness: .92, map: planar(art1Tex, 1.665, 1.37, .52, .86) }),
-    art2: P({ color: 0xffffff, roughness: .92, map: planar(art2Tex, 1.71, 1.34, .83, .53, true) }),
     led: P({ color: 0xfff1db, emissive: 0xffc98a, emissiveIntensity: 0, nightIntensity: 2.5 }),
-    ledCool: P({ color: 0xe8f3ff, emissive: 0xb9dcff, emissiveIntensity: 0, nightIntensity: 3 }),
     leaf: P({ color: 0x3f5e33, roughness: .5, side: THREE.DoubleSide, sheen: .3, sheenColor: 0x9fcf80 }),
     leafOlive: P({ color: 0x7a8a68, roughness: .6, side: THREE.DoubleSide, sheen: .4, sheenColor: 0xd8e6c8 }),
     leafSnake: P({ color: 0x2f4b2c, roughness: .35, side: THREE.DoubleSide, clearcoat: .3 }),
@@ -518,34 +507,15 @@ function buildArchitecture() {
   return ceil;
 }
 
-// layout-dependent partitions (rebuilt by applyLayout)
-const ARCH = {
-  studio() { // original: studio north, office in the old kitchen room, hall separate on the east side
+// Soft classic partitions and finishes
+const ARCH = {};
+ARCH.softStudio = function () {
+  // studio north, office in the old kitchen room, hall separate on the east side
     wallY(7.07, 7.17, 2.87, 4.32); skirt('y', 7.07, -1, 2.87, 4.32); skirt('y', 7.17, 1, 2.87, 4.32);
     wallX(4.32, 4.42, 8.86, 13.62); wallY(8.86, 8.96, 4.42, 7.13, [DOOR(4.66, 5.43)]);
     door(8.96, 4.66, 0, 1, .77, 1.3, -1, M.skirting);
     B(8.96, 4.42, 13.62, 7.13, -.05, .004, M.trav, { clamp: false });
     skirt('x', 4.32, -1, 7.17, 13.62, [[7.17, 8.86]]); skirt('y', 8.86, -1, 4.42, 7.13, [[4.66, 5.43]]); skirt('y', 8.96, 1, 4.42, 7.13, [[4.66, 5.43]]); skirt('x', 4.42, 1, 8.96, 13.62);
-  },
-  swap() { // office north, living + kitchen takes the hall
-    wallY(7.07, 7.17, 2.87, 4.32); skirt('y', 7.07, -1, 2.87, 4.32); skirt('y', 7.17, 1, 2.87, 4.32);
-    wallX(3.30, 3.40, 7.17, 13.62, [DOOR(7.35, 8.12)]); door(7.35, 3.30, 1, 0, .77, 1.3, -1, M.skirting);
-    skirt('x', 3.30, -1, 7.17, 13.62, [[7.35, 8.12]]); skirt('x', 3.40, 1, 7.17, 13.62, [[7.35, 8.12]]);
-  },
-  officeSE() { // office in the old kitchen room; hall + corridor open to the studio
-    wallX(4.32, 4.42, 8.86, 13.62); wallY(8.86, 8.96, 4.42, 7.13, [DOOR(4.66, 5.43)]); door(8.96, 4.66, 0, 1, .77, 1.3, -1, M.skirting);
-    skirt('x', 4.32, -1, 8.86, 13.62); skirt('y', 8.86, -1, 4.42, 7.13, [[4.66, 5.43]]); skirt('y', 8.96, 1, 4.42, 7.13, [[4.66, 5.43]]); skirt('x', 4.42, 1, 8.96, 13.62);
-  },
-  swapOpen() { // office north; corridor open to the living space
-    wallY(7.07, 7.17, 2.87, 3.40); wallX(3.30, 3.40, 7.17, 13.62, [DOOR(7.35, 8.12)]); door(7.35, 3.30, 1, 0, .77, 1.3, -1, M.skirting);
-    skirt('x', 3.30, -1, 7.17, 13.62, [[7.35, 8.12]]); skirt('x', 3.40, 1, 7.17, 13.62, [[7.35, 8.12]]);
-  },
-  glassNE() { glassWall('y', 10.9, 0, 3.30, 1.95, 2.75); glassWall('x', 3.30, 10.9, 13.62); },
-  glassSE() { glassWall('x', 4.50, 11.0, 13.62); glassWall('y', 11.0, 4.50, 7.13, 5.2, 6.0); },
-  open() {} // no partitions east of the bedrooms: kitchen, living, hall and corridor are one space (bathroom wet wall kept)
-};
-ARCH.softStudio = function () {
-  ARCH.studio();
   // chevron oak over every oak / stone living floor (bathroom + WC keep their tiles)
   B(0, 0, 4.59, 7.13, 0, .006, M.chevron, { clamp: false, cast: false }); B(4.59, 2.87, 7.07, 7.13, 0, .006, M.chevron, { clamp: false, cast: false });
   B(7.07, 0, 13.62, 7.13, 0, .006, M.chevron, { clamp: false, cast: false });
@@ -588,18 +558,6 @@ function softPanels(axis, at, s, a, b, gaps = [], top = 2.42) { // picture-frame
     const n = Math.max(1, Math.round((q - p) / .9)), pw = (q - p) / n;
     for (let i = 0; i < n; i++) { const x1 = p + i * pw + .08, x2 = p + (i + 1) * pw - .08; if (x2 - x1 < .14) continue; fr(x1, x2, .2, .78); fr(x1, x2, 1.08, top); } });
   if (out.length) merged(out, M.skirting, { cast: false });
-}
-function softArchY(x1, x2, a, b, ha, hb, top = 2.45, r = .42) { // same arch, in a wall running along y (x1–x2 thick)
-  const s = new THREE.Shape(); s.moveTo(a, 0); s.lineTo(b, 0); s.lineTo(b, H); s.lineTo(a, H); s.lineTo(a, 0);
-  const hole = new THREE.Path(); hole.moveTo(ha, 0); hole.lineTo(ha, top - r); hole.absarc(ha + r, top - r, r, Math.PI, Math.PI / 2, true); hole.lineTo(hb - r, top);
-  hole.absarc(hb - r, top - r, r, Math.PI / 2, 0, true); hole.lineTo(hb, 0); hole.lineTo(ha, 0); s.holes.push(hole);
-  const g = new THREE.ExtrudeGeometry(s, { depth: x2 - x1, bevelEnabled: false, curveSegments: 24 }); g.rotateY(-Math.PI / 2); g.translate(x2, 0, 0); add(g, M.wall, 0, 0, 0);
-  const c = new THREE.CurvePath(); c.add(new THREE.LineCurve3(new V3(ha, 0, 0), new V3(ha, top - r, 0)));
-  c.add(new THREE.CubicBezierCurve3(new V3(ha, top - r, 0), new V3(ha, top - r * .45, 0), new V3(ha + r * .45, top, 0), new V3(ha + r, top, 0)));
-  c.add(new THREE.LineCurve3(new V3(ha + r, top, 0), new V3(hb - r, top, 0)));
-  c.add(new THREE.CubicBezierCurve3(new V3(hb - r, top, 0), new V3(hb - r * .45, top, 0), new V3(hb, top - r * .45, 0), new V3(hb, top - r, 0)));
-  c.add(new THREE.LineCurve3(new V3(hb, top - r, 0), new V3(hb, 0, 0)));
-  [-.012, x2 - x1 + .012].forEach(z => { const t = new THREE.TubeGeometry(c, 120, .03, 10, false); t.translate(0, 0, z); t.rotateY(-Math.PI / 2); t.translate(x2, 0, 0); add(t, M.skirting, 0, 0, 0, { uv: false }); });
 }
 function softArch(y1, y2, a, b, ha, hb, top = 2.45, r = .42) { // wall with a rounded-shoulder arched opening (ha–hb), painted casing both sides
   const s = new THREE.Shape(); s.moveTo(a, 0); s.lineTo(b, 0); s.lineTo(b, H); s.lineTo(a, H); s.lineTo(a, 0);
@@ -746,20 +704,6 @@ function shellChair(x, y, cx, cy, m = M.velvetTerra, base = M.brass) {
   lathe([[0, .40], [.22, .40], [.238, .415], [.24, .445], [.225, .475], [0, .48]], x, y, 0, m);
   sector(x, y, .195, .24, phi - 1.15, phi + 1.15, .44, .82, m, .018);
 }
-function sofa() { // 3-seat sofa, 2.20 × 0.90, back against the south wall (east of the terrace door), facing the TV
-  const x1 = 1.98, x2 = 4.18, y1 = 8.96, y2 = 9.86;
-  B(x1 + .07, y1 + .07, x2 - .07, y2 - .07, 0, .08, M.carcass);
-  RB(x1, y1, x2, y2, .08, .36, .04, M.boucle);
-  RB(x1, y1, x1 + .18, y2, .08, .62, .06, M.boucle, { seg: 5 }); RB(x2 - .18, y1, x2, y2, .08, .62, .06, M.boucle, { seg: 5 });
-  const w = (x2 - x1 - .36) / 3;
-  for (let i = 0; i < 3; i++) { const a = x1 + .18 + i * w + .01, b = a + w - .02;
-    RB(a, y1 + .02, b, y2 - .28, .34, .50, .06, M.boucle, { seg: 5 });
-    RB(a, y2 - .27, b, y2 - .02, .34, .84, .07, M.boucle, { seg: 5 }); }
-  pillow(2.42, 9.5, .64, .44, .15, .44, M.velvetTerra, 1.2, Math.PI);
-  pillow(3.75, 9.5, .64, .44, .15, .44, M.velvetSage, 1.2, Math.PI);
-  pillow(3.1, 9.52, .62, .40, .14, .40, M.linenSand, 1.2, Math.PI);
-  drape(x2 - .18, y1 + .1, x2 + .01, y1 + .55, .64, .14, .05, 1, M.velvetChoco);
-}
 function barStool(x, y) { // 0.65 m seat for a 0.90 m bar, with footrest
   C(x, y, .2, 0, .015, M.blackMetal); C(x, y, .022, .015, .62, M.blackMetal, { seg: 16 });
   add(new THREE.TorusGeometry(.17, .01, 8, 40).rotateX(Math.PI / 2), M.brass, x, .3, y, { uv: false });
@@ -773,45 +717,6 @@ function taskChair(x, y, face) { // swivel chair, face = plan angle the sitter l
   const bx = x - Math.cos(face) * .24, by = y - Math.sin(face) * .24, g = new RoundedBoxGeometry(.44, .42, .07, 5, .03);
   g.rotateX(-.18); g.rotateY(-face - Math.PI / 2); add(g, M.boucleOat, bx, .8, by);
   tube([[x - Math.cos(face) * .2, .5, y - Math.sin(face) * .2], [bx - Math.cos(face) * .02, .62, by - Math.sin(face) * .02]], .012, M.blackMetal, { seg: 6 });
-}
-function buildDeskAndVanity() {
-  /* work desk under the west window of Bedroom 1 (window sill at 0.90) */
-  beginG('Work desk');
-  RB(.02, .62, .48, 1.52, .72, .75, .008, M.oakFurn);
-  cab({ axis: 'y', a1: .64, a2: 1.50, back: .02, front: .46, h1: .62, h2: .72, cols: [[1, 1], [1, 1]], fm: M.lacquerCream });
-  [.64, 1.50].forEach(y => C(.45, y, .012, 0, .62, M.brass, { seg: 12 }));
-  B(.03, .64, .06, 1.50, 0, .62, M.brass, { cast: false });
-  B(.12, .95, .34, 1.27, .75, .765, M.steel);
-  { const g = new THREE.BoxGeometry(.007, .21, .32); const m = add(g, M.blackMetal, .105, .87, 1.11); m.rotation.z = .28;
-    const sc = add(new THREE.PlaneGeometry(.3, .19), M.laptop, .112, .87, 1.11, { uv: false }); sc.rotation.set(0, Math.PI / 2, 0); sc.rotateOnWorldAxis(new V3(0, 0, 1), .28); }
-  C(.12, 1.42, .065, .75, .765, M.brass); tube([[.12, .765, 1.42], [.14, 1.08, 1.40], [.26, 1.18, 1.32]], .008, M.brass, { seg: 16 });
-  lathe([[0, .0], [.03, .0], [.07, -.06], [.075, -.07], [0, -.06]], .27, 1.31, 1.18, M.opal);
-  lamp(.27, 1.31, 1.08, 0xffd3a0, 1.6);
-  book(.33, .74, .75, .2, .15, .018, M.book2, .2); lathe([[0, 0], [.04, 0], [.042, .09], [.038, .095], [0, .01]], .38, 1.42, .75, M.stoneware);
-  endG();
-  beginG('Task chair');
-  taskChair(.68, 1.07, Math.PI);
-  endG();
-  /* beauty table against the column face in Bedroom 2 */
-  beginG('Beauty table');
-  RB(.43, 4.10, .86, 5.00, .72, .75, .008, M.walnut);
-  cab({ axis: 'y', a1: 4.12, a2: 4.98, back: .43, front: .85, h1: .60, h2: .72, cols: [[1, 1], [1, 1]], fm: M.lacquerCream });
-  [4.12, 4.98].forEach(y => C(.83, y, .012, 0, .60, M.brass, { seg: 12 }));
-  [4.47, 4.63].forEach(y => B(.855, y - .03, .862, y + .03, .655, .665, M.brass));
-  add(new THREE.CircleGeometry(.35, 96), M.mirror, .423, 1.38, 4.55, { uv: false, rotY: Math.PI / 2 });
-  add(new THREE.TorusGeometry(.355, .014, 16, 96), M.led, .424, 1.38, 4.55, { uv: false, rotY: Math.PI / 2 });
-  lamp(.6, 4.55, 1.4, 0xffe6c8, 1.4);
-  RB(.5, 4.70, .7, 4.92, .75, .757, .02, M.brass);
-  lathe([[0, 0], [.025, 0], [.027, .07], [.012, .08], [.012, .1], [0, .1]], .57, 4.78, .757, M.glassTint);
-  lathe([[0, 0], [.02, 0], [.02, .1], [.008, .11], [.008, .13], [0, .13]], .63, 4.84, .757, M.glassTint);
-  lathe([[0, 0], [.035, 0], [.038, .1], [0, .1]], .58, 4.25, .75, M.ceramic);
-  for (let i = 0; i < 4; i++) tube([[.58, .8, 4.25], [.58 + (i - 1.5) * .012, .9, 4.25 + (i % 2 - .5) * .015]], .004, M.oakFurn, { seg: 4, rs: 5 });
-  vase(.68, 4.38, .75, .55, M.stoneware); S(.70, 4.38, .99, .035, M.velvetTerra);
-  endG();
-  beginG('Vanity stool');
-  lathe([[0, 0], [.17, 0], [.17, .01], [.03, .03], [.025, .36], [0, .36]], .99, 4.55, 0, M.brass);
-  lathe([[0, .36], [.17, .36], [.18, .38], [.18, .43], [.16, .46], [0, .465]], .99, 4.55, 0, M.velvetTerra);
-  endG();
 }
 function hobAt(x0, y0) { return P({ color: 0xffffff, map: planar(hobTex, x0, y0, .64, .52), roughness: .06, clearcoat: 1, clearcoatRoughness: .02 }); }
 function artAt(tex, a, h1, w, h, flip) { return P({ color: 0xffffff, roughness: .92, map: planar(tex, a, h1, w, h, flip) }); }
@@ -871,8 +776,6 @@ function buildFurniture() {
   G('Planter (W)', () => { pot(-1.5, 6.6, .2, .16, .46, M.stoneware); snake(-1.5, 6.6, 1); }); G('Planter (W)', () => { pot(-1.5, 1.0, .18, .14, .42, M.stonewareDark); fig(-1.5, 1.0, .75); });
   namedTyped('Bistro table (loggia)', 'coffee', 1, 14.85, 3.4); namedTyped('Bistro chair', 'chair', 4, 14.85, 2.85, FACE.S); namedTyped('Bistro chair', 'chair', 4, 14.85, 3.95, FACE.N);
   G('Herb planter (E)', () => { RB(15.3, 5.8, 15.72, 7.05, 0, .7, .02, M.concrete); for (let i = 0; i < 5; i++) { pot(15.5, 5.95 + i * .25, .09, .07, .2, M.stoneware); } snake(15.5, 6.45, .5); });
-  const DT = { x: 8.4, y: 1.55 };
-  return DT;
 }
 
 /* ================= post-processing ================= */
@@ -890,11 +793,11 @@ composer.addPass(bloom);
 composer.addPass(new OutputPass());
 
 /* ================= build ================= */
-let ceiling, DT;
+let ceiling;
 async function build() {
   await frame(); await buildTextures(); buildMaterials();
   loader.textContent = 'Building apartment…'; await frame();
-  ceiling = buildArchitecture(); DT = buildFurniture();
+  ceiling = buildArchitecture(); buildFurniture();
   world.updateMatrixWorld(true);
   world.traverse(o => { if (o.isMesh && !o.userData.clamp) { const bb = new THREE.Box3().setFromObject(o); o.userData.minY = bb.min.y; o.userData.maxY = bb.max.y; } });
   setupOverlays(); applyLayout(loadLiving() || 'soft', false); setMood(false); setView('overview', true);
@@ -913,14 +816,7 @@ const RS_BASE = [['Bedroom 1', 2.3, 2.0, '4.60 × 3.98'], ['Bedroom 2', 2.5, 5.6
   ['West balcony', -1.05, 3.5, '1.60 × 7.13'], ['East balcony', 14.8, 3.5, '1.88 × 7.13']];
 const RS_CORR = ['Corridor', 5.88, 3.62, '2.38 × 1.53'];
 const ROOM_SIZES = {
-  studio: [RS_CORR, ['Hall', 7.0, 5.9, '3.70 × 2.73'], ['Studio (living + kitchen)', 10.4, 2.7, '6.45 × 4.32'], ['Office', 11.3, 5.9, '4.66 × 2.71']],
-  softStudio: [['Bedroom 1', 1.55, 2.4, '3.19 × 3.98 + entry 1.30 × 0.93'], ['Walk-in closet', 3.94, 1.5, '1.30 × 2.95 (units 0.30 deep)'], ['Bedroom 2', 1.8, 5.6, '5.06 × 3.05'], RS_CORR, ['Hall', 7.0, 5.9, '3.70 × 2.73'], ['Studio (living + kitchen)', 10.4, 2.7, '6.45 × 4.32'], ['Office', 11.3, 5.9, '4.66 × 2.71']],
-  officeSE: [['Corridor (open)', 5.88, 3.62, '2.38 × 1.53'], ['Hall (open)', 7.0, 5.9, '3.70 × 2.73'], ['Studio (living + kitchen)', 10.4, 2.7, '6.45 × 4.32'], ['Office', 11.3, 5.9, '4.66 × 2.71']],
-  swap: [RS_CORR, ['Office', 10.4, 1.7, '6.45 × 3.30'], ['Living + kitchen', 10.4, 5.0, '6.45 × 3.73'], ['+ hall part (open)', 6.2, 5.9, '2.01 × 2.73']],
-  swapOpen: [['Corridor (open)', 5.88, 3.62, '2.38 × 1.53'], ['Office', 10.4, 1.7, '6.45 × 3.30'], ['Living + kitchen', 10.4, 5.0, '6.45 × 3.73'], ['+ hall part (open)', 6.2, 5.9, '2.01 × 2.73']],
-  open: [['Corridor (open)', 5.88, 3.62, '2.38 × 1.53'], ['Kitchen + living (open)', 10.4, 3.0, '6.45 × 7.13'], ['+ hall part (open)', 6.9, 5.9, '3.70 × 2.73']],
-  glassNE: [['Corridor (open)', 5.88, 3.62, '2.38 × 1.53'], ['Glass office', 12.25, 1.65, '2.72 × 3.30'], ['Kitchen + living (open)', 9.3, 4.4, '6.45 × 7.13 minus office'], ['+ hall part (open)', 6.9, 5.9, '3.70 × 2.73']],
-  glassSE: [['Corridor (open)', 5.88, 3.62, '2.38 × 1.53'], ['Glass office', 12.3, 5.8, '2.62 × 2.63'], ['Kitchen + living (open)', 9.6, 3.0, '6.45 × 7.13 minus office'], ['+ hall part (open)', 6.9, 5.9, '3.70 × 2.73']]
+  softStudio: [['Bedroom 1', 1.55, 2.4, '3.19 × 3.98 + entry 1.30 × 0.93'], ['Walk-in closet', 3.94, 1.5, '1.30 × 2.95 (units 0.30 deep)'], ['Bedroom 2', 1.8, 5.6, '5.06 × 3.05'], RS_CORR, ['Hall', 7.0, 5.9, '3.70 × 2.73'], ['Studio (living + kitchen)', 10.4, 2.7, '6.45 × 4.32'], ['Office', 11.3, 5.9, '4.66 × 2.71']]
 };
 function roomSizes(L) {
   const key = L.walls || curLiving, extra = ROOM_SIZES[key] || ROOM_SIZES.open, list = [...RS_BASE.filter(r => !extra.some(e => e[0] === r[0])), ...extra];
@@ -1368,7 +1264,6 @@ const DESIGNS = {
       book(.5, -.2, .75, .2, .15, .04, M.book2, .1); } }] },
   deskchair: { label: 'Desk chair', items: [{ name: 'Swivel task chair', info: 'Ø0.60', build: () => taskChair(0, 0, -Math.PI / 2) }] }
 };
-const TYPE_OF_NAME = { 'Sofa': 'sofa', 'Coffee table': 'coffee', 'Dining table': 'dining', 'Dining chair': 'chair', 'Bar stool': 'stool', 'Armchair': 'armchair' };
 function endGRaw() { const g = CUR; CUR = world; const bb = new THREE.Box3(); g.updateMatrixWorld(true); g.traverse(o => { if (o.isMesh) bb.expandByObject(o); });
   g.userData = { movable: true, home: { x: 0, z: 0, r: 0 }, size: bb.getSize(new V3()), minY0: bb.min.y, custom: {} };
   if (!MKEY) MKEY = new Map(Object.entries(M).map(([k, v]) => [v, k]));
@@ -1386,182 +1281,6 @@ function replaceWith(old, type, d, keepCustom = true) {
   return g;
 }
 
-/* ================= kitchen + TV layout options ================= */
-function hobMatN(x0) { return P({ color: 0xffffff, map: planar(hobTex, x0, 5.90, .70, .40), roughness: .06, clearcoat: 1, clearcoatRoughness: .02 }); }
-function hobMatB(y0) { return P({ color: 0xffffff, map: planar(hobTex2, 5.30, y0, .40, .60), roughness: .06, clearcoat: 1, clearcoatRoughness: .02 }); }
-function kitchenNorth(variant) {
-  // run along the north wall (x 1.27–3.90, 0.62 deep) + fridge-freezer column (x 3.92–4.50) + wall cabinets
-  const bar = variant === 'bar';
-  beginG('Kitchen run');
-  cab({ axis: 'x', a1: 1.27, a2: 3.90, back: 5.82, front: 6.36, h1: .1, h2: .88, cols: bar ? [[.6, 1], [.6, 1], [.6, 1], [.8, 1]] : [[.8, 1], [.6, 1], [.65, 1], [.6, 3]], fm: M.lacquerChoco });
-  B(1.27, 5.82, 3.90, 6.30, 0, .1, M.carcass); B(1.29, 6.30, 3.88, 6.305, .02, .03, M.led, { cast: false });
-  B(1.25, 5.80, 3.90, 6.42, .88, .92, M.trav); B(1.25, 5.80, 3.90, 5.82, .92, 1.50, M.trav);
-  const hx = bar ? 2.47 : 2.66, sx = bar ? 1.37 : 1.42;
-  B(hx + .005, 6.36, hx + .64, 6.375, .30, .845, M.blackGlass); B(hx + .04, 6.378, hx + .6, 6.395, .79, .802, M.brass);
-  B(hx, 5.90, hx + .64, 6.30, .92, .926, hobMatN(hx - .03));
-  B(sx, 5.95, sx + .5, 6.30, .918, .9215, M.steelDark); C(sx + .25, 6.12, .025, .92, .9218, M.blackMetal, { cast: false });
-  C(sx + .25, 5.90, .028, .92, .97, M.brass); tube([[sx + .25, .96, 5.90], [sx + .25, 1.20, 5.92], [sx + .25, 1.30, 6.02], [sx + .25, 1.25, 6.13], [sx + .25, 1.12, 6.16]], .011, M.brass, { seg: 48 });
-  endG();
-  beginG('Fridge-freezer');
-  cab({ axis: 'x', a1: 3.92, a2: 4.50, back: 5.82, front: 6.45, h1: .1, h2: 2.70, cols: [[1, 2]], fm: M.lacquerChoco });
-  B(3.93, 5.82, 4.49, 6.39, 0, .1, M.carcass); B(4.48, 5.82, 4.50, 6.45, .1, 2.70, M.lacquerChoco);
-  B(3.94, 6.452, 3.955, 6.47, 1.55, 2.05, M.brass); B(3.94, 6.452, 3.955, 6.47, .95, 1.25, M.brass);
-  endG();
-  beginG('Wall cabinets');
-  cab({ axis: 'x', a1: 1.27, a2: 3.90, back: 5.82, front: 6.17, h1: 1.50, h2: 2.70, cols: [[1, 1], [1, 1], [1, 1], [1, 1]], fm: M.lacquerCream });
-  B(1.29, 6.11, 3.88, 6.15, 1.49, 1.50, M.led, { cast: false });
-  endG();
-  const ax = bar ? 2.0 : 2.11, cx = bar ? 3.45 : 3.56;
-  beginG('Air fryer');
-  RB(ax, 5.88, ax + .28, 6.20, .92, 1.24, .05, M.plastic, { seg: 5 }); RB(ax + .015, 6.15, ax + .265, 6.215, .935, 1.10, .02, M.plastic); B(ax + .09, 6.215, ax + .19, 6.245, 1.0, 1.06, M.blackMetal); B(ax + .06, 6.0, ax + .22, 6.15, 1.24, 1.243, M.display);
-  endG();
-  beginG('Coffee machine');
-  RB(cx, 5.84, cx + .28, 6.24, .92, 1.31, .02, M.steel); B(cx + .04, 6.239, cx + .24, 6.243, 1.19, 1.27, M.display); B(cx + .04, 6.10, cx + .24, 6.27, .92, .95, M.steelDark); B(cx + .09, 6.14, cx + .19, 6.24, 1.10, 1.15, M.blackMetal);
-  lathe([[0, 0], [.035, 0], [.04, .07], [.036, .075], [0, .01]], cx + .14, 6.19, .95, M.ceramic); lathe([[0, 0], [.07, 0], [.08, .12], [.075, .13], [0, .13]], cx + .14, 5.95, 1.31, M.glassTint);
-  endG();
-}
-function peninsulaNorth() {
-  // the counter turns 90° at the east end and runs south in front of the kitchen; drawers face the cook, stools on the room side
-  beginG('Kitchen bar');
-  B(3.0, 6.42, 3.9, 7.62, .86, .90, M.trav);
-  cab({ axis: 'y', a1: 6.44, a2: 7.58, back: 3.6, front: 3.02, h1: .1, h2: .86, cols: [[.57, 3], [.57, 1]], fm: M.lacquerChoco });
-  B(3.06, 6.46, 3.56, 7.56, 0, .1, M.carcass); B(3.0, 7.58, 3.9, 7.62, 0, .86, M.trav); B(3.6, 6.44, 3.62, 7.58, 0, .86, M.walnut);
-  RB(3.25, 6.6, 3.65, 6.9, .90, .915, .01, M.walnut); lathe([[0, 0], [.07, 0], [.08, .05], [.065, .15], [.03, .18], [0, .19]], 3.4, 6.75, .915, M.ceramic);
-  lathe([[0, 0], [.07, 0], [.14, .05], [.16, .09], [0, .02]], 3.45, 7.3, .90, M.stoneware); [[3.41, 7.28], [3.49, 7.32], [3.45, 7.24]].forEach(([x, y]) => S(x, y, .97, .037, M.fruit));
-  [6.75, 7.3].forEach(y => { S(3.6, y, 1.72, .1, M.opal, { cast: false }); C(3.6, y, .02, 1.81, 1.84, M.brass); C(3.6, y, .003, 1.84, H, M.blackMetal, { seg: 6 }); C(3.6, y, .04, H - .015, H, M.brass); });
-  lamp(3.6, 7.0, 1.55, 0xffd3a0, 3);
-  endG();
-}
-function islandNorth() {
-  // small work island 1.10 × 0.90 with a 1.00 m aisle to the north counter; stools on the south side
-  beginG('Kitchen island');
-  cab({ axis: 'x', a1: 1.57, a2: 2.63, back: 8.02, front: 7.44, h1: .1, h2: .86, cols: [[.53, 3], [.53, 1]], fm: M.lacquerChoco });
-  B(1.61, 7.46, 2.59, 7.98, 0, .1, M.carcass);
-  B(1.55, 7.42, 2.65, 8.32, .86, .90, M.trav); B(1.55, 7.42, 1.59, 8.32, 0, .86, M.trav); B(2.61, 7.42, 2.65, 8.32, 0, .86, M.trav); B(1.59, 8.02, 2.61, 8.04, 0, .86, M.walnut);
-  lathe([[0, 0], [.07, 0], [.14, .05], [.16, .09], [0, .02]], 2.35, 7.75, .90, M.stoneware); [[2.31, 7.73], [2.39, 7.77], [2.35, 7.69]].forEach(([x, y]) => S(x, y, .97, .037, M.fruit));
-  RB(1.7, 7.55, 2.05, 7.85, .90, .92, .01, M.oakFurn);
-  [1.85, 2.35].forEach(x => { S(x, 7.87, 1.72, .1, M.opal, { cast: false }); C(x, 7.87, .02, 1.81, 1.84, M.brass); C(x, 7.87, .003, 1.84, H, M.blackMetal, { seg: 6 }); C(x, 7.87, .04, H - .015, H, M.brass); });
-  lamp(2.1, 7.87, 1.55, 0xffd3a0, 3);
-  endG();
-}
-function kitchenEast(variant) {
-  if (variant === 'bar') {
-  beginG('Kitchen run');
-  // east run, north to south: (fridge) · blind corner under the bar · dishwasher 0.60 · hob + oven 0.60 · sink 0.60
-  cab({ axis: 'y', a1: 7.07, a2: 7.95, back: 5.78, front: 5.24, h1: .1, h2: .88, cols: [[1, 1]], fm: M.lacquerChoco });
-  cab({ axis: 'y', a1: 7.97, a2: 9.77, back: 5.78, front: 5.24, h1: .1, h2: .88, cols: [[.6, 1], [.6, 1], [.6, 1]], fm: M.lacquerChoco });
-  B(5.24, 9.77, 5.78, 9.86, .1, .88, M.lacquerChoco);
-  B(5.30, 7.07, 5.78, 9.86, 0, .1, M.carcass);
-  B(5.295, 7.09, 5.30, 9.84, .02, .03, M.led, { cast: false });
-  B(5.225, 8.575, 5.24, 9.165, .30, .845, M.blackGlass); B(5.205, 8.61, 5.222, 9.13, .79, .802, M.brass);
-  B(5.18, 7.07, 5.80, 9.86, .88, .92, M.trav);
-  B(5.78, 7.07, 5.80, 9.86, .92, 1.50, M.trav);
-  B(5.30, 8.57, 5.70, 9.17, .92, .926, hobMatB(8.57));
-  B(5.30, 9.25, 5.65, 9.70, .918, .9215, M.steelDark); C(5.47, 9.47, .025, .92, .9218, M.blackMetal, { cast: false });
-  C(5.74, 9.47, .028, .92, .97, M.brass); tube([[5.74, .96, 9.47], [5.72, 1.20, 9.47], [5.62, 1.30, 9.47], [5.51, 1.25, 9.47], [5.48, 1.12, 9.47]], .011, M.brass, { seg: 48 });
-  B(5.73, 9.52, 5.76, 9.60, .975, .985, M.brass);
-  endG();
-  beginG('Kitchen bar');
-  // the counter turns 90° at the north end and runs west in front of the kitchen: 1.90 × 0.90 top at 0.90 m,
-  // drawers face the cook (south), 0.30 m overhang on the room side (north) for 2 stools facing the kitchen
-  B(3.90, 7.07, 5.18, 7.97, .86, .90, M.trav);
-  cab({ axis: 'x', a1: 3.94, a2: 5.18, back: 7.37, front: 7.97, h1: .1, h2: .86, cols: [[.62, 3], [.62, 1]], fm: M.lacquerChoco });
-  B(3.98, 7.39, 5.18, 7.93, 0, .1, M.carcass);
-  B(3.90, 7.07, 3.94, 7.97, 0, .86, M.trav);
-  B(3.94, 7.35, 5.18, 7.37, .0, .86, M.walnut);
-  lathe([[0, 0], [.07, 0], [.14, .05], [.16, .09], [0, .02]], 4.2, 7.55, .90, M.stoneware);
-  [[4.16, 7.53], [4.24, 7.57], [4.2, 7.49]].forEach(([x, y]) => S(x, y, .97, .037, M.fruit));
-  RB(4.55, 7.42, 4.95, 7.72, .90, .915, .01, M.walnut);
-  lathe([[0, 0], [.07, 0], [.08, .05], [.065, .15], [.03, .18], [0, .19]], 4.68, 7.57, .915, M.ceramic);
-  lathe([[0, 0], [.035, 0], [.04, .08], [0, .08]], 4.85, 7.5, .915, M.stoneware);
-  [4.25, 4.85].forEach(x => { S(x, 7.52, 1.72, .1, M.opal, { cast: false }); C(x, 7.52, .02, 1.81, 1.84, M.brass); C(x, 7.52, .003, 1.84, H, M.blackMetal, { seg: 6 }); C(x, 7.52, .04, H - .015, H, M.brass); });
-  lamp(4.55, 7.52, 1.55, 0xffd3a0, 3);
-  endG();
-  beginG('Fridge-freezer');
-  cab({ axis: 'y', a1: 6.45, a2: 7.05, back: 5.80, front: 5.17, h1: .1, h2: 2.70, cols: [[1, 2]], fm: M.lacquerChoco });
-  B(5.23, 6.46, 5.79, 7.04, 0, .1, M.carcass); B(5.17, 6.43, 5.80, 6.45, .1, 2.70, M.lacquerChoco);
-  B(5.15, 7.01, 5.168, 7.025, 1.55, 2.05, M.brass); B(5.15, 7.01, 5.168, 7.025, .95, 1.25, M.brass);
-  endG();
-  beginG('Wall cabinets');
-  cab({ axis: 'y', a1: 7.07, a2: 9.86, back: 5.80, front: 5.45, h1: 1.50, h2: 2.70, cols: [[1, 1], [1, 1], [1, 1], [1, 1]], fm: M.lacquerCream });
-  B(5.455, 7.09, 5.49, 9.84, 1.49, 1.50, M.led, { cast: false });
-  endG();
-  beginG('Air fryer');
-  RB(5.36, 8.12, 5.68, 8.40, .92, 1.24, .05, M.plastic, { seg: 5 });
-  RB(5.305, 8.135, 5.37, 8.385, .935, 1.10, .02, M.plastic); B(5.275, 8.21, 5.305, 8.31, 1.0, 1.06, M.blackMetal);
-  B(5.40, 8.18, 5.55, 8.34, 1.24, 1.243, M.display);
-  endG();
-  beginG('Coffee machine');
-  RB(5.36, 7.55, 5.76, 7.83, .92, 1.31, .02, M.steel);
-  B(5.357, 7.59, 5.361, 7.79, 1.19, 1.27, M.display);
-  B(5.33, 7.59, 5.50, 7.79, .92, .95, M.steelDark); B(5.36, 7.64, 5.46, 7.74, 1.10, 1.15, M.blackMetal);
-  lathe([[0, 0], [.035, 0], [.04, .07], [.036, .075], [0, .01]], 5.41, 7.69, .95, M.ceramic);
-  lathe([[0, 0], [.07, 0], [.08, .12], [.075, .13], [0, .13]], 5.62, 7.69, 1.31, M.glassTint);
-  endG();
-  beginG('Oil bottles');
-  lathe([[0, 0], [.03, 0], [.032, .2], [.012, .25], [.01, .29], [0, .29]], 5.72, 8.46, .92, M.glassTint); lathe([[0, 0], [.028, 0], [.03, .17], [.012, .22], [.01, .25], [0, .25]], 5.72, 8.52, .92, M.stonewareDark);
-  endG();
-  } else {
-  beginG('Kitchen run');
-  // straight east run, north to south: drawers 0.60 · hob + oven 0.65 · dishwasher 0.60 · sink 0.95, fridge at the south end
-  cab({ axis: 'y', a1: 6.45, a2: 9.25, back: 5.78, front: 5.24, h1: .1, h2: .88, cols: [[.6, 3], [.65, 1], [.6, 1], [.95, 1]], fm: M.lacquerChoco });
-  B(5.30, 6.45, 5.78, 9.25, 0, .1, M.carcass); B(5.295, 6.47, 5.30, 9.23, .02, .03, M.led, { cast: false });
-  B(5.225, 7.055, 5.24, 7.695, .30, .845, M.blackGlass); B(5.205, 7.09, 5.222, 7.66, .79, .802, M.brass);
-  B(5.18, 6.45, 5.80, 9.25, .88, .92, M.trav); B(5.78, 6.45, 5.80, 9.25, .92, 1.50, M.trav);
-  B(5.30, 7.08, 5.70, 7.68, .92, .926, hobMatB(7.08));
-  B(5.30, 8.50, 5.65, 9.05, .918, .9215, M.steelDark); C(5.47, 8.78, .025, .92, .9218, M.blackMetal, { cast: false });
-  C(5.74, 8.78, .028, .92, .97, M.brass); tube([[5.74, .96, 8.78], [5.72, 1.20, 8.78], [5.62, 1.30, 8.78], [5.51, 1.25, 8.78], [5.48, 1.12, 8.78]], .011, M.brass, { seg: 48 });
-  endG();
-  beginG('Fridge-freezer');
-  cab({ axis: 'y', a1: 9.27, a2: 9.86, back: 5.80, front: 5.17, h1: .1, h2: 2.70, cols: [[1, 2]], fm: M.lacquerChoco });
-  B(5.23, 9.28, 5.79, 9.85, 0, .1, M.carcass); B(5.17, 9.25, 5.80, 9.27, .1, 2.70, M.lacquerChoco);
-  B(5.15, 9.30, 5.168, 9.315, 1.55, 2.05, M.brass); B(5.15, 9.30, 5.168, 9.315, .95, 1.25, M.brass);
-  endG();
-  beginG('Wall cabinets');
-  cab({ axis: 'y', a1: 6.45, a2: 9.25, back: 5.80, front: 5.45, h1: 1.50, h2: 2.70, cols: [[1, 1], [1, 1], [1, 1], [1, 1]], fm: M.lacquerCream });
-  B(5.455, 6.47, 5.49, 9.23, 1.49, 1.50, M.led, { cast: false });
-  endG();
-  beginG('Air fryer');
-  RB(5.36, 6.61, 5.68, 6.89, .92, 1.24, .05, M.plastic, { seg: 5 }); RB(5.305, 6.625, 5.37, 6.875, .935, 1.10, .02, M.plastic); B(5.275, 6.70, 5.305, 6.80, 1.0, 1.06, M.blackMetal); B(5.40, 6.67, 5.55, 6.83, 1.24, 1.243, M.display);
-  endG();
-  beginG('Coffee machine');
-  RB(5.36, 7.81, 5.76, 8.09, .92, 1.31, .02, M.steel); B(5.357, 7.85, 5.361, 8.05, 1.19, 1.27, M.display); B(5.33, 7.85, 5.50, 8.05, .92, .95, M.steelDark); B(5.36, 7.90, 5.46, 8.00, 1.10, 1.15, M.blackMetal);
-  lathe([[0, 0], [.035, 0], [.04, .07], [.036, .075], [0, .01]], 5.41, 7.95, .95, M.ceramic); lathe([[0, 0], [.07, 0], [.08, .12], [.075, .13], [0, .13]], 5.62, 7.95, 1.31, M.glassTint);
-  endG();
-  }
-}
-function tvNorth() {
-  beginG('TV wall panel');
-  B(1.6, 5.80, 4.1, 5.835, 0, 2.70, M.walnut);
-  { const geos = [], N = 50, w = 2.50 / N; for (let i = 0; i < N; i++) { const g = new THREE.CylinderGeometry(w / 2, w / 2, 2.70, 12, 1, true, -Math.PI / 2, Math.PI); g.translate(1.6 + w / 2 + i * w, 1.35, 5.835); geos.push(g); }
-    merged(geos, M.walnut, { clampMesh: true }); }
-  B(1.58, 5.80, 1.60, 5.86, 0, 2.70, M.led, { cast: false }); B(4.10, 5.80, 4.12, 5.86, 0, 2.70, M.led, { cast: false });
-  endG();
-  beginG('TV + console');
-  cab({ axis: 'x', a1: 2.0, a2: 3.7, back: 5.86, front: 6.24, h1: .24, h2: .52, cols: [[1, 1], [1, 1], [1, 1]], fm: M.walnut });
-  B(2.05, 5.88, 3.65, 6.18, .22, .225, M.led, { cast: false });
-  B(2.13, 5.86, 3.57, 5.89, .98, 1.80, M.blackMetal); B(2.15, 5.89, 3.55, 5.893, 1.0, 1.78, M.screenB, { cast: false });
-  RB(2.35, 5.90, 3.35, 6.01, .52, .58, .02, M.blackMetal);
-  vase(2.17, 6.05, .52, .9, M.stoneware); book(3.52, 6.05, .52, .22, .16, .035, M.book1, .1); S(3.52, 6.05, .62, .045, M.brass);
-  lamp(2.85, 6.3, 1.3, 0x9fc4ff, .8);
-  endG();
-}
-function tvEast() {
-  beginG('TV wall panel');
-  B(5.765, 6.95, 5.80, 9.45, 0, 2.70, M.walnut);
-  { const geos = [], N = 50, w = 2.50 / N; for (let i = 0; i < N; i++) { const g = new THREE.CylinderGeometry(w / 2, w / 2, 2.70, 12, 1, true, Math.PI, Math.PI); g.translate(5.765, 1.35, 6.95 + w / 2 + i * w); geos.push(g); }
-    merged(geos, M.walnut, { clampMesh: true }); }
-  B(5.74, 6.93, 5.80, 6.95, 0, 2.70, M.led, { cast: false }); B(5.74, 9.45, 5.80, 9.47, 0, 2.70, M.led, { cast: false });
-  endG();
-  beginG('TV + console');
-  cab({ axis: 'y', a1: 7.35, a2: 9.05, back: 5.74, front: 5.36, h1: .24, h2: .52, cols: [[1, 1], [1, 1], [1, 1]], fm: M.walnut });
-  B(5.40, 7.40, 5.70, 9.00, .22, .225, M.led, { cast: false });
-  B(5.69, 7.48, 5.72, 8.92, 0.98, 1.80, M.blackMetal); B(5.687, 7.50, 5.69, 8.90, 1.0, 1.78, M.screen, { cast: false });
-  RB(5.55, 7.70, 5.66, 8.70, .52, .58, .02, M.blackMetal);
-  vase(5.55, 7.52, .52, .9, M.stoneware); book(5.55, 8.85, .52, .22, .16, .035, M.book1, .1); S(5.55, 8.85, .62, .045, M.brass);
-  lamp(5.45, 8.2, 1.3, 0x9fc4ff, .8);
-  endG();
-}
 function livingRug(cx, cy, rx, ry) { beginG('Living rug');
   const s = new THREE.Shape(), n = 96; for (let i = 0; i <= n; i++) { const t = i / n * Math.PI * 2, rr = 1 + .05 * Math.sin(3 * t) + .03 * Math.cos(5 * t);
     const x = cx + rx * rr * Math.cos(t), y = cy + ry * rr * Math.sin(t); i ? s.lineTo(x, -y) : s.moveTo(x, -y); }
@@ -1575,241 +1294,7 @@ function diningDecor(x, y) {
   [[0, 0, 1.78, .16], [.2, .1, 1.98, .11], [-.18, .12, 2.06, .09]].forEach(([dx, dy, h, r]) => { S(x + dx, y + dy, h, r, M.opal, { cast: false }); C(x + dx, y + dy, .025, h + r - .01, h + r + .03, M.brass); C(x + dx, y + dy, .003, h + r + .03, H, M.blackMetal, { seg: 6 }); C(x + dx, y + dy, .045, H - .015, H, M.brass); });
   lamp(x, y, 1.55, 0xffcf98, 9); endG(); }
 function typed(type, d, x, y, face = 0, opts) { const g = makeTyped(type, d, opts); g.position.set(x, 0, y); g.rotation.y = face; g.userData.home = { x, z: y, r: face }; movables.push(g); return g; }
-const chairsAround = (cx, cy, d = .62) => [[0, -1], [1, 0], [0, 1], [-1, 0]].map(([a, b]) => [cx + a * d, cy + b * d, faceTo(cx + a * d, cy + b * d, cx, cy)]);
-function roundDining(x, y) { typed('dining', 0, x, y); chairsAround(x, y).forEach(([cx, cy, f]) => typed('chair', 0, cx, cy, f)); diningDecor(x, y); }
-const SOFA = { modern: 0, chesterfield: 1, mid: 2, cloud: 3, chaiseL: 4, curved: 5, chaiseR: 6 };
-/* ---- open-plan building blocks (shared by the five open layouts) ---- */
-function islandX(x1, x2, y1, y2, frontSouth, over = 0) { // island along x, 0.62 deep; front = kitchen side
-  beginG('Kitchen island');
-  const back = frontSouth ? y1 + .02 : y2 - .02, front = frontSouth ? y2 - .02 : y1 + .02;
-  cab({ axis: 'x', a1: x1 + .04, a2: x2 - .04, back, front, h1: .1, h2: .88, cols: [[.6, 1], [.4, 3], [.6, 1]], fm: M.lacquerChoco });
-  B(x1 + .08, y1 + .06, x2 - .08, y2 - .06, 0, .1, M.carcass);
-  const ty1 = frontSouth ? y1 - over : y1, ty2 = frontSouth ? y2 : y2 + over;
-  B(x1, ty1, x2, ty2, .88, .92, M.trav); B(x1, ty1, x1 + .04, ty2, 0, .88, M.trav); B(x2 - .04, ty1, x2, ty2, 0, .88, M.trav);
-  frontSouth ? B(x1 + .04, y1, x2 - .04, y1 + .02, 0, .88, M.walnut) : B(x1 + .04, y2 - .02, x2 - .04, y2, 0, .88, M.walnut);
-  const cy = (y1 + y2) / 2;
-  lathe([[0, 0], [.07, 0], [.14, .05], [.16, .09], [0, .02]], x2 - .3, cy, .92, M.stoneware); [[-.04, -.02], [.04, .02], [0, -.06]].forEach(([dx, dy]) => S(x2 - .3 + dx, cy + dy, .99, .037, M.fruit));
-  RB(x1 + .14, cy - .15, x1 + .54, cy + .15, .92, .94, .01, M.oakFurn);
-  [x1 + (x2 - x1) * .3, x1 + (x2 - x1) * .7].forEach(x => { S(x, cy, 1.75, .1, M.opal, { cast: false }); C(x, cy, .02, 1.84, 1.87, M.brass); C(x, cy, .003, 1.87, H, M.blackMetal, { seg: 6 }); C(x, cy, .04, H - .015, H, M.brass); });
-  lamp((x1 + x2) / 2, cy, 1.55, 0xffd3a0, 4);
-  endG(); }
-function islandY(y1, y2, x1, x2, over = 0) { // island along y, front (kitchen) faces west, overhang east for stools
-  beginG('Kitchen island');
-  cab({ axis: 'y', a1: y1 + .04, a2: y2 - .04, back: x2 - .02, front: x1 + .02, h1: .1, h2: .88, cols: [[.6, 1], [.4, 3], [.6, 1]], fm: M.lacquerChoco });
-  B(x1 + .06, y1 + .08, x2 - .06, y2 - .08, 0, .1, M.carcass);
-  B(x1, y1, x2 + over, y2, .88, .92, M.trav); B(x1, y1, x2 + over, y1 + .04, 0, .88, M.trav); B(x1, y2 - .04, x2 + over, y2, 0, .88, M.trav); B(x2 - .02, y1 + .04, x2, y2 - .04, 0, .88, M.walnut);
-  const cx = (x1 + x2 + over) / 2;
-  RB(cx - .15, y1 + .14, cx + .15, y1 + .54, .92, .94, .01, M.oakFurn);
-  [y1 + (y2 - y1) * .25, y1 + (y2 - y1) * .75].forEach(y => { S(cx, y, 1.75, .1, M.opal, { cast: false }); C(cx, y, .02, 1.84, 1.87, M.brass); C(cx, y, .003, 1.87, H, M.blackMetal, { seg: 6 }); C(cx, y, .04, H - .015, H, M.brass); });
-  lamp(cx, (y1 + y2) / 2, 1.55, 0xffd3a0, 4);
-  endG(); }
-function oTvNorth(cx) { const d = cx - 12.4; // TV wall on the solid north wall, faces south
-  beginG('TV wall panel'); B(11.25 + d, 0, 13.55 + d, .035, 0, 2.7, M.walnut);
-  { const geos = [], N = 46, w = 2.3 / N; for (let i = 0; i < N; i++) { const g = new THREE.CylinderGeometry(w / 2, w / 2, 2.7, 12, 1, true, -Math.PI / 2, Math.PI); g.translate(11.25 + d + w / 2 + i * w, 1.35, .035); geos.push(g); } merged(geos, M.walnut, { clampMesh: true }); }
-  B(11.23 + d, 0, 11.25 + d, .06, 0, 2.7, M.led, { cast: false }); B(13.55 + d, 0, 13.57 + d, .06, 0, 2.7, M.led, { cast: false }); endG();
-  beginG('TV + console'); cab({ axis: 'x', a1: 11.55 + d, a2: 13.25 + d, back: .06, front: .44, h1: .24, h2: .52, cols: [[1, 1], [1, 1], [1, 1]], fm: M.walnut });
-  B(11.6 + d, .1, 13.2 + d, .4, .22, .225, M.led, { cast: false }); B(11.68 + d, .06, 13.12 + d, .09, .98, 1.8, M.blackMetal);
-  B(11.70 + d, .09, 13.10 + d, .093, 1.0, 1.78, P({ color: 0x050506, roughness: .08, clearcoat: 1, emissive: 0xffffff, emissiveMap: planar(tvTex, 11.70 + d, 1.0, 1.40, .78), emissiveIntensity: 0, nightIntensity: 1.6 }), { cast: false });
-  RB(11.9 + d, .28, 12.9 + d, .39, .52, .58, .02, M.blackMetal); vase(11.69 + d, .26, .52, .9, M.stoneware); book(13.06 + d, .26, .52, .22, .16, .035, M.book1, .1); lamp(12.4 + d, .5, 1.3, 0x9fc4ff, .8); endG(); }
-function tvSouth(cx) { const d = cx - 12.1; // TV wall on the solid south wall (east of the shaft), faces north
-  beginG('TV wall panel'); B(10.95 + d, 7.095, 13.25 + d, 7.13, 0, 2.7, M.walnut);
-  { const geos = [], N = 46, w = 2.3 / N; for (let i = 0; i < N; i++) { const g = new THREE.CylinderGeometry(w / 2, w / 2, 2.7, 12, 1, true, Math.PI / 2, Math.PI); g.translate(10.95 + d + w / 2 + i * w, 1.35, 7.095); geos.push(g); } merged(geos, M.walnut, { clampMesh: true }); }
-  B(10.93 + d, 7.07, 10.95 + d, 7.13, 0, 2.7, M.led, { cast: false }); B(13.25 + d, 7.07, 13.27 + d, 7.13, 0, 2.7, M.led, { cast: false }); endG();
-  beginG('TV + console'); cab({ axis: 'x', a1: 11.25 + d, a2: 12.95 + d, back: 7.07, front: 6.69, h1: .24, h2: .52, cols: [[1, 1], [1, 1], [1, 1]], fm: M.walnut });
-  B(11.3 + d, 6.73, 12.9 + d, 7.03, .22, .225, M.led, { cast: false }); B(11.38 + d, 7.04, 12.82 + d, 7.07, .98, 1.8, M.blackMetal);
-  B(11.40 + d, 7.037, 12.80 + d, 7.04, 1.0, 1.78, P({ color: 0x050506, roughness: .08, clearcoat: 1, emissive: 0xffffff, emissiveMap: planar(tvTex, 11.40 + d, 1.0, 1.40, .78, true), emissiveIntensity: 0, nightIntensity: 1.6 }), { cast: false });
-  RB(11.6 + d, 6.76, 12.6 + d, 6.87, .52, .58, .02, M.blackMetal); vase(11.39 + d, 6.87, .52, .9, M.stoneware); book(12.76 + d, 6.87, .52, .22, .16, .035, M.book1, .1); lamp(12.1 + d, 6.5, 1.3, 0x9fc4ff, .8); endG(); }
-function tvShaft() { // 65" on the service-shaft face, faces north
-  beginG('TV wall panel'); B(9.27, 6.605, 10.86, 6.64, 0, 2.7, M.walnut);
-  { const geos = [], N = 32, w = 1.59 / N; for (let i = 0; i < N; i++) { const g = new THREE.CylinderGeometry(w / 2, w / 2, 2.7, 12, 1, true, Math.PI / 2, Math.PI); g.translate(9.27 + w / 2 + i * w, 1.35, 6.605); geos.push(g); } merged(geos, M.walnut, { clampMesh: true }); }
-  endG();
-  beginG('TV + console'); cab({ axis: 'x', a1: 9.33, a2: 10.81, back: 6.58, front: 6.22, h1: .24, h2: .52, cols: [[1, 1], [1, 1]], fm: M.walnut });
-  B(9.38, 6.26, 10.76, 6.54, .22, .225, M.led, { cast: false }); B(9.35, 6.55, 10.79, 6.58, .98, 1.8, M.blackMetal);
-  B(9.37, 6.547, 10.77, 6.55, 1.0, 1.78, P({ color: 0x050506, roughness: .08, clearcoat: 1, emissive: 0xffffff, emissiveMap: planar(tvTex, 9.37, 1.0, 1.40, .78, true), emissiveIntensity: 0, nightIntensity: 1.6 }), { cast: false });
-  RB(9.57, 6.33, 10.57, 6.44, .52, .58, .02, M.blackMetal); vase(9.45, 6.4, .52, .9, M.stoneware); lamp(10.07, 6.1, 1.3, 0x9fc4ff, .8); endG(); }
-function oTvEast() { // 55" on the solid east-wall pier between the window and the balcony door, faces west
-  beginG('TV wall panel'); B(13.585, 3.30, 13.62, 4.69, 0, 2.7, M.walnut); B(13.56, 3.28, 13.62, 3.30, 0, 2.7, M.led, { cast: false }); B(13.56, 4.69, 13.62, 4.71, 0, 2.7, M.led, { cast: false }); endG();
-  beginG('TV + console'); cab({ axis: 'y', a1: 3.35, a2: 4.64, back: 13.585, front: 13.21, h1: .24, h2: .52, cols: [[1, 1], [1, 1]], fm: M.walnut });
-  B(13.25, 3.4, 13.55, 4.6, .22, .225, M.led, { cast: false }); B(13.555, 3.37, 13.585, 4.62, 1.0, 1.72, M.blackMetal); B(13.552, 3.39, 13.555, 4.60, 1.02, 1.70, M.screen, { cast: false });
-  RB(13.38, 3.6, 13.49, 4.4, .52, .58, .02, M.blackMetal); vase(13.4, 3.45, .52, .9, M.stoneware); lamp(13.0, 4.0, 1.3, 0x9fc4ff, .8); endG(); }
-function shelfShaft() {
-  beginG('Bookshelf'); B(9.27, 6.30, 10.86, 6.64, 0, .04, M.oakFurn); B(9.27, 6.30, 9.30, 6.64, 0, 2.4, M.oakFurn); B(10.83, 6.30, 10.86, 6.64, 0, 2.4, M.oakFurn); B(10.04, 6.30, 10.07, 6.64, 0, 2.4, M.oakFurn);
-  [.45, .85, 1.25, 1.65, 2.05, 2.37].forEach(h => B(9.27, 6.30, 10.86, 6.64, h, h + .03, M.oakFurn));
-  const bm = [M.book1, M.book2, M.book3, M.paper]; [.48, .88, 1.28, 1.68].forEach((h, r) => { let x = 9.33; while (x < 10.75) { const w = .025 + rand() * .03, hh = .22 + rand() * .1; if (x + w > 10.0 && x < 10.1) { x = 10.1; continue; } B(x, 6.36, x + w, 6.6, h, h + hh, bm[(r + Math.floor(x * 37)) % 4]); x += w + .004; } });
-  vase(10.45, 6.47, 2.08, .6, M.stonewareDark); endG(); }
-function shelfNorth(x1) { // 1.59 m bookshelf against the north wall
-  beginG('Bookshelf'); const x2 = x1 + 1.59, xm = x1 + .77; B(x1, 0, x2, .34, 0, .04, M.oakFurn); B(x1, 0, x1 + .03, .34, 0, 2.4, M.oakFurn); B(x2 - .03, 0, x2, .34, 0, 2.4, M.oakFurn); B(xm, 0, xm + .03, .34, 0, 2.4, M.oakFurn);
-  [.45, .85, 1.25, 1.65, 2.05, 2.37].forEach(h => B(x1, 0, x2, .34, h, h + .03, M.oakFurn));
-  const bm = [M.book1, M.book2, M.book3, M.paper]; [.48, .88, 1.28, 1.68].forEach((h, r) => { let x = x1 + .06; while (x < x2 - .11) { const w = .025 + rand() * .03, hh = .22 + rand() * .1; if (x + w > xm - .04 && x < xm + .06) { x = xm + .06; continue; } B(x, .04, x + w, .28, h, h + hh, bm[(r + Math.floor(x * 37)) % 4]); x += w + .004; } });
-  vase(x2 - .4, .17, 2.08, .6, M.stonewareDark); endG(); }
-function shelfWest() { // 1.60 m bookshelf on the bathroom wall
-  beginG('Bookshelf'); B(7.17, .25, 7.51, 1.85, 0, .04, M.oakFurn); B(7.17, .25, 7.51, .28, 0, 2.4, M.oakFurn); B(7.17, 1.82, 7.51, 1.85, 0, 2.4, M.oakFurn); B(7.17, 1.035, 7.51, 1.065, 0, 2.4, M.oakFurn);
-  [.45, .85, 1.25, 1.65, 2.05, 2.37].forEach(h => B(7.17, .25, 7.51, 1.85, h, h + .03, M.oakFurn));
-  const bm = [M.book1, M.book2, M.book3, M.paper]; [.48, .88, 1.28, 1.68].forEach((h, r) => { let y = .31; while (y < 1.76) { const w = .025 + rand() * .03, hh = .22 + rand() * .1; if (y + w > 1.0 && y < 1.1) { y = 1.1; continue; } B(7.21, y, 7.45, y + w, h, h + hh, bm[(r + Math.floor(y * 37)) % 4]); y += w + .004; } });
-  vase(7.34, 1.45, 2.08, .6, M.stonewareDark); endG(); }
-function dining4(x, y, along = 'x') { // rectangular 1.40 table, 2 chairs per long side
-  if (along === 'x') { typed('dining', 5, x, y); [[x - .35, y - .62, FACE.S], [x + .35, y - .62, FACE.S], [x - .35, y + .62, FACE.N], [x + .35, y + .62, FACE.N]].forEach(([a, b, f]) => typed('chair', 0, a, b, f)); }
-  else { typed('dining', 5, x, y, FACE.E); [[x - .62, y - .35, FACE.E], [x - .62, y + .35, FACE.E], [x + .62, y - .35, FACE.W], [x + .62, y + .35, FACE.W]].forEach(([a, b, f]) => typed('chair', 0, a, b, f)); }
-  diningDecor(x, y); }
-function kitNW() {
-      // L-shaped corner kitchen: north leg (hob) + west leg on the bathroom wet wall (sink, dishwasher) ending in fridge + oven towers
-      beginG('Kitchen run');
-      cab({ axis: 'x', a1: 7.19, a2: 7.79, back: 0, front: .58, h1: .1, h2: .88, cols: [[1, 1]], fm: M.lacquerChoco });
-      cab({ axis: 'x', a1: 7.81, a2: 8.84, back: 0, front: .58, h1: .1, h2: .88, cols: [[.6, 1], [.43, 3]], fm: M.lacquerChoco });
-      cab({ axis: 'y', a1: .64, a2: 2.29, back: 7.17, front: 7.75, h1: .1, h2: .88, cols: [[.6, 1], [.6, 1], [.45, 3]], fm: M.lacquerChoco });
-      B(7.19, .02, 8.82, .52, 0, .1, M.carcass); B(7.19, .52, 7.69, 2.27, 0, .1, M.carcass);
-      B(7.17, 0, 8.86, .62, .88, .92, M.trav); B(7.17, .62, 7.79, 2.31, .88, .92, M.trav);
-      B(7.17, 0, 8.86, .02, .92, 1.5, M.trav); B(7.17, .02, 7.19, 2.31, .92, 1.5, M.trav);
-      B(7.86, .06, 8.44, .54, .92, .926, hobAt(7.83, .05)); B(7.865, .58, 8.435, .595, .30, .845, M.blackGlass); B(7.9, .595, 8.4, .612, .79, .802, M.brass);
-      B(7.27, .72, 7.65, 1.2, .918, .9215, M.steelDark); C(7.46, .96, .025, .92, .9218, M.blackMetal, { cast: false });
-      C(7.21, .96, .028, .92, .97, M.brass); tube([[7.21, .96, .96], [7.23, 1.20, .96], [7.33, 1.30, .96], [7.44, 1.25, .96], [7.47, 1.12, .96]], .011, M.brass, { seg: 48 });
-      B(7.71, .66, 7.73, 2.27, .02, .03, M.led, { cast: false }); B(7.21, .54, 8.82, .56, .02, .03, M.led, { cast: false });
-      cab({ axis: 'y', a1: 2.31, a2: 2.91, back: 7.17, front: 7.79, h1: .1, h2: 2.6, cols: [[1, 2]], fm: M.lacquerChoco });
-      cab({ axis: 'y', a1: 2.93, a2: 3.51, back: 7.17, front: 7.79, h1: .1, h2: 2.6, cols: [[1, 3]], fm: M.lacquerChoco });
-      B(7.79, 2.96, 7.805, 3.48, .86, 1.46, M.blackGlass); B(7.805, 3.0, 7.822, 3.44, 1.42, 1.432, M.brass); B(7.19, 2.33, 7.69, 3.49, 0, .1, M.carcass);
-      endG();
-      beginG('Wall cabinets');
-      cab({ axis: 'y', a1: .02, a2: 2.29, back: 7.17, front: 7.52, h1: 1.5, h2: 2.6, cols: [[1, 1], [1, 1], [1, 1], [1, 1]], fm: M.lacquerCream });
-      cab({ axis: 'x', a1: 7.54, a2: 8.84, back: 0, front: .35, h1: 1.5, h2: 2.6, cols: [[.3, 1], [.6, 1], [.4, 1]], fm: M.lacquerCream });
-      B(7.49, .02, 7.53, 2.27, 1.49, 1.5, M.led, { cast: false }); B(7.54, .31, 8.82, .35, 1.49, 1.5, M.led, { cast: false });
-      endG();
-      beginG('Coffee machine'); RB(7.2, 1.92, 7.6, 2.2, .92, 1.31, .02, M.steel); B(7.6, 1.96, 7.604, 2.16, 1.19, 1.27, M.display); B(7.45, 1.96, 7.65, 2.16, .92, .95, M.steelDark); endG();
-      beginG('Air fryer'); RB(8.5, .1, 8.78, .42, .92, 1.24, .05, M.plastic, { seg: 5 }); RB(8.515, .37, 8.765, .435, .935, 1.10, .02, M.plastic); B(8.59, .435, 8.69, .465, 1.0, 1.06, M.blackMetal); endG();
-      B(7.10, 2.87, 7.17, 3.51, 0, 2.6, M.walnut); // finished back of the towers (corridor wall removed)
-}
-function kitNWIsland() {
-      // slim island: same 0.62 depth as the counters, 1.50 long, a second worktop facing the corner
-      beginG('Kitchen island');
-      cab({ axis: 'x', a1: 8.81, a2: 10.27, back: 2.15, front: 1.57, h1: .1, h2: .88, cols: [[.5, 3], [.5, 1], [.5, 3]], fm: M.lacquerChoco });
-      B(8.85, 1.61, 10.23, 2.13, 0, .1, M.carcass);
-      B(8.79, 1.55, 10.29, 2.17, .88, .92, M.trav); B(8.79, 1.55, 8.83, 2.17, 0, .88, M.trav); B(10.25, 1.55, 10.29, 2.17, 0, .88, M.trav); B(8.83, 2.15, 10.25, 2.17, 0, .88, M.walnut);
-      lathe([[0, 0], [.07, 0], [.14, .05], [.16, .09], [0, .02]], 10.0, 1.86, .92, M.stoneware); [[9.96, 1.84], [10.04, 1.88], [10.0, 1.8]].forEach(([x, y]) => S(x, y, .99, .037, M.fruit));
-      RB(9.0, 1.65, 9.4, 1.95, .92, .94, .01, M.oakFurn);
-      [9.15, 9.95].forEach(x => { S(x, 1.86, 1.75, .1, M.opal, { cast: false }); C(x, 1.86, .02, 1.84, 1.87, M.brass); C(x, 1.86, .003, 1.87, H, M.blackMetal, { seg: 6 }); C(x, 1.86, .04, H - .015, H, M.brass); });
-      lamp(9.55, 1.86, 1.55, 0xffd3a0, 4);
-      endG();
-}
-function kitShaft() {
-      // L-kitchen: leg 1 on the service-shaft wall (sink by the WC stack, hob by the gas riser), leg 2 = fridge + oven towers returning north
-      beginG('Kitchen run');
-      cab({ axis: 'x', a1: 8.82, a2: 10.24, back: 6.64, front: 6.04, h1: .1, h2: .88, cols: [[.6, 1], [.6, 1], [.22, 1]], fm: M.lacquerChoco });
-      B(8.84, 6.10, 10.88, 6.64, 0, .1, M.carcass); B(8.80, 6.64, 9.25, 7.13, 0, .88, M.carcass); B(10.26, 6.04, 10.88, 6.64, .1, .88, M.carcass);
-      B(8.84, 6.085, 10.24, 6.09, .02, .03, M.led, { cast: false });
-      B(8.80, 6.02, 10.88, 6.64, .88, .92, M.trav); B(8.80, 6.64, 9.25, 7.13, .88, .92, M.trav); B(8.80, 6.02, 8.82, 7.13, 0, .88, M.trav);
-      B(9.25, 6.62, 10.88, 6.64, .92, 1.5, M.trav); B(8.80, 7.11, 9.25, 7.13, .92, 1.5, M.trav); B(9.23, 6.64, 9.25, 7.11, .92, 1.5, M.trav);
-      B(8.92, 6.12, 9.32, 6.54, .918, .9215, M.steelDark); C(9.12, 6.33, .025, .92, .9218, M.blackMetal, { cast: false });
-      C(9.12, 6.59, .028, .92, .97, M.brass); tube([[9.12, .96, 6.59], [9.12, 1.20, 6.57], [9.12, 1.30, 6.47], [9.12, 1.25, 6.36], [9.12, 1.12, 6.33]], .011, M.brass, { seg: 48 });
-      B(9.52, 6.08, 10.10, 6.56, .92, .926, hobAt(9.49, 6.06)); B(9.525, 6.012, 10.095, 6.027, .30, .845, M.blackGlass); B(9.56, 5.995, 10.06, 6.01, .79, .802, M.brass);
-      cab({ axis: 'y', a1: 4.84, a2: 5.42, back: 10.88, front: 10.26, h1: .1, h2: 2.6, cols: [[1, 3]], fm: M.lacquerChoco });
-      cab({ axis: 'y', a1: 5.44, a2: 6.02, back: 10.88, front: 10.26, h1: .1, h2: 2.6, cols: [[1, 2]], fm: M.lacquerChoco });
-      B(10.245, 4.88, 10.26, 5.38, .86, 1.46, M.blackGlass); B(10.228, 4.92, 10.245, 5.34, 1.42, 1.432, M.brass); B(10.28, 4.86, 10.86, 6.0, 0, .1, M.carcass);
-      B(10.26, 4.82, 10.88, 4.84, 0, 2.6, M.lacquerChoco); B(10.86, 4.84, 10.88, 6.02, 0, 2.6, M.walnut);
-      endG();
-      beginG('Wall cabinets');
-      cab({ axis: 'x', a1: 9.27, a2: 10.86, back: 6.64, front: 6.29, h1: 1.5, h2: 2.6, cols: [[1, 1], [1, 1], [1, 1]], fm: M.lacquerCream });
-      B(9.29, 6.29, 10.84, 6.33, 1.49, 1.5, M.led, { cast: false });
-      endG();
-      beginG('Coffee machine'); RB(10.45, 6.22, 10.73, 6.62, .92, 1.31, .02, M.steel); B(10.49, 6.217, 10.69, 6.22, 1.19, 1.27, M.display); B(10.49, 6.10, 10.69, 6.26, .92, .95, M.steelDark); endG();
-      beginG('Air fryer'); RB(8.86, 6.72, 9.14, 7.04, .92, 1.24, .05, M.plastic, { seg: 5 }); RB(8.875, 6.665, 9.125, 6.73, .935, 1.10, .02, M.plastic); B(8.95, 6.635, 9.05, 6.665, 1.0, 1.06, M.blackMetal); endG();
-      // island: same 0.62 depth as the counters, dishwasher inside, 1.00 m work aisle and 1.00 m walkway behind
-      beginG('Kitchen island');
-      cab({ axis: 'x', a1: 8.99, a2: 10.01, back: 4.42, front: 5.0, h1: .1, h2: .88, cols: [[.6, 1], [.42, 3]], fm: M.lacquerChoco });
-      B(9.03, 4.46, 9.97, 4.96, 0, .1, M.carcass);
-      B(8.95, 4.40, 10.05, 5.02, .88, .92, M.trav); B(8.95, 4.40, 8.99, 5.02, 0, .88, M.trav); B(10.01, 4.40, 10.05, 5.02, 0, .88, M.trav); B(8.99, 4.40, 10.01, 4.42, 0, .88, M.walnut);
-      lathe([[0, 0], [.07, 0], [.14, .05], [.16, .09], [0, .02]], 9.78, 4.7, .92, M.stoneware); [[9.74, 4.68], [9.82, 4.72], [9.78, 4.64]].forEach(([x, y]) => S(x, y, .99, .037, M.fruit));
-      RB(9.08, 4.55, 9.48, 4.85, .92, .94, .01, M.oakFurn);
-      [9.25, 9.75].forEach(x => { S(x, 4.71, 1.75, .1, M.opal, { cast: false }); C(x, 4.71, .02, 1.84, 1.87, M.brass); C(x, 4.71, .003, 1.87, H, M.blackMetal, { seg: 6 }); C(x, 4.71, .04, H - .015, H, M.brass); });
-      lamp(9.5, 4.71, 1.55, 0xffd3a0, 4);
-      endG();
-}
-function kitPlan() {
-      beginG('Kitchen run');
-      // left run sits in front of the service shaft (gas + hob as on the plan), right run along the south wall (dishwasher, sink)
-      cab({ axis: 'x', a1: 9.27, a2: 10.86, back: 6.64, front: 6.03, h1: .1, h2: .88, cols: [[.55, 3], [.6, 1], [.44, 1]], fm: M.lacquerChoco });
-      B(9.31, 6.09, 10.82, 6.64, 0, .1, M.carcass); B(9.31, 6.085, 10.82, 6.09, .02, .03, M.led, { cast: false });
-      B(9.25, 6.0, 10.88, 6.64, .88, .92, M.trav); B(9.25, 6.62, 10.88, 6.64, .92, 1.5, M.trav);
-      B(9.83, 6.08, 10.41, 6.56, .92, .926, hobAt(9.80, 6.06)); B(9.835, 6.012, 10.405, 6.027, .30, .845, M.blackGlass); B(9.87, 5.995, 10.37, 6.01, .79, .802, M.brass);
-      cab({ axis: 'x', a1: 10.90, a2: 12.96, back: 7.11, front: 6.53, h1: .1, h2: .88, cols: [[.6, 1], [.95, 1], [.51, 3]], fm: M.lacquerChoco });
-      B(10.92, 6.59, 12.94, 7.11, 0, .1, M.carcass); B(10.92, 6.585, 12.94, 6.59, .02, .03, M.led, { cast: false });
-      B(10.88, 6.5, 12.98, 7.13, .88, .92, M.trav); B(10.88, 7.11, 12.98, 7.13, .92, 1.5, M.trav);
-      B(11.68, 6.62, 12.38, 7.0, .918, .9215, M.steelDark); C(12.03, 6.8, .025, .92, .9218, M.blackMetal, { cast: false });
-      C(12.03, 7.08, .028, .92, .97, M.brass); tube([[12.03, .96, 7.08], [12.03, 1.20, 7.06], [12.03, 1.30, 6.96], [12.03, 1.25, 6.85], [12.03, 1.12, 6.82]], .011, M.brass, { seg: 48 });
-      endG();
-      beginG('Wall cabinets');
-      cab({ axis: 'x', a1: 9.27, a2: 10.86, back: 6.64, front: 6.29, h1: 1.5, h2: 2.6, cols: [[.55, 1], [.6, 1], [.44, 1]], fm: M.lacquerCream });
-      cab({ axis: 'x', a1: 10.90, a2: 12.96, back: 7.11, front: 6.76, h1: 1.5, h2: 2.6, cols: [[1, 1], [1, 1], [1, 1]], fm: M.lacquerCream });
-      B(9.29, 6.3, 10.84, 6.34, 1.49, 1.5, M.led, { cast: false }); B(10.92, 6.77, 12.94, 6.81, 1.49, 1.5, M.led, { cast: false });
-      endG();
-      beginG('Fridge-freezer'); cab({ axis: 'x', a1: 12.99, a2: 13.60, back: 7.13, front: 6.53, h1: .1, h2: 2.1, cols: [[1, 2]], fm: M.lacquerChoco }); B(13.0, 6.59, 13.59, 7.12, 0, .1, M.carcass);
-      B(13.03, 6.512, 13.045, 6.53, 1.3, 1.8, M.brass); B(13.03, 6.512, 13.045, 6.53, .75, 1.05, M.brass); endG();
-      beginG('Air fryer'); RB(9.32, 6.1, 9.6, 6.42, .92, 1.24, .05, M.plastic, { seg: 5 }); RB(9.335, 6.05, 9.585, 6.115, .935, 1.10, .02, M.plastic); B(9.41, 6.02, 9.51, 6.05, 1.0, 1.06, M.blackMetal); endG();
-      beginG('Coffee machine'); RB(12.58, 6.62, 12.86, 7.02, .92, 1.31, .02, M.steel); B(12.62, 6.617, 12.82, 6.62, 1.19, 1.27, M.display); B(12.62, 6.5, 12.82, 6.66, .92, .95, M.steelDark); endG();
-}
-function kitWest() { // straight galley on the bathroom wet wall: towers in the north corner, sink + hob run
-  beginG('Kitchen run');
-  cab({ axis: 'y', a1: .02, a2: .62, back: 7.17, front: 7.79, h1: .1, h2: 2.6, cols: [[1, 2]], fm: M.lacquerChoco });
-  cab({ axis: 'y', a1: .64, a2: 1.22, back: 7.17, front: 7.79, h1: .1, h2: 2.6, cols: [[1, 3]], fm: M.lacquerChoco });
-  B(7.79, .67, 7.805, 1.19, .86, 1.46, M.blackGlass); B(7.805, .71, 7.822, 1.15, 1.42, 1.432, M.brass); B(7.19, .04, 7.69, 1.2, 0, .1, M.carcass);
-  cab({ axis: 'y', a1: 1.24, a2: 2.85, back: 7.17, front: 7.75, h1: .1, h2: .88, cols: [[.6, 1], [.6, 1], [.41, 3]], fm: M.lacquerChoco });
-  B(7.19, 1.26, 7.69, 2.83, 0, .1, M.carcass); B(7.71, 1.28, 7.73, 2.81, .02, .03, M.led, { cast: false });
-  B(7.17, 1.22, 7.79, 2.87, .88, .92, M.trav); B(7.17, 1.22, 7.19, 2.87, .92, 1.5, M.trav); B(7.17, 2.85, 7.79, 2.87, 0, .88, M.trav);
-  B(7.27, 1.36, 7.65, 1.84, .918, .9215, M.steelDark); C(7.46, 1.6, .025, .92, .9218, M.blackMetal, { cast: false });
-  C(7.21, 1.6, .028, .92, .97, M.brass); tube([[7.21, .96, 1.6], [7.23, 1.20, 1.6], [7.33, 1.30, 1.6], [7.44, 1.25, 1.6], [7.47, 1.12, 1.6]], .011, M.brass, { seg: 48 });
-  B(7.19, 2.0, 7.77, 2.48, .92, .926, hobAt(7.16, 1.98));
-  endG();
-  beginG('Wall cabinets'); cab({ axis: 'y', a1: 1.24, a2: 2.85, back: 7.17, front: 7.52, h1: 1.5, h2: 2.6, cols: [[1, 1], [1, 1], [1, 1]], fm: M.lacquerCream }); B(7.49, 1.26, 7.53, 2.83, 1.49, 1.5, M.led, { cast: false }); endG();
-  beginG('Coffee machine'); RB(7.2, 2.56, 7.6, 2.84, .92, 1.31, .02, M.steel); B(7.6, 2.6, 7.604, 2.8, 1.19, 1.27, M.display); B(7.45, 2.6, 7.65, 2.8, .92, .95, M.steelDark); endG();
-  beginG('Air fryer'); RB(9.0, 1.9, 9.28, 2.22, .92, 1.24, .05, M.plastic, { seg: 5 }); RB(9.015, 2.17, 9.265, 2.235, .935, 1.10, .02, M.plastic); B(9.09, 2.235, 9.19, 2.265, 1.0, 1.06, M.blackMetal); endG();
-}
-function peninsula() { // bar leg of the U: runs south from the column, stools on the east overhang
-  beginG('Kitchen bar');
-  cab({ axis: 'y', a1: .66, a2: 2.36, back: 9.42, front: 8.84, h1: .1, h2: .88, cols: [[.6, 1], [.6, 3], [.5, 1]], fm: M.lacquerChoco });
-  B(8.86, .68, 9.4, 2.34, 0, .1, M.carcass); B(8.84, .2, 9.42, .66, 0, .88, M.carcass);
-  B(8.82, .2, 9.74, 2.42, .88, .92, M.trav); B(8.82, 2.38, 9.74, 2.42, 0, .88, M.trav); B(9.42, .2, 9.44, 2.38, 0, .88, M.walnut);
-  [.9, 1.9].forEach(y => { S(9.3, y, 1.75, .1, M.opal, { cast: false }); C(9.3, y, .02, 1.84, 1.87, M.brass); C(9.3, y, .003, 1.87, H, M.blackMetal, { seg: 6 }); C(9.3, y, .04, H - .015, H, M.brass); });
-  lamp(9.3, 1.4, 1.55, 0xffd3a0, 4);
-  lathe([[0, 0], [.07, 0], [.14, .05], [.16, .09], [0, .02]], 9.4, 2.1, .92, M.stoneware);
-  endG();
-}
-function oTvPartition() { // TV wall on the studio | office partition, faces north
-      beginG('TV wall panel'); B(11.05, 4.285, 13.55, 4.32, 0, 2.7, M.walnut);
-      { const geos = [], N = 50, w = 2.5 / N; for (let i = 0; i < N; i++) { const g = new THREE.CylinderGeometry(w / 2, w / 2, 2.7, 12, 1, true, Math.PI / 2, Math.PI); g.translate(11.05 + w / 2 + i * w, 1.35, 4.285); geos.push(g); } merged(geos, M.walnut, { clampMesh: true }); }
-      B(11.03, 4.26, 11.05, 4.32, 0, 2.7, M.led, { cast: false }); B(13.55, 4.26, 13.57, 4.32, 0, 2.7, M.led, { cast: false }); endG();
-      beginG('TV + console'); cab({ axis: 'x', a1: 11.45, a2: 13.15, back: 4.26, front: 3.88, h1: .24, h2: .52, cols: [[1, 1], [1, 1], [1, 1]], fm: M.walnut });
-      B(11.5, 3.92, 13.1, 4.22, .22, .225, M.led, { cast: false }); B(11.58, 4.23, 13.02, 4.26, .98, 1.8, M.blackMetal);
-      B(11.6, 4.227, 13.0, 4.23, 1.0, 1.78, P({ color: 0x050506, roughness: .08, clearcoat: 1, emissive: 0xffffff, emissiveMap: planar(tvTex, 11.6, 1.0, 1.40, .78, true), emissiveIntensity: 0, nightIntensity: 1.6 }), { cast: false });
-}
-function officeSE() { // two desks + bookshelf on the shaft + reading chair (old kitchen room)
-      typed('desk', 1, 13.27, 6.25, FACE.E); typed('deskchair', 0, 12.62, 6.25, FACE.E);
-      typed('desk', 1, 11.65, 6.78, FACE.S); typed('deskchair', 0, 11.65, 6.12, FACE.S);
-      beginG('Bookshelf'); B(9.27, 6.30, 10.86, 6.64, 0, .04, M.oakFurn); B(9.27, 6.30, 9.30, 6.64, 0, 2.4, M.oakFurn); B(10.83, 6.30, 10.86, 6.64, 0, 2.4, M.oakFurn); B(10.04, 6.30, 10.07, 6.64, 0, 2.4, M.oakFurn);
-      [.45, .85, 1.25, 1.65, 2.05, 2.37].forEach(h => B(9.27, 6.30, 10.86, 6.64, h, h + .03, M.oakFurn));
-      const bm = [M.book1, M.book2, M.book3, M.paper]; [.48, .88, 1.28, 1.68].forEach((h, r) => { let x = 9.33; while (x < 10.75) { const w = .025 + rand() * .03, hh = .22 + rand() * .1; if (x + w > 10.0 && x < 10.1) { x = 10.1; continue; } B(x, 6.36, x + w, 6.6, h, h + hh, bm[(r + Math.floor(x * 37)) % 4]); x += w + .004; } });
-      vase(10.45, 6.47, 2.08, .6, M.stonewareDark); endG();
-      typed('armchair', 2, 10.0, 5.5, faceTo(10.0, 5.5, 11.5, 5.4)); typed('floorlamp', 0, 9.2, 5.95);
-      beginG('Office rug'); RB(10.55, 4.75, 12.9, 6.25, 0, .012, .05, M.rug, { cast: false }); endG();
-}
-function officeN() { // north office: two desks, guest sofa, bookshelf, reading chair
-      // office (north room): two desks on the north wall facing out, guest sofa on the partition, reading corner by the bookshelf
-      typed('desk', 1, 10.3, .4, FACE.N); typed('deskchair', 0, 10.3, 1.05, FACE.N);
-      typed('desk', 1, 12.1, .4, FACE.N); typed('deskchair', 0, 12.1, 1.05, FACE.N);
-      typed('sofa', SOFA.modern, 11.2, 2.85, FACE.N, { W: 2.0 });
-      beginG('Bookshelf'); B(7.17, .25, 7.51, 1.85, 0, .04, M.oakFurn); B(7.17, .25, 7.51, .28, 0, 2.4, M.oakFurn); B(7.17, 1.82, 7.51, 1.85, 0, 2.4, M.oakFurn); B(7.17, 1.035, 7.51, 1.065, 0, 2.4, M.oakFurn);
-      [.45, .85, 1.25, 1.65, 2.05, 2.37].forEach(h => B(7.17, .25, 7.51, 1.85, h, h + .03, M.oakFurn));
-      const bm = [M.book1, M.book2, M.book3, M.paper]; [.48, .88, 1.28, 1.68].forEach((h, r) => { let y = .31; while (y < 1.76) { const w = .025 + rand() * .03, hh = .22 + rand() * .1; if (y + w > 1.0 && y < 1.1) { y = 1.1; continue; } B(7.21, y, 7.45, y + w, h, h + hh, bm[(r + Math.floor(y * 37)) % 4]); y += w + .004; } });
-      vase(7.34, 1.45, 2.08, .6, M.stonewareDark); endG();
-      typed('armchair', 2, 8.25, 1.35, faceTo(8.25, 1.35, 10.0, 2.0)); typed('floorlamp', 0, 7.75, 2.2);
-      beginG('Office rug'); RB(9.4, .95, 12.9, 2.55, 0, .012, .05, M.rug, { cast: false }); endG();
-}
-function glassWall(axis, c, a, b, d1, d2) { // black-framed floor-to-ceiling glass partition; d1–d2 = sliding glass door
-  const R = (p, q, h1, h2, m, th = .05, o = {}) => axis === 'x' ? B(p, c - th / 2, q, c + th / 2, h1, h2, m, o) : B(c - th / 2, p, c + th / 2, q, h1, h2, m, o);
-  R(a, b, 0, .04, M.frame); R(a, b, H - .05, H, M.frame); R(a, b, .04, H - .05, M.glass, .012, { cast: false });
-  const posts = [a, b]; if (d1 != null) posts.push(d1, d2);
-  const segs = d1 != null ? [[a, d1], [d2, b]] : [[a, b]];
-  segs.forEach(([p, q]) => { const n = Math.max(1, Math.round((q - p) / 1.1)); for (let i = 1; i < n; i++) posts.push(p + (q - p) * i / n); });
-  posts.forEach(p => R(p - .02, p + .02, 0, H, M.frame, .06));
-  if (d1 != null) { R(d1, d2, 2.1, 2.14, M.frame, .06); R(d2 - .09, d2 - .07, .85, 1.35, M.blackMetal, .1); }
-}
+/* ================= layout ================= */
 const LAYOUTS = {
   soft: { walls: 'softStudio', preset: 'soft', hideIf: g => !g.userData.layoutBuilt && ((g.position.z < 4.0 && g.position.x < 4.6 && ['Bed (B1)', 'Nightstand', 'Wall art (B1)', 'Rug (B1)', 'Wardrobe (B1)', 'Beauty table (B1)', 'Vanity stool', 'Armchair (B1)'].includes(g.name))
       || ['Hall wardrobe', 'Wardrobe (B2)', 'Work desk (B2)', 'Desk chair (B2)', 'Bathtub', 'WC', 'Bathroom vanity', 'Washing machine', 'Bath mat', 'Towel ring', 'Guest WC', 'Herb planter (E)'].includes(g.name)
@@ -2022,286 +1507,6 @@ const LAYOUTS = {
       typed('armchair', 2, 10.0, 5.5, faceTo(10.0, 5.5, 11.5, 5.4)); typed('floorlamp', 0, 9.2, 5.95);
       beginG('Office rug'); RB(10.7, 4.85, 13.3, 6.35, 0, .012, .05, M.rug, { cast: false }); endG();
     } },
-  studio: { name: 'Studio living + office', tag: 'Original',
-    why: 'L-shaped corner kitchen in the north-west corner (sink · hob · fridge work triangle) with a slim island; corner sofa faces the TV; dining for 4 by the open hall passage; the old kitchen is an office.',
-    met: 'Studio: corner sofa 4 + armchair + dining 4 · TV 3.31 m · Office: 2 desks',
-    clr: [['Kitchen legs → island (aisles)', '1.00 · 0.93'], ['Island → chaise', '0.91'], ['Sofa front → TV', '3.31'], ['Chaise → coffee table', '0.30'], ['Dining chair → island', '0.32'], ['Hall passage (open, no door)', '1.46'], ['Office door swing → armchair', 'clear']],
-    views: { kitchen: [[10.4, 1.6, 3.4], [7.6, 1.0, .6]], living: [[8.2, 1.65, 2.35], [12.8, .8, 1.3]], livingArea: [[10.3, 10.5, 5.6], [10.3, 0, 2.0]], hall: [[8.3, 1.6, 4.75], [5.4, 1.0, 6.9]], office: [[9.3, 1.6, 4.75], [12.8, .85, 6.4]] },
-    rooms: [[7.0, 5.0, 'Hall', '≈13.7 m²'], [10.2, 3.4, 'Studio: living + kitchen', '≈27.9 m²'], [10.6, 5.0, 'Office', '≈12.6 m²']],
-    furn: [['Corner kitchen (L)', 7.6, .9, .92, '1.69', '2.31', '0.92'], ['Fridge + oven towers', 7.48, 2.91, 2.6, '0.62', '1.20', '2.60'], ['Slim island', 9.54, 1.86, .92, '1.50', '0.62', '0.92'], ['Corner sofa (L)', 12.3, .47, .84, '2.20', '2.10', '0.84'], ['TV wall + 65" TV', 12.3, 4.1, 1.8, '2.50', '0.40', '2.70'], ['Dining table 1.40 (4 seats)', 9.5, 3.35, .75, '1.40', '0.80', '0.75'], ['Office desk (window)', 13.27, 6.25, .75, '0.70', '1.40', '0.75'], ['Office desk (wall)', 11.65, 6.78, .75, '1.40', '0.70', '0.75'], ['Bookshelf (on shaft)', 10.06, 6.47, 2.4, '1.59', '0.34', '2.40']],
-    plants() { G('Fig plant', () => fig(13.25, 3.95, 1)); G('Snake plant', () => snake(13.3, 4.75, .8)); },
-    build() {
-      beginG('Hall bench + mirror'); RB(8.5, 5.55, 8.86, 6.1, .42, .48, .03, M.boucleOat); B(8.52, 5.57, 8.84, 6.08, 0, .42, M.walnut);
-      add(new THREE.CircleGeometry(.36, 96), M.mirror, 8.857, 1.4, 5.83, { uv: false, rotY: -Math.PI / 2 }); add(new THREE.TorusGeometry(.365, .016, 16, 96), M.led, 8.856, 1.4, 5.83, { uv: false, rotY: -Math.PI / 2 }); endG();
-      G('Hall runner', () => RB(5.95, 4.6, 8.2, 6.6, 0, .012, .05, M.rugDark, { cast: false }));
-      // L-shaped corner kitchen: north leg (hob) + west leg on the bathroom wet wall (sink, dishwasher) ending in fridge + oven towers
-      beginG('Kitchen run');
-      cab({ axis: 'x', a1: 7.19, a2: 7.79, back: 0, front: .58, h1: .1, h2: .88, cols: [[1, 1]], fm: M.lacquerChoco });
-      cab({ axis: 'x', a1: 7.81, a2: 8.84, back: 0, front: .58, h1: .1, h2: .88, cols: [[.6, 1], [.43, 3]], fm: M.lacquerChoco });
-      cab({ axis: 'y', a1: .64, a2: 2.29, back: 7.17, front: 7.75, h1: .1, h2: .88, cols: [[.6, 1], [.6, 1], [.45, 3]], fm: M.lacquerChoco });
-      B(7.19, .02, 8.82, .52, 0, .1, M.carcass); B(7.19, .52, 7.69, 2.27, 0, .1, M.carcass);
-      B(7.17, 0, 8.86, .62, .88, .92, M.trav); B(7.17, .62, 7.79, 2.31, .88, .92, M.trav);
-      B(7.17, 0, 8.86, .02, .92, 1.5, M.trav); B(7.17, .02, 7.19, 2.31, .92, 1.5, M.trav);
-      B(7.86, .06, 8.44, .54, .92, .926, hobAt(7.83, .05)); B(7.865, .58, 8.435, .595, .30, .845, M.blackGlass); B(7.9, .595, 8.4, .612, .79, .802, M.brass);
-      B(7.27, .72, 7.65, 1.2, .918, .9215, M.steelDark); C(7.46, .96, .025, .92, .9218, M.blackMetal, { cast: false });
-      C(7.21, .96, .028, .92, .97, M.brass); tube([[7.21, .96, .96], [7.23, 1.20, .96], [7.33, 1.30, .96], [7.44, 1.25, .96], [7.47, 1.12, .96]], .011, M.brass, { seg: 48 });
-      B(7.71, .66, 7.73, 2.27, .02, .03, M.led, { cast: false }); B(7.21, .54, 8.82, .56, .02, .03, M.led, { cast: false });
-      cab({ axis: 'y', a1: 2.31, a2: 2.91, back: 7.17, front: 7.79, h1: .1, h2: 2.6, cols: [[1, 2]], fm: M.lacquerChoco });
-      cab({ axis: 'y', a1: 2.93, a2: 3.51, back: 7.17, front: 7.79, h1: .1, h2: 2.6, cols: [[1, 3]], fm: M.lacquerChoco });
-      B(7.79, 2.96, 7.805, 3.48, .86, 1.46, M.blackGlass); B(7.805, 3.0, 7.822, 3.44, 1.42, 1.432, M.brass); B(7.19, 2.33, 7.69, 3.49, 0, .1, M.carcass);
-      endG();
-      beginG('Wall cabinets');
-      cab({ axis: 'y', a1: .02, a2: 2.29, back: 7.17, front: 7.52, h1: 1.5, h2: 2.6, cols: [[1, 1], [1, 1], [1, 1], [1, 1]], fm: M.lacquerCream });
-      cab({ axis: 'x', a1: 7.54, a2: 8.84, back: 0, front: .35, h1: 1.5, h2: 2.6, cols: [[.3, 1], [.6, 1], [.4, 1]], fm: M.lacquerCream });
-      B(7.49, .02, 7.53, 2.27, 1.49, 1.5, M.led, { cast: false }); B(7.54, .31, 8.82, .35, 1.49, 1.5, M.led, { cast: false });
-      endG();
-      beginG('Coffee machine'); RB(7.2, 1.92, 7.6, 2.2, .92, 1.31, .02, M.steel); B(7.6, 1.96, 7.604, 2.16, 1.19, 1.27, M.display); B(7.45, 1.96, 7.65, 2.16, .92, .95, M.steelDark); endG();
-      beginG('Air fryer'); RB(8.5, .1, 8.78, .42, .92, 1.24, .05, M.plastic, { seg: 5 }); RB(8.515, .37, 8.765, .435, .935, 1.10, .02, M.plastic); B(8.59, .435, 8.69, .465, 1.0, 1.06, M.blackMetal); endG();
-      // slim island: same 0.62 depth as the counters, 1.50 long, a second worktop facing the corner
-      beginG('Kitchen island');
-      cab({ axis: 'x', a1: 8.81, a2: 10.27, back: 2.15, front: 1.57, h1: .1, h2: .88, cols: [[.5, 3], [.5, 1], [.5, 3]], fm: M.lacquerChoco });
-      B(8.85, 1.61, 10.23, 2.13, 0, .1, M.carcass);
-      B(8.79, 1.55, 10.29, 2.17, .88, .92, M.trav); B(8.79, 1.55, 8.83, 2.17, 0, .88, M.trav); B(10.25, 1.55, 10.29, 2.17, 0, .88, M.trav); B(8.83, 2.15, 10.25, 2.17, 0, .88, M.walnut);
-      lathe([[0, 0], [.07, 0], [.14, .05], [.16, .09], [0, .02]], 10.0, 1.86, .92, M.stoneware); [[9.96, 1.84], [10.04, 1.88], [10.0, 1.8]].forEach(([x, y]) => S(x, y, .99, .037, M.fruit));
-      RB(9.0, 1.65, 9.4, 1.95, .92, .94, .01, M.oakFurn);
-      [9.15, 9.95].forEach(x => { S(x, 1.86, 1.75, .1, M.opal, { cast: false }); C(x, 1.86, .02, 1.84, 1.87, M.brass); C(x, 1.86, .003, 1.87, H, M.blackMetal, { seg: 6 }); C(x, 1.86, .04, H - .015, H, M.brass); });
-      lamp(9.55, 1.86, 1.55, 0xffd3a0, 4);
-      endG();
-      // lounge: corner sofa (chaise on the kitchen side) faces the TV wall
-      beginG('TV wall panel'); B(11.05, 4.285, 13.55, 4.32, 0, 2.7, M.walnut);
-      { const geos = [], N = 50, w = 2.5 / N; for (let i = 0; i < N; i++) { const g = new THREE.CylinderGeometry(w / 2, w / 2, 2.7, 12, 1, true, Math.PI / 2, Math.PI); g.translate(11.05 + w / 2 + i * w, 1.35, 4.285); geos.push(g); } merged(geos, M.walnut, { clampMesh: true }); }
-      B(11.03, 4.26, 11.05, 4.32, 0, 2.7, M.led, { cast: false }); B(13.55, 4.26, 13.57, 4.32, 0, 2.7, M.led, { cast: false }); endG();
-      beginG('TV + console'); cab({ axis: 'x', a1: 11.45, a2: 13.15, back: 4.26, front: 3.88, h1: .24, h2: .52, cols: [[1, 1], [1, 1], [1, 1]], fm: M.walnut });
-      B(11.5, 3.92, 13.1, 4.22, .22, .225, M.led, { cast: false }); B(11.58, 4.23, 13.02, 4.26, .98, 1.8, M.blackMetal);
-      B(11.6, 4.227, 13.0, 4.23, 1.0, 1.78, P({ color: 0x050506, roughness: .08, clearcoat: 1, emissive: 0xffffff, emissiveMap: planar(tvTex, 11.6, 1.0, 1.40, .78, true), emissiveIntensity: 0, nightIntensity: 1.6 }), { cast: false });
-      RB(11.8, 3.95, 12.8, 4.06, .52, .58, .02, M.blackMetal); vase(11.59, 4.06, .52, .9, M.stoneware); book(12.96, 4.06, .52, .22, .16, .035, M.book1, .1); lamp(12.3, 3.8, 1.3, 0x9fc4ff, .8); endG();
-      typed('sofa', 6, 12.3, .47, FACE.S); typed('coffee', 1, 12.75, 1.7);
-      typed('armchair', 3, 13.1, 3.0, faceTo(13.1, 3.0, 12.3, 1.2)); typed('floorlamp', 0, 13.35, .35);
-      livingRug(12.45, 1.75, 1.15, 1.0);
-      // dining for 4 by the open hall passage
-      typed('dining', 5, 9.5, 3.35); [[9.15, 2.73, FACE.S], [9.85, 2.73, FACE.S], [9.15, 3.97, FACE.N], [9.85, 3.97, FACE.N]].forEach(([x, y, f]) => typed('chair', 0, x, y, f));
-      diningDecor(9.5, 3.35);
-      typed('desk', 1, 13.27, 6.25, FACE.E); typed('deskchair', 0, 12.62, 6.25, FACE.E);
-      typed('desk', 1, 11.65, 6.78, FACE.S); typed('deskchair', 0, 11.65, 6.12, FACE.S);
-      beginG('Bookshelf'); B(9.27, 6.30, 10.86, 6.64, 0, .04, M.oakFurn); B(9.27, 6.30, 9.30, 6.64, 0, 2.4, M.oakFurn); B(10.83, 6.30, 10.86, 6.64, 0, 2.4, M.oakFurn); B(10.04, 6.30, 10.07, 6.64, 0, 2.4, M.oakFurn);
-      [.45, .85, 1.25, 1.65, 2.05, 2.37].forEach(h => B(9.27, 6.30, 10.86, 6.64, h, h + .03, M.oakFurn));
-      const bm = [M.book1, M.book2, M.book3, M.paper]; [.48, .88, 1.28, 1.68].forEach((h, r) => { let x = 9.33; while (x < 10.75) { const w = .025 + rand() * .03, hh = .22 + rand() * .1; if (x + w > 10.0 && x < 10.1) { x = 10.1; continue; } B(x, 6.36, x + w, 6.6, h, h + hh, bm[(r + Math.floor(x * 37)) % 4]); x += w + .004; } });
-      vase(10.45, 6.47, 2.08, .6, M.stonewareDark); endG();
-      typed('armchair', 2, 10.0, 5.5, faceTo(10.0, 5.5, 11.5, 5.4)); typed('floorlamp', 0, 9.2, 5.95);
-      beginG('Office rug'); RB(10.55, 4.75, 12.9, 6.25, 0, .012, .05, M.rug, { cast: false }); endG();
-    } },
-  swap: { name: 'Living + kitchen with hall · office north', tag: 'Office north',
-    why: 'Hall, old kitchen and the south band of the old living room form one 28.8 m² open space: L-kitchen on the service shaft (sink · hob · fridge triangle) with an island, dining at the entry, corner sofa facing a TV on the new partition. The north room becomes a 21 m² office.',
-    met: 'Living: corner sofa 4 + dining 4 · TV 2.45 m clear · Office: 2 desks + sofa',
-    clr: [['Counter → island (work aisle)', '1.00'], ['Island → partition (walkway)', '1.00'], ['Sofa front → TV console', '2.45'], ['Chaise → kitchen towers', '0.47'], ['Dining chair → hall wardrobe', '0.84'], ['Entrance door swing → dining chair', '0.42'], ['WC door swing → dining', 'clear'], ['Desk chair → office sofa', '1.05']],
-    views: { kitchen: [[7.4, 1.6, 4.0], [10.2, 1.0, 5.9]], living: [[11.0, 1.6, 3.75], [12.9, .75, 6.5]], livingArea: [[9.6, 10.5, 1.2], [9.6, 0, 5.3]], hall: [[8.75, 1.45, 3.7], [5.5, 1.0, 6.7]], office: [[7.9, 1.6, 2.9], [12.0, .85, .8]] },
-    rooms: [[5.9, 3.6, 'Corridor', '≈3.6 m²'], [10.0, 5.3, 'Living + kitchen (incl. hall)', '≈28.8 m²'], [10.4, 2.0, 'Office', '≈21.2 m²']],
-    furn: [['L-kitchen (shaft wall + towers)', 9.6, 6.3, .92, '2.08', '0.62', '0.92'], ['Fridge + oven towers', 10.57, 5.42, 2.6, '0.62', '1.20', '2.60'], ['Island (DW inside)', 9.5, 4.71, .92, '1.10', '0.62', '0.92'],
-    ['Corner sofa (L)', 12.45, 6.68, .84, '2.20', '2.10', '0.84'], ['TV wall + 65" TV', 12.4, 3.6, 1.8, '2.30', '0.41', '2.70'], ['Dining table 1.40 (4 seats)', 7.6, 5.3, .75, '0.80', '1.40', '0.75'],
-    ['Office desk A', 10.3, .4, .75, '1.40', '0.70', '0.75'], ['Office desk B', 12.1, .4, .75, '1.40', '0.70', '0.75'], ['Office sofa 2.00', 11.2, 2.85, .84, '2.00', '0.90', '0.84'], ['Bookshelf', 7.34, 1.05, 2.4, '0.34', '1.60', '2.40']],
-    plants() { G('Fig plant', () => fig(13.25, 3.85, 1)); G('Snake plant', () => snake(13.3, 3.0, .8)); },
-    build() {
-      // L-kitchen: leg 1 on the service-shaft wall (sink by the WC stack, hob by the gas riser), leg 2 = fridge + oven towers returning north
-      beginG('Kitchen run');
-      cab({ axis: 'x', a1: 8.82, a2: 10.24, back: 6.64, front: 6.04, h1: .1, h2: .88, cols: [[.6, 1], [.6, 1], [.22, 1]], fm: M.lacquerChoco });
-      B(8.84, 6.10, 10.88, 6.64, 0, .1, M.carcass); B(8.80, 6.64, 9.25, 7.13, 0, .88, M.carcass); B(10.26, 6.04, 10.88, 6.64, .1, .88, M.carcass);
-      B(8.84, 6.085, 10.24, 6.09, .02, .03, M.led, { cast: false });
-      B(8.80, 6.02, 10.88, 6.64, .88, .92, M.trav); B(8.80, 6.64, 9.25, 7.13, .88, .92, M.trav); B(8.80, 6.02, 8.82, 7.13, 0, .88, M.trav);
-      B(9.25, 6.62, 10.88, 6.64, .92, 1.5, M.trav); B(8.80, 7.11, 9.25, 7.13, .92, 1.5, M.trav); B(9.23, 6.64, 9.25, 7.11, .92, 1.5, M.trav);
-      B(8.92, 6.12, 9.32, 6.54, .918, .9215, M.steelDark); C(9.12, 6.33, .025, .92, .9218, M.blackMetal, { cast: false });
-      C(9.12, 6.59, .028, .92, .97, M.brass); tube([[9.12, .96, 6.59], [9.12, 1.20, 6.57], [9.12, 1.30, 6.47], [9.12, 1.25, 6.36], [9.12, 1.12, 6.33]], .011, M.brass, { seg: 48 });
-      B(9.52, 6.08, 10.10, 6.56, .92, .926, hobAt(9.49, 6.06)); B(9.525, 6.012, 10.095, 6.027, .30, .845, M.blackGlass); B(9.56, 5.995, 10.06, 6.01, .79, .802, M.brass);
-      cab({ axis: 'y', a1: 4.84, a2: 5.42, back: 10.88, front: 10.26, h1: .1, h2: 2.6, cols: [[1, 3]], fm: M.lacquerChoco });
-      cab({ axis: 'y', a1: 5.44, a2: 6.02, back: 10.88, front: 10.26, h1: .1, h2: 2.6, cols: [[1, 2]], fm: M.lacquerChoco });
-      B(10.245, 4.88, 10.26, 5.38, .86, 1.46, M.blackGlass); B(10.228, 4.92, 10.245, 5.34, 1.42, 1.432, M.brass); B(10.28, 4.86, 10.86, 6.0, 0, .1, M.carcass);
-      B(10.26, 4.82, 10.88, 4.84, 0, 2.6, M.lacquerChoco); B(10.86, 4.84, 10.88, 6.02, 0, 2.6, M.walnut);
-      endG();
-      beginG('Wall cabinets');
-      cab({ axis: 'x', a1: 9.27, a2: 10.86, back: 6.64, front: 6.29, h1: 1.5, h2: 2.6, cols: [[1, 1], [1, 1], [1, 1]], fm: M.lacquerCream });
-      B(9.29, 6.29, 10.84, 6.33, 1.49, 1.5, M.led, { cast: false });
-      endG();
-      beginG('Coffee machine'); RB(10.45, 6.22, 10.73, 6.62, .92, 1.31, .02, M.steel); B(10.49, 6.217, 10.69, 6.22, 1.19, 1.27, M.display); B(10.49, 6.10, 10.69, 6.26, .92, .95, M.steelDark); endG();
-      beginG('Air fryer'); RB(8.86, 6.72, 9.14, 7.04, .92, 1.24, .05, M.plastic, { seg: 5 }); RB(8.875, 6.665, 9.125, 6.73, .935, 1.10, .02, M.plastic); B(8.95, 6.635, 9.05, 6.665, 1.0, 1.06, M.blackMetal); endG();
-      // island: same 0.62 depth as the counters, dishwasher inside, 1.00 m work aisle and 1.00 m walkway behind
-      beginG('Kitchen island');
-      cab({ axis: 'x', a1: 8.99, a2: 10.01, back: 4.42, front: 5.0, h1: .1, h2: .88, cols: [[.6, 1], [.42, 3]], fm: M.lacquerChoco });
-      B(9.03, 4.46, 9.97, 4.96, 0, .1, M.carcass);
-      B(8.95, 4.40, 10.05, 5.02, .88, .92, M.trav); B(8.95, 4.40, 8.99, 5.02, 0, .88, M.trav); B(10.01, 4.40, 10.05, 5.02, 0, .88, M.trav); B(8.99, 4.40, 10.01, 4.42, 0, .88, M.walnut);
-      lathe([[0, 0], [.07, 0], [.14, .05], [.16, .09], [0, .02]], 9.78, 4.7, .92, M.stoneware); [[9.74, 4.68], [9.82, 4.72], [9.78, 4.64]].forEach(([x, y]) => S(x, y, .99, .037, M.fruit));
-      RB(9.08, 4.55, 9.48, 4.85, .92, .94, .01, M.oakFurn);
-      [9.25, 9.75].forEach(x => { S(x, 4.71, 1.75, .1, M.opal, { cast: false }); C(x, 4.71, .02, 1.84, 1.87, M.brass); C(x, 4.71, .003, 1.87, H, M.blackMetal, { seg: 6 }); C(x, 4.71, .04, H - .015, H, M.brass); });
-      lamp(9.5, 4.71, 1.55, 0xffd3a0, 4);
-      endG();
-      // living: TV on the new partition (faces south), corner sofa on the solid south wall, chaise on the kitchen side
-      beginG('TV wall panel'); B(11.25, 3.40, 13.55, 3.435, 0, 2.7, M.walnut);
-      { const geos = [], N = 46, w = 2.3 / N; for (let i = 0; i < N; i++) { const g = new THREE.CylinderGeometry(w / 2, w / 2, 2.7, 12, 1, true, -Math.PI / 2, Math.PI); g.translate(11.25 + w / 2 + i * w, 1.35, 3.435); geos.push(g); } merged(geos, M.walnut, { clampMesh: true }); }
-      B(11.23, 3.40, 11.25, 3.46, 0, 2.7, M.led, { cast: false }); B(13.55, 3.40, 13.57, 3.46, 0, 2.7, M.led, { cast: false }); endG();
-      beginG('TV + console'); cab({ axis: 'x', a1: 11.55, a2: 13.25, back: 3.46, front: 3.84, h1: .24, h2: .52, cols: [[1, 1], [1, 1], [1, 1]], fm: M.walnut });
-      B(11.6, 3.5, 13.2, 3.8, .22, .225, M.led, { cast: false }); B(11.68, 3.46, 13.12, 3.49, .98, 1.8, M.blackMetal);
-      B(11.70, 3.49, 13.10, 3.493, 1.0, 1.78, P({ color: 0x050506, roughness: .08, clearcoat: 1, emissive: 0xffffff, emissiveMap: planar(tvTex, 11.70, 1.0, 1.40, .78), emissiveIntensity: 0, nightIntensity: 1.6 }), { cast: false });
-      RB(11.9, 3.68, 12.9, 3.79, .52, .58, .02, M.blackMetal); vase(11.69, 3.66, .52, .9, M.stoneware); book(13.06, 3.66, .52, .22, .16, .035, M.book1, .1); lamp(12.4, 3.9, 1.3, 0x9fc4ff, .8); endG();
-      typed('sofa', SOFA.chaiseL, 12.45, 6.68, FACE.N); typed('coffee', 1, 12.9, 5.4);
-      typed('floorlamp', 0, 11.1, 6.75);
-      livingRug(12.45, 5.25, 1.15, .95);
-      // dining for 4 at the entry, table turned along the room so the hall path (0.84) and WC door stay clear
-      typed('dining', 5, 7.6, 5.3, FACE.E); [[6.85, 4.95, FACE.E], [6.85, 5.65, FACE.E], [8.35, 4.95, FACE.W], [8.35, 5.65, FACE.W]].forEach(([x, y, f]) => typed('chair', 0, x, y, f));
-      diningDecor(7.6, 5.3);
-      // office (north room): two desks on the north wall facing out, guest sofa on the partition, reading corner by the bookshelf
-      typed('desk', 1, 10.3, .4, FACE.N); typed('deskchair', 0, 10.3, 1.05, FACE.N);
-      typed('desk', 1, 12.1, .4, FACE.N); typed('deskchair', 0, 12.1, 1.05, FACE.N);
-      typed('sofa', SOFA.modern, 11.2, 2.85, FACE.N, { W: 2.0 });
-      beginG('Bookshelf'); B(7.17, .25, 7.51, 1.85, 0, .04, M.oakFurn); B(7.17, .25, 7.51, .28, 0, 2.4, M.oakFurn); B(7.17, 1.82, 7.51, 1.85, 0, 2.4, M.oakFurn); B(7.17, 1.035, 7.51, 1.065, 0, 2.4, M.oakFurn);
-      [.45, .85, 1.25, 1.65, 2.05, 2.37].forEach(h => B(7.17, .25, 7.51, 1.85, h, h + .03, M.oakFurn));
-      const bm = [M.book1, M.book2, M.book3, M.paper]; [.48, .88, 1.28, 1.68].forEach((h, r) => { let y = .31; while (y < 1.76) { const w = .025 + rand() * .03, hh = .22 + rand() * .1; if (y + w > 1.0 && y < 1.1) { y = 1.1; continue; } B(7.21, y, 7.45, y + w, h, h + hh, bm[(r + Math.floor(y * 37)) % 4]); y += w + .004; } });
-      vase(7.34, 1.45, 2.08, .6, M.stonewareDark); endG();
-      typed('armchair', 2, 8.25, 1.35, faceTo(8.25, 1.35, 10.0, 2.0)); typed('floorlamp', 0, 7.75, 2.2);
-      beginG('Office rug'); RB(9.4, .95, 12.9, 2.55, 0, .012, .05, M.rug, { cast: false }); endG();
-    } },
-  open: { name: 'A · Corner kitchen NW · TV on south wall', tag: 'Open plan',
-    why: 'L-shaped corner kitchen on the bathroom wet wall with a slim island; dining by the north-east windows; corner sofa floats mid-room facing a TV wall on the solid south wall; reading nook on the shaft by the entrance.',
-    met: 'Sofa 4 + dining 4 + island · TV 2.04 m clear · ≈54.4 m² open',
-    clr: [['Kitchen legs → island (aisles)', '1.00 · 0.93'], ['Island → dining chair', '1.21'], ['Dining chair → sofa back', '1.28'], ['Sofa front → TV console', '2.04'], ['Chaise → TV console', '0.84'], ['Coffee table → balcony door path', '0.82'], ['Corridor → living', 'open']],
-    views: { kitchen: [[10.4, 1.6, 3.4], [7.6, 1.0, .6]], living: [[12.5, 1.65, 2.6], [11.6, .9, 6.9]], office: [[12.2, 1.6, 4.9], [9.8, .9, 6.3]] },
-    rooms: [[10.4, 3.1, 'Open kitchen + living', '≈54.4 m² (incl. hall + corridor)']],
-    furn: [['Corner kitchen (L)', 7.6, .9, .92, '1.69', '2.31', '0.92'], ['Fridge + oven towers', 7.48, 2.91, 2.6, '0.62', '1.20', '2.60'], ['Slim island', 9.54, 1.86, .92, '1.50', '0.62', '0.92'], ['Corner sofa (L)', 12.0, 4.2, .84, '2.20', '2.10', '0.84'], ['TV wall + 65" TV', 12.1, 6.9, 1.8, '2.30', '0.44', '2.70'], ['Dining table 1.40 (4 seats)', 12.1, 1.6, .75, '1.40', '0.80', '0.75'], ['Bookshelf (on shaft)', 10.06, 6.47, 2.4, '1.59', '0.34', '2.40']],
-    plants() { G('Fig plant', () => fig(13.3, 3.45, 1)); G('Snake plant', () => snake(10.65, 6.85, .8)); },
-    build() {
-      kitNW(); kitNWIsland(); tvSouth(12.1);
-      typed('sofa', SOFA.chaiseR, 12.0, 4.2, FACE.S); typed('coffee', 1, 12.45, 5.3); typed('floorlamp', 0, 13.35, 6.85); livingRug(12.05, 5.15, 1.25, .95);
-      dining4(12.1, 1.6);
-      shelfShaft(); typed('armchair', 2, 9.75, 5.35, faceTo(9.75, 5.35, 10.2, 6.2)); typed('floorlamp', 0, 9.2, 5.95);
-      beginG('Nook rug'); RB(9.25, 4.85, 10.75, 6.2, 0, .012, .05, M.rug, { cast: false }); endG();
-    } },
-  open2: { walls: 'open', name: 'B · Kitchen on the south wall · TV on north wall', tag: 'Open plan',
-    why: 'Kitchen keeps the plan’s gas and water points: hob on the shaft, sink run on the south wall, fridge in the corner, plus an island facing it. Sofa backs onto the island and faces a TV on the solid north wall; dining by the bathroom wall.',
-    met: 'Sofa 4 + armchair + dining 4 + island · TV 2.46 m clear',
-    clr: [['Kitchen run → island (aisle)', '1.00'], ['Island → sofa back', '1.09'], ['Sofa front → TV console', '2.46'], ['Chaise → TV console', '1.26'], ['Dining chair → bathroom wall', '0.53'], ['Island → balcony door path', '1.12'], ['Corridor → living', 'open']],
-    views: { kitchen: [[10.0, 1.6, 3.9], [12.2, 1.0, 6.6]], living: [[12.9, 1.6, 4.6], [10.8, .8, .4]], office: [[10.4, 1.6, 3.6], [7.9, .9, 1.4]] },
-    rooms: [[9.2, 3.6, 'Open kitchen + living', '≈54.4 m² (incl. hall + corridor)']],
-    furn: [['Kitchen run (shaft + south wall)', 11.1, 6.6, .92, '3.71', '0.62', '0.92'], ['Fridge-freezer', 13.3, 6.83, 2.1, '0.61', '0.60', '2.10'], ['Island', 11.75, 5.2, .92, '1.50', '0.62', '0.92'], ['Corner sofa (L)', 11.25, 3.35, .84, '2.20', '2.10', '0.84'], ['TV wall + 65" TV', 11.25, .25, 1.8, '2.30', '0.44', '2.70'], ['Dining table 1.40 (4 seats)', 8.7, 1.9, .75, '0.80', '1.40', '0.75']],
-    plants() { G('Fig plant', () => fig(13.3, .45, 1)); G('Snake plant', () => snake(7.45, 3.55, .8)); },
-    build() {
-      kitPlan(); islandX(11.0, 12.5, 4.89, 5.51, true); oTvNorth(11.25);
-      typed('sofa', SOFA.chaiseL, 11.25, 3.35, FACE.N); typed('coffee', 1, 11.8, 2.15); typed('floorlamp', 0, 9.85, .35); livingRug(11.3, 2.35, 1.25, .95);
-      typed('armchair', 3, 13.05, 3.95, faceTo(13.05, 3.95, 11.6, 2.2));
-      dining4(8.7, 1.9, 'y');
-    } },
-  open3: { walls: 'open', name: 'C · Galley on the bathroom wall · TV on east wall', tag: 'Open plan',
-    why: 'Straight kitchen on the bathroom wet wall with fridge and oven towers in the corner, island with 3 stools facing it. Corner sofa faces east to a 55" TV on the solid pier between window and balcony door; dining by the south windows; reading corner on the north wall.',
-    met: 'Sofa 4 + 3 stools + dining 4 · TV 2.16 m clear',
-    clr: [['Kitchen run → island (aisle)', '1.00'], ['Stools → chaise', '0.95'], ['Sofa front → TV console', '2.16'], ['Chaise → TV console', '0.96'], ['Sofa → dining chair', '0.43'], ['Balcony door path', '0.92'], ['Corridor → living', 'open']],
-    views: { kitchen: [[10.3, 1.6, 2.6], [7.4, 1.0, 1.4]], living: [[9.7, 1.6, 4.0], [13.5, 1.1, 4.0]], office: [[10.0, 1.6, 4.4], [12.6, .9, 6.6]] },
-    rooms: [[9.3, 3.6, 'Open kitchen + living', '≈54.4 m² (incl. hall + corridor)']],
-    furn: [['Galley kitchen (bathroom wall)', 7.48, 2.05, .92, '0.62', '1.65', '0.92'], ['Fridge + oven towers', 7.48, .62, 2.6, '0.62', '1.20', '2.60'], ['Island + 3 stools', 9.1, 1.4, .92, '0.62', '1.80', '0.92'], ['Corner sofa (L)', 10.6, 4.0, .84, '2.10', '2.20', '0.84'], ['TV wall + 55" TV', 13.4, 4.0, 1.75, '0.41', '1.39', '2.70'], ['Dining table 1.40 (4 seats)', 12.1, 6.1, .75, '1.40', '0.80', '0.75'], ['Bookshelf', 12.0, .17, 2.4, '1.59', '0.34', '2.40']],
-    plants() { G('Fig plant', () => fig(13.3, 2.95, 1)); G('Snake plant', () => snake(10.65, 6.85, .8)); },
-    build() {
-      kitWest(); islandY(.5, 2.3, 8.79, 9.41, .25); [.85, 1.4, 1.95].forEach(y => typed('stool', 0, 9.9, y, FACE.W));
-      oTvEast(); typed('sofa', SOFA.chaiseL, 10.6, 4.0, FACE.E); typed('coffee', 1, 12.0, 4.65); livingRug(11.55, 4.05, 1.2, 1.05);
-      dining4(12.1, 6.1);
-      shelfNorth(11.2); typed('armchair', 2, 12.85, 1.25, faceTo(12.85, 1.25, 11.6, 1.6)); typed('floorlamp', 0, 13.35, .4); typed('sidetable', 0, 12.2, .75);
-    } },
-  open4: { walls: 'open', name: 'D · U-kitchen with bar · TV on the shaft wall', tag: 'Open plan',
-    why: 'U-shaped kitchen: corner kitchen plus a peninsula bar off the column with 3 stools. Corner sofa faces a 65" TV on the service-shaft wall; dining by the north-east windows; lounge chairs by the south-east window.',
-    met: 'Sofa 4 + 3 bar stools + dining 4 + 2 armchairs · TV 2.21 m clear',
-    clr: [['U-kitchen aisle (leg → bar)', '1.05'], ['Bar stools → sofa back', '0.85'], ['Sofa front → TV console', '2.21'], ['Chaise → TV console', '0.97'], ['Coffee table → sofa', '0.30'], ['Dining chair → sofa', 'clear'], ['Corridor → living', 'open']],
-    views: { kitchen: [[10.6, 1.6, 2.9], [7.8, 1.0, .9]], living: [[10.2, 1.65, 2.6], [10.1, .9, 6.6]], office: [[11.0, 1.6, 4.4], [13.0, .9, 6.6]] },
-    rooms: [[11.6, 3.0, 'Open kitchen + living', '≈54.4 m² (incl. hall + corridor)']],
-    furn: [['Corner kitchen (L)', 7.6, .9, .92, '1.69', '2.31', '0.92'], ['Fridge + oven towers', 7.48, 2.91, 2.6, '0.62', '1.20', '2.60'], ['Peninsula bar + 3 stools', 9.28, 1.3, .92, '0.92', '2.22', '0.92'], ['Corner sofa (L)', 10.07, 3.6, .84, '2.20', '2.10', '0.84'], ['TV on shaft + 65" TV', 10.07, 6.4, 1.8, '1.59', '0.42', '2.70'], ['Dining table 1.40 (4 seats)', 12.1, 1.6, .75, '1.40', '0.80', '0.75']],
-    plants() { G('Fig plant', () => fig(13.3, 3.6, 1)); G('Snake plant', () => snake(11.25, 6.85, .8)); },
-    build() {
-      kitNW(); peninsula(); [.85, 1.45, 2.05].forEach(y => typed('stool', 0, 9.98, y, FACE.W));
-      tvShaft(); typed('sofa', SOFA.chaiseR, 10.07, 3.6, FACE.S); typed('coffee', 1, 10.6, 4.75); livingRug(10.3, 4.6, 1.25, .9);
-      dining4(12.1, 1.6);
-      typed('armchair', 2, 12.0, 6.4, faceTo(12.0, 6.4, 12.45, 5.4)); typed('armchair', 3, 12.9, 6.45, faceTo(12.9, 6.45, 12.45, 5.4)); typed('sidetable', 0, 12.45, 6.8); typed('floorlamp', 0, 11.45, 6.85);
-    } },
-  open5: { walls: 'open', name: 'E · Shaft kitchen with island · TV on north wall', tag: 'Open plan',
-    why: 'L-kitchen on the service shaft (sink by the WC stack, hob by the gas riser) with towers and an island; corner sofa faces a TV on the solid north wall; dining by the south-east window next to the balcony; library corner on the bathroom wall.',
-    met: 'Sofa 4 + dining 4 + 2 armchairs + island · TV 2.21 m clear',
-    clr: [['Counter → island (aisle)', '1.00'], ['Island → partition-free walkway', 'open'], ['Sofa front → TV console', '2.21'], ['Chaise → TV console', '1.01'], ['Sofa back → dining chair', '1.43'], ['Dining → balcony door path', '0.92'], ['Corridor → living', 'open']],
-    views: { kitchen: [[8.0, 1.6, 3.6], [10.2, 1.0, 5.9]], living: [[12.3, 1.65, 4.6], [11.6, .8, .3]], office: [[10.3, 1.6, 3.4], [7.6, .9, 1.4]] },
-    rooms: [[9.9, 3.2, 'Open kitchen + living', '≈54.4 m² (incl. hall + corridor)']],
-    furn: [['L-kitchen (shaft wall + towers)', 9.6, 6.3, .92, '2.08', '0.62', '0.92'], ['Fridge + oven towers', 10.57, 5.42, 2.6, '0.62', '1.20', '2.60'], ['Island (DW inside)', 9.5, 4.71, .92, '1.10', '0.62', '0.92'], ['Corner sofa (L)', 12.0, 3.1, .84, '2.20', '2.10', '0.84'], ['TV wall + 65" TV', 12.0, .25, 1.8, '2.30', '0.44', '2.70'], ['Dining table 1.40 (4 seats)', 12.1, 5.85, .75, '1.40', '0.80', '0.75'], ['Bookshelf', 7.34, 1.05, 2.4, '0.34', '1.60', '2.40']],
-    plants() { G('Fig plant', () => fig(13.3, 3.95, 1)); G('Snake plant', () => snake(7.45, 3.55, .8)); },
-    build() {
-      kitShaft(); oTvNorth(12.0);
-      typed('sofa', SOFA.chaiseL, 12.0, 3.1, FACE.N); typed('coffee', 1, 12.5, 1.85); livingRug(12.0, 2.1, 1.25, .95);
-      dining4(12.1, 5.85);
-      shelfWest(); typed('armchair', 2, 8.2, 1.0, faceTo(8.2, 1.0, 9.0, 1.85)); typed('armchair', 3, 8.25, 2.6, faceTo(8.25, 2.6, 9.0, 1.85)); typed('sidetable', 0, 8.95, 1.85); typed('floorlamp', 0, 7.6, 2.45);
-      beginG('Nook rug'); RB(7.65, .45, 9.75, 3.05, 0, .012, .05, M.rug, { cast: false }); endG();
-    } },
-  off1: { walls: 'officeSE', name: 'F · Office + studio · U-kitchen with bar', tag: 'With office',
-    why: 'Office keeps the old kitchen room (door from the hall). Corridor and hall open into the studio: U-shaped kitchen with a 3-stool bar off the column, corner sofa facing the TV on the office partition, dining for 4 in the open hall.',
-    met: 'Office 12.6 m² (2 desks) · sofa 4 + armchair + 3 stools + dining 4',
-    clr: [['U-kitchen aisle', '1.05'], ['Bar stools → chaise', '0.97'], ['Sofa front → TV', '3.31'], ['Dining chair → hall wardrobe', '0.84'], ['Office door swing → dining', 'clear'], ['Corridor → studio', 'open']],
-    views: { kitchen: [[10.6, 1.6, 2.9], [7.8, 1.0, .9]], living: [[8.6, 1.65, 2.6], [12.8, .8, 1.3]], office: [[9.3, 1.6, 4.75], [12.8, .85, 6.4]], hall: [[8.6, 1.6, 3.4], [5.5, 1.0, 6.6]] },
-    rooms: [[10.2, 3.4, 'Studio + hall (open)', '≈41.6 m²'], [10.6, 5.0, 'Office', '≈12.6 m²']],
-    furn: [['Corner kitchen (L)', 7.6, .9, .92, '1.69', '2.31', '0.92'], ['Fridge + oven towers', 7.48, 2.91, 2.6, '0.62', '1.20', '2.60'], ['Peninsula bar + 3 stools', 9.28, 1.3, .92, '0.92', '2.22', '0.92'], ['Corner sofa (L)', 12.3, .47, .84, '2.20', '2.10', '0.84'], ['TV wall + 65" TV', 12.3, 4.1, 1.8, '2.50', '0.40', '2.70'], ['Dining table 1.40 (4 seats)', 7.6, 5.3, .75, '0.80', '1.40', '0.75'], ['Office desk (window)', 13.27, 6.25, .75, '0.70', '1.40', '0.75'], ['Office desk (wall)', 11.65, 6.78, .75, '1.40', '0.70', '0.75']],
-    plants() { G('Fig plant', () => fig(13.25, 3.95, 1)); G('Snake plant', () => snake(13.3, 4.75, .8)); },
-    build() {
-      kitNW(); peninsula(); [.85, 1.45, 2.05].forEach(y => typed('stool', 0, 9.98, y, FACE.W));
-      oTvPartition(); typed('sofa', SOFA.chaiseR, 12.3, .47, FACE.S); typed('coffee', 1, 12.75, 1.7);
-      typed('armchair', 3, 13.1, 3.0, faceTo(13.1, 3.0, 12.3, 1.2)); typed('floorlamp', 0, 13.35, .35); livingRug(12.45, 1.75, 1.15, 1.0);
-      dining4(7.6, 5.3, 'y');
-      officeSE();
-    } },
-  off2: { walls: 'officeSE', name: 'G · Office + studio · galley + island, TV on north wall', tag: 'With office',
-    why: 'Office in the old kitchen room. Galley kitchen on the bathroom wet wall with an island and 3 stools; corner sofa backs onto the office partition and faces a TV on the solid north wall; dining in the open hall.',
-    met: 'Office 12.6 m² (2 desks) · sofa 4 + 3 stools + dining 4 · TV 2.91 m clear',
-    clr: [['Galley → island (aisle)', '1.00'], ['Stools → chaise', '0.75'], ['Sofa front → TV console', '2.91'], ['Chaise → TV console', '1.71'], ['Coffee table → balcony door path', '0.67'], ['Dining chair → hall wardrobe', '0.84'], ['Corridor → studio', 'open']],
-    views: { kitchen: [[10.3, 1.6, 2.6], [7.4, 1.0, 1.4]], living: [[10.4, 1.65, 3.9], [12.2, .9, .2]], office: [[9.3, 1.6, 4.75], [12.8, .85, 6.4]], hall: [[8.6, 1.6, 3.4], [5.5, 1.0, 6.6]] },
-    rooms: [[10.0, 3.0, 'Studio + hall (open)', '≈41.6 m²'], [10.6, 5.0, 'Office', '≈12.6 m²']],
-    furn: [['Galley kitchen (bathroom wall)', 7.48, 2.05, .92, '0.62', '1.65', '0.92'], ['Fridge + oven towers', 7.48, .62, 2.6, '0.62', '1.20', '2.60'], ['Island + 3 stools', 9.1, 1.4, .92, '0.62', '1.80', '0.92'], ['Corner sofa (L)', 12.0, 3.8, .84, '2.20', '2.10', '0.84'], ['TV wall + 65" TV', 12.0, .25, 1.8, '2.30', '0.44', '2.70'], ['Dining table 1.40 (4 seats)', 7.6, 5.3, .75, '0.80', '1.40', '0.75'], ['Office desk (window)', 13.27, 6.25, .75, '0.70', '1.40', '0.75'], ['Office desk (wall)', 11.65, 6.78, .75, '1.40', '0.70', '0.75']],
-    plants() { G('Fig plant', () => fig(10.45, .4, 1)); G('Snake plant', () => snake(13.3, 4.75, .8)); },
-    build() {
-      kitWest(); islandY(.5, 2.3, 8.79, 9.41, .25); [.85, 1.4, 1.95].forEach(y => typed('stool', 0, 9.9, y, FACE.W));
-      oTvNorth(12.0); typed('sofa', SOFA.chaiseL, 12.0, 3.8, FACE.N); typed('coffee', 1, 12.45, 2.6); typed('floorlamp', 0, 13.4, 3.05); livingRug(12.0, 2.6, 1.25, .95);
-      dining4(7.6, 5.3, 'y');
-      officeSE();
-    } },
-  off3: { walls: 'glassNE', name: 'H · Glass office with balcony · open plan', tag: 'With office',
-    why: 'Glass-walled office in the north-east corner keeps the windows and its own balcony door (sliding glass door, daylight passes through). Everything else is one open space: corner kitchen with island, dining between kitchen and living, sofa facing a TV on the south wall, reading nook on the shaft.',
-    met: 'Office 9.0 m² · sofa 3 + dining 4 + armchair · TV 1.94 m clear',
-    clr: [['Kitchen legs → island (aisles)', '1.00 · 0.93'], ['Island → dining chair', '0.86'], ['Sofa back → glass office', '0.55'], ['Sofa front → TV console', '1.94'], ['Island → office door', '0.61'], ['Corridor → living', 'open']],
-    views: { kitchen: [[10.4, 1.6, 3.4], [7.6, 1.0, .6]], living: [[10.4, 1.65, 3.5], [12.4, .9, 6.9]], office: [[9.9, 1.6, 3.6], [12.6, .9, .6]], hall: [[9.8, 1.6, 4.4], [5.5, 1.0, 6.6]] },
-    rooms: [[9.3, 4.6, 'Open kitchen + living', '≈45.3 m²'], [12.25, 1.9, 'Glass office', '≈9.0 m²']],
-    furn: [['Corner kitchen (L)', 7.6, .9, .92, '1.69', '2.31', '0.92'], ['Slim island', 9.54, 1.86, .92, '1.50', '0.62', '0.92'], ['Sofa 2.40', 12.1, 4.3, .84, '2.40', '0.90', '0.84'], ['TV wall + 65" TV', 12.1, 6.9, 1.8, '2.30', '0.44', '2.70'], ['Dining table 1.40 (4 seats)', 9.5, 3.9, .75, '1.40', '0.80', '0.75'], ['Glass office desk', 12.0, .4, .75, '1.40', '0.70', '0.75'], ['Bookshelf (on shaft)', 10.06, 6.47, 2.4, '1.59', '0.34', '2.40']],
-    plants() { G('Fig plant', () => fig(13.3, 3.75, 1)); G('Snake plant', () => snake(11.15, 2.9, .8)); },
-    build() {
-      kitNW(); kitNWIsland(); tvSouth(12.1);
-      typed('sofa', SOFA.modern, 12.1, 4.3, FACE.S, { W: 2.4 }); typed('coffee', 1, 12.1, 5.45); typed('floorlamp', 0, 13.35, 6.85); livingRug(12.1, 5.4, 1.3, .85);
-      dining4(9.5, 3.9);
-      shelfShaft(); typed('armchair', 2, 10.1, 5.7, faceTo(10.1, 5.7, 9.5, 6.3)); typed('floorlamp', 0, 9.2, 5.95);
-      typed('desk', 1, 12.0, .4, FACE.N); typed('deskchair', 0, 12.0, 1.05, FACE.N); typed('floorlamp', 0, 11.15, .35);
-      beginG('Office rug'); RB(11.2, .8, 12.8, 2.0, 0, .012, .05, M.rug, { cast: false }); endG();
-    } },
-  off4: { walls: 'swapOpen', name: 'I · Office north · kitchen on south wall, TV on east wall', tag: 'With office',
-    why: 'Large 21 m² office in the north room (2 desks + guest sofa). The living space takes hall and corridor: kitchen on the plan’s gas/water points (shaft + south wall + fridge), sofa faces a 55" TV on the solid east pier, dining for 4 at the entry.',
-    met: 'Office 21.2 m² · sofa 3 + dining 4 · TV 1.76 m clear',
-    clr: [['Sofa → kitchen run (aisle)', '0.91'], ['Sofa back → hob zone', '0.43'], ['Sofa front → TV console', '1.76'], ['Dining chair → hall wardrobe', '0.84'], ['Office door', 'clear'], ['Corridor → living', 'open']],
-    views: { kitchen: [[8.6, 1.6, 4.0], [12.0, 1.0, 6.7]], living: [[9.7, 1.65, 4.3], [13.5, 1.1, 4.0]], office: [[7.9, 1.6, 2.9], [12.0, .85, .8]], hall: [[8.75, 1.45, 3.7], [5.5, 1.0, 6.7]] },
-    rooms: [[9.0, 4.0, 'Living + kitchen (incl. hall)', '≈32.4 m²'], [10.4, 2.0, 'Office', '≈21.2 m²']],
-    furn: [['Kitchen run (shaft + south wall)', 11.1, 6.6, .92, '3.71', '0.62', '0.92'], ['Fridge-freezer', 13.3, 6.83, 2.1, '0.61', '0.60', '2.10'], ['Sofa 2.20', 11.0, 4.5, .84, '0.90', '2.20', '0.84'], ['TV wall + 55" TV', 13.4, 4.0, 1.75, '0.41', '1.39', '2.70'], ['Dining table 1.40 (4 seats)', 7.6, 5.3, .75, '0.80', '1.40', '0.75'], ['Office desk A', 10.3, .4, .75, '1.40', '0.70', '0.75'], ['Office desk B', 12.1, .4, .75, '1.40', '0.70', '0.75'], ['Office sofa 2.00', 11.2, 2.85, .84, '2.00', '0.90', '0.84']],
-    plants() { G('Snake plant', () => snake(8.95, 3.7, .8)); },
-    build() {
-      kitPlan(); oTvEast();
-      typed('sofa', SOFA.modern, 11.0, 4.5, FACE.E); typed('coffee', 1, 12.3, 4.4); livingRug(12.0, 4.45, 1.0, .9);
-      dining4(7.6, 5.3, 'y');
-      officeN();
-    } },
-  off5: { walls: 'glassSE', name: 'J · Glass office by the balcony · TV on north wall', tag: 'With office',
-    why: 'Glass office in the south-east corner with its own window and balcony door; the rest is open: corner kitchen with island, corner sofa facing a TV on the solid north wall, dining for 4 in front of the shaft.',
-    met: 'Office 6.9 m² · sofa 4 + dining 4 · TV 2.51 m clear',
-    clr: [['Kitchen legs → island (aisles)', '1.00 · 0.93'], ['Island → chaise', '0.61'], ['Sofa front → TV console', '2.51'], ['Sofa back → glass office', '0.65'], ['Dining → office door', '0.70'], ['Corridor → living', 'open']],
-    views: { kitchen: [[10.4, 1.6, 3.4], [7.6, 1.0, .6]], living: [[11.0, 1.65, 4.2], [12.0, .9, .2]], office: [[9.6, 1.6, 4.4], [12.6, .9, 6.7]], hall: [[9.8, 1.6, 4.0], [5.5, 1.0, 6.6]] },
-    rooms: [[9.6, 3.4, 'Open kitchen + living', '≈47.4 m²'], [12.3, 5.8, 'Glass office', '≈6.9 m²']],
-    furn: [['Corner kitchen (L)', 7.6, .9, .92, '1.69', '2.31', '0.92'], ['Slim island', 9.54, 1.86, .92, '1.50', '0.62', '0.92'], ['Corner sofa (L)', 12.0, 3.4, .84, '2.20', '2.10', '0.84'], ['TV wall + 65" TV', 12.0, .25, 1.8, '2.30', '0.44', '2.70'], ['Dining table 1.40 (4 seats)', 9.6, 5.4, .75, '1.40', '0.80', '0.75'], ['Glass office desk', 12.2, 6.78, .75, '1.40', '0.70', '0.75']],
-    plants() { G('Fig plant', () => fig(10.45, .4, 1)); G('Snake plant', () => snake(13.35, 6.85, .8)); },
-    build() {
-      kitNW(); kitNWIsland(); oTvNorth(12.0);
-      typed('sofa', SOFA.chaiseL, 12.0, 3.4, FACE.N); typed('coffee', 1, 12.5, 2.25); livingRug(12.0, 2.3, 1.25, .95);
-      dining4(9.6, 5.4);
-      typed('desk', 1, 12.2, 6.78, FACE.S); typed('deskchair', 0, 12.2, 6.12, FACE.S); typed('floorlamp', 0, 11.25, 6.85);
-    } }
 };
 const ZONE = new Set(['Washer + dryer', 'Walk-in closet', 'Built-in desk', 'Mirror wardrobe fronts', 'Stone arch console', 'Plaster artwork', 'Wall sconce', 'Kitchen bar', 'Bar stool', 'Side table', 'Bookshelf', 'Office rug', 'Nook rug', 'Hall bench + mirror', 'Hall runner', 'Kitchen run', 'Kitchen bar', 'Kitchen island', 'Bar stool', 'Fridge-freezer', 'Wall cabinets', 'Air fryer', 'Coffee machine', 'Oil bottles', 'Dining table', 'Dining chair', 'Table decor', 'Pendant lights', 'Sofa', 'Living rug', 'Coffee table', 'TV wall panel', 'TV + console', 'Fig plant', 'Snake plant', 'Side table', 'Armchair', 'Floor lamp', 'Desk', 'Desk chair']);
 let curLiving = 'studio'; const LIVKEY = 'palace1-layout-v4', TKEY = 'palace1-types-v2';
