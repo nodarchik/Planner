@@ -2,6 +2,22 @@
 
 Goal: the same apartment, (1) changeable by editing data instead of code, (2) editable in the page, (3) visibly more realistic. Baseline: `legacy/palace-apartment.html` (artifact version 22). Read `CLAUDE.md` first.
 
+## Status
+
+| Phase | State | Notes |
+|---|---|---|
+| 0 Setup | done | |
+| 1 Delete dead layouts | done | |
+| 2 Modules | done | |
+| 3 Plan as data | done | `src/plan/palace1.json`; matched baseline within noise before random details became per-item |
+| 4 Checks | done | Plan notes panel + `npm run validate`; current plan: 3 errors, 8 warnings (real findings, not fixed) |
+| 5 Editor | done | 20 functional checks in `tools/editor_test.py`; openings move by typed value, not by drag; not tried on a phone |
+| 6 Models + materials | partial | 13 Poly Haven models, scanned normal/roughness maps. Missing: sanitaryware, appliances, sofa, bed (no fitting CC0 source), KTX2, bevels, handle models, phone frame rate |
+| 7 Lighting + detail | partial | Sun by month/time from site + `meta.north`, scanned sky backdrop, door switches, 2K still button (untested). Missing: 12 stills, cascaded shadows, lumen night lights, DOF, sockets/AC/radiators |
+| 8 Deploy | partial | Vercel project `palace1`, all deployments behind Vercel login; `npm run build:single` for the artifact. Missing: production on `main`, shared edit storage |
+| 9 Measured reality | not started | needs site measurements |
+
+
 Rules for every phase:
 - The app must load and look correct at the end of each phase. No phase leaves the model broken.
 - Visual check after each step: `python3 tools/shot.py <target> top,hall,bed1,bed2,bath,wc,corridor,closet,kitchen,living,office,loggiaE` and compare against `baseline/` (created in Phase 0).

@@ -1,0 +1,8 @@
+{
+  "plaster": { "id": "white_plaster_02", "size": 1.0 },
+  "boucle": { "id": "wool_boucle", "size": 0.31 },
+  "linen": { "id": "rough_linen", "size": 0.27 },
+  "velvet": { "id": "velour_velvet", "size": 0.28 },
+  "micro": { "id": "smooth_concrete_floor", "size": 2.0 },
+  "wood": { "id": "oak_veneer_01", "size": 1.83 }
+}

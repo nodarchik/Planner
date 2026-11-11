@@ -1,0 +1,15 @@
+{
+  "modern_coffee_table_01": { "tex": 512 },
+  "modern_arm_chair_01": {},
+  "potted_plant_01": { "simplify": 0.35 },
+  "potted_plant_02": { "simplify": 0.35 },
+  "potted_plant_04": { "tex": 512 },
+  "side_table_01": { "tex": 512 },
+  "dining_chair_02": { "simplify": 0.5, "tex": 512 },
+  "bar_chair_round_01": { "simplify": 0.6, "tex": 512 },
+  "ceramic_vase_01": { "tex": 512 },
+  "ceramic_vase_03": { "tex": 512 },
+  "book_encyclopedia_set_01": { "simplify": 0.2, "tex": 512 },
+  "wooden_bowl_01": { "simplify": 0.5, "tex": 512 },
+  "modern_ceiling_lamp_01": { "tex": 512 }
+}

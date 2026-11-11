@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Palace 1 Apartment</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="/src/style.css">
+</head>
+<body>
+
+<div id="stage"></div>
+<div id="labels"></div>
+<div id="loader">Building materials…</div>
+<div class="bar">
+  <h1>Palace 1 · 130 m²</h1>
+  <label class="sr" for="view" hidden>Camera</label>
+  <select id="view" class="sel" aria-label="Camera">
+    <option value="overview">Overview</option>
+    <option value="entrance">Entrance view</option>
+    <option value="console">Hall console</option>
+    <option value="corridor">Corridor</option>
+    <option value="livingArea">Living area (from above)</option>
+    <option value="top">Top plan</option>
+    <option value="living">Studio living</option>
+    <option value="kitchen">Studio kitchen</option>
+    <option value="office">Office</option>
+    <option value="bed1">Bedroom 1</option>
+    <option value="closet">Walk-in closet</option>
+    <option value="bed2">Bedroom 2</option>
+    <option value="bath">Bathroom</option>
+    <option value="hall">Hall</option>
+    <option value="wc">Guest WC</option>
+    <option value="loggiaW">West balcony</option>
+    <option value="loggiaE">East balcony</option>
+  </select>
+  <div class="seg" role="group" aria-label="Walls">
+    <button id="wfull" aria-pressed="true">Walls 2.8</button>
+    <button id="wcut" aria-pressed="false">Cut 1.2</button>
+  </div>
+  <div class="seg" role="group" aria-label="Lighting">
+    <button id="mday" aria-pressed="true">Day</button>
+    <button id="mnight" aria-pressed="false">Night</button>
+  </div>
+  <div class="sunctl" role="group" aria-label="Sun">
+    <select id="sunMonth" class="sel" aria-label="Month"></select>
+    <input id="sunTime" type="range" min="5" max="21" step="0.25" aria-label="Time of day">
+    <span class="status" id="sunInfo"></span>
+  </div>
+  <div class="seg" role="group" aria-label="Overlays">
+    <button id="tlab" aria-pressed="true">Rooms</button>
+    <button id="tdim" aria-pressed="false">Dims</button>
+    <button id="tfur" aria-pressed="false">Furniture</button>
+  </div>
+  <select id="style" class="sel" aria-label="Interior style">
+    <option value="warm">Style: Warm 2026</option>
+    <option value="soft">Style: Soft classic</option>
+    <option value="nordic">Style: Nordic light</option>
+    <option value="japandi">Style: Japandi</option>
+    <option value="luxe">Style: Dark luxe</option>
+    <option value="midcentury">Style: Mid-century</option>
+  </select>
+  <div class="seg"><button id="move" aria-pressed="false">Edit plan</button></div>
+  <div class="seg"><button id="photo" aria-pressed="false">Photo render</button><button id="still" disabled title="Path-traced 2560 × 1440 PNG of the current view">Save 2K still</button></div>
+  <span class="status" id="status"></span>
+</div>
+
+<details class="spec" id="spec">
+  <summary>Dimensions (m)</summary>
+  <div class="scroll">
+  <h2>Plan</h2>
+  <table>
+    <tr><td>Interior (plan)</td><td>107.3 m²</td></tr>
+    <tr><td>Balconies (11.0 + 12.9)</td><td>23.9 m²</td></tr>
+    <tr><td>Total incl. balconies</td><td>≈130 m²</td></tr>
+    <tr><td>Bedroom 1</td><td>4.59 × 3.98</td></tr>
+    <tr><td>Bedroom 2</td><td>5.06 × 3.05</td></tr>
+    <tr><td>Living / dining</td><td>6.45 × 4.32</td></tr>
+    <tr><td>TV wall (plan)</td><td>2.15 + 2.15</td></tr>
+    <tr><td>Kitchen counters (plan)</td><td>0.30+0.55+0.79 · 0.75+0.95+0.76+0.30</td></tr>
+    <tr><td>Bathroom</td><td>2.38 × 2.77</td></tr>
+    <tr><td>Balconies (plan)</td><td>11.0 m² · 12.9 m²</td></tr>
+  </table>
+  <h2>Rooms · length × width (this layout)</h2>
+  <table id="roomSizeTable"></table>
+  <h2>Furniture · W × D × H</h2>
+  <table id="furnTable"></table>
+  <p>Dimensions labelled on the plan are used as written; everything else is scaled from the PDF at 1:100; ceiling height 2.80 assumed. "Photo render" path-traces the current view: light bounces, soft shadows, real glass. It sharpens over 10–30 s; keep the camera still.</p>
+  </div>
+</details>
+<div class="hint" id="hint">Drag rotate · Right-drag pan · Scroll zoom</div>
+<details class="layouts" id="layouts">
+  <summary>Plan notes</summary>
+  <div class="list" id="planNotes"></div>
+</details>
+<div class="editbar" id="editbar" hidden>
+  <select id="addType" class="sel" aria-label="Item to add"></select><button id="addBtn">Add</button>
+  <button id="undoBtn" title="Undo (Ctrl+Z)">Undo</button><button id="redoBtn" title="Redo (Ctrl+Shift+Z)">Redo</button>
+  <button id="resetPlan">Reset to published</button>
+  <button id="exportPlan">Export JSON</button><button id="importPlan">Import JSON</button><input id="importFile" type="file" accept=".json,application/json" hidden>
+  <button id="copyChanges">Copy changes</button><span class="status" id="changeCount"></span>
+  <textarea id="changeText" rows="4" readonly hidden aria-label="Change summary"></textarea>
+</div>
+<div class="selpanel" id="selpanel" hidden>
+  <div><b id="selname">—</b></div>
+  <div class="pos" id="selpos"></div>
+  <div class="fields" id="selfields"></div>
+  <div class="row" id="selactions">
+    <button id="rotL" title="Rotate left 90° (Shift: 15°)">⟲ 90°</button>
+    <button id="rotR" title="Rotate right 90° (R; Shift: 15°)">⟳ 90°</button>
+    <button id="dupBtn">Duplicate</button>
+    <button id="delBtn" title="Delete (Del)">Delete</button>
+  </div>
+  <div class="sizebox" id="sizebox">
+    <h3>Size (m) · scales the design</h3>
+    <div class="sizerow">
+      <label for="szW">Width<input id="szW" type="number" step="0.01" min="0.05" inputmode="decimal"></label>
+      <label for="szD">Depth<input id="szD" type="number" step="0.01" min="0.05" inputmode="decimal"></label>
+      <label for="szH">Height<input id="szH" type="number" step="0.01" min="0.05" inputmode="decimal"></label>
+    </div>
+    <div class="row"><label class="lock" for="szLock"><input id="szLock" type="checkbox"> Keep proportions</label><button id="szReset">Original size</button></div>
+  </div>
+  <div class="parts" id="selparts"></div>
+  <div class="row"><button id="lookReset">Original look</button><button id="selDone">Done</button></div>
+  <div class="note">Type a value to change it · drag to move · arrow keys nudge 1 cm (Shift = 10 cm) · R rotates · Del deletes · Esc deselects · Ctrl+Z undo</div>
+</div>
+
+<script type="module" src="/src/main.js"></script>
+</body>
+</html>
