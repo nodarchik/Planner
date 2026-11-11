@@ -18,7 +18,8 @@ export function footprints(plan, G) {
   for (const it of plan.items) {
     const t = it.type;
     if (SIZE[t]) { const v = SIZE[t][Math.min(it.variant || 0, SIZE[t].length - 1)], [x, y] = it.pos, W = it.opts && it.opts.W || v[0];
-      const th = it.lookAt ? Math.atan2(-(it.lookAt[0] - x), -(it.lookAt[1] - y)) : -(it.rot || 0) * Math.PI / 180, c = Math.cos(th), s = Math.sin(th);
+      const round = Math.abs(W - v[1]) < .1; // near-square pieces occupy the same floor at any angle; a rotated bounding box would overstate them
+      const th = round ? 0 : (it.lookAt ? Math.atan2(-(it.lookAt[0] - x), -(it.lookAt[1] - y)) : -(it.rot || 0) * Math.PI / 180), c = Math.cos(th), s = Math.sin(th);
       const world = (lx, ly) => [x + lx * c + ly * s, y - lx * s + ly * c];
       const box = (a, b, e, f) => { const p = [world(a, b), world(e, b), world(e, f), world(a, f)]; return bbox(p); };
       const rects = [box(-W / 2, -v[1] / 2, W / 2, v[1] / 2)];
