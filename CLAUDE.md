@@ -3,9 +3,16 @@
 Interactive, photoreal-leaning 3D model of one real apartment ("Palace 1", Tbilisi; plan PDF 107.3 m², owner counts 130 m² total with balconies). The owner iterates on layout and furniture by plain-language requests ("make the closet 1.30 m", "rotate the bed to face the balcony"). Every request must be answerable by a small, safe edit.
 
 ## Current state
-- `legacy/palace-apartment.html` — the whole app in ONE 2,626-line file (three.js 0.160 ES modules + three-gpu-pathtracer, everything procedural, no external assets). It is the reference implementation and the visual baseline. Published as a Claude artifact (version 22).
-- `PLAN.md` — the refactor + realism plan. Work through it phase by phase.
-- `tools/shot.py` — headless screenshot script (Playwright + SwiftShader) for visual checks.
+- Vite + vanilla ES modules. `index.html` (markup), `src/style.css`, `src/legacy.js` (the whole app, 1,531 lines; three 0.160 + three-gpu-pathtracer from npm, everything procedural, no external assets). Only the Soft classic plan exists in code.
+- `legacy/palace-apartment.html` — the original single-file app (2,626 lines, Claude artifact version 22). Reference only; do not edit.
+- `PLAN.md` — the refactor + realism plan. Phases 0 and 1 are done; next is Phase 2 (split into modules).
+- `baseline/*.png` — 13 reference screenshots (12 views day + `top_night`) of the unmodified app.
+- `tools/shot.py` — headless screenshots (Playwright + SwiftShader, ~45 s per view); `tools/diff.py` — compares two screenshot folders.
+
+## Commands
+- `npm run dev` — dev server. `npm run check` — lint + build. `npm run preview` — serve `dist/` on :4173.
+- `npm run shots` — 13 screenshots of the preview server into `shots/`; `npm run shots:diff` — compare `shots/` with `baseline/` (fails above 0.5 % differing pixels).
+- Python needs `pip install playwright pillow numpy`; Chromium is taken from `CHROME_PATH` or `/opt/pw-browsers/chromium`.
 
 ## Owner preferences
 - Replies: blunt, short, no filler, no questions, no offers. State what changed and stop.
@@ -42,16 +49,18 @@ Plan coordinates `(x, y)` in metres, x → east, y → south, origin at the NW i
 - **Guest shower room**: shower strip x 7.06–7.86 full depth, glass wall along x 7.86 with a door at each end; WC on south wall x 8.18–8.54; basin on east wall y 7.75–8.20.
 - **East balcony**: sofa x 13.92–14.72, y 0.15–1.75; dining for 4 at (14.85, 3.6); herb garden y 6.72–7.05; 2 lounge chairs at y 6.0.
 
-## Legacy code map (line numbers in `legacy/palace-apartment.html`)
-- 296 `makeSet`, 318 `SETS`, 404 `texFor` — procedural PBR texture sets
-- 577–660 geometry helpers: `beginG/endG` (named movable groups), `add`, `B` box, `RB` rounded box, `C` cylinder, `S` sphere, `lathe`, `tube`, `pillow`, `merged`
-- 683 `door`, 695 `skirt`, 884 `cab` (cabinet run with shadow gaps), 954 `bed`
-- 789 `ARCH.softStudio` — walls, arches, mouldings, ceilings for the active layout; 824–878 `softPanels`, `softArch(Y)`, `softBullnose`, `softTray`
-- 1157 `ROOM_SIZES`, 1167 `roomSizes`, 1172 `zoneLabels` — Dims labels
-- 1228 `VIEWS` — camera presets `[[camX, camH, camY], [targetX, targetH, targetY]]`
-- 1620 `makeTyped`, 1819 `typed` — swappable furniture designs (sofa, coffee, dining, chair, desk, armchair…)
-- 2055 `LAYOUTS` — `soft` is the only one to keep; its `build()` contains all Soft-classic furniture
-- 2548 `ZONE`, 2552 `applyLayout`
+## Code map (line numbers in `src/legacy.js`)
+- 54 `makeSet`, 76 `SETS`, 162 `texFor` — procedural PBR texture sets
+- 324–405 geometry helpers: `beginG/endG` (named movable groups), `add`, `B` box, `RB` rounded box, `C` cylinder, `S` sphere, `lathe`, `tube`, `pillow`, `merged`
+- 430 `door`, 442 `skirt`, 447 `buildArchitecture` (shell, exterior walls, fixed partitions, doors, skirting, ceiling), 598 `cab` (cabinet run with shadow gaps), 668 `bed`
+- 512 `ARCH.softStudio` — studio/office/closet partitions, arches, mouldings, ceilings; 551–590 `softPanels`, `softArch`, `softBullnose`, `softTray`
+- 722 `buildFurniture` — bedroom 2 bed group, curtains, west balcony, general lamps
+- 781 `ROOM_SIZES`, 784 `roomSizes`, 789 `zoneLabels` — Dims labels
+- 841 `VIEWS` — camera presets `[[camX, camH, camY], [targetX, targetH, targetY]]`
+- 1113 `DESIGNS`, 1234 `makeTyped`, 1257 `typed` — swappable furniture designs (sofa, coffee, dining, chair, desk, armchair…)
+- 1259 `LAYOUTS.soft` — plan notes (why / metrics / clearances), labels, and `build()` with all other Soft-classic furniture
+- 1470 `applyLayout` (runs once at start-up), 1485 `renderPlanNotes`
+- The seeded generator `rand()` drives textures, plants, hanging garments and books. Adding or removing a `rand()` consumer changes everything built after it; keep the order or expect screenshot differences.
 
 ## Working rules
 - Never change a room's wall coordinates without being asked — they come from the measured plan.
