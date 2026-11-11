@@ -57,7 +57,7 @@
     <option value="luxe">Style: Dark luxe</option>
     <option value="midcentury">Style: Mid-century</option>
   </select>
-  <div class="seg"><button id="move" aria-pressed="false">Edit furniture</button><button id="swapBtn" aria-pressed="false">Swap designs</button></div>
+  <div class="seg"><button id="move" aria-pressed="false">Edit plan</button></div>
   <div class="seg"><button id="photo" aria-pressed="false">Photo render</button></div>
   <span class="status" id="status"></span>
 </div>
@@ -90,24 +90,26 @@
   <summary>Plan notes</summary>
   <div class="list" id="planNotes"></div>
 </details>
-<div class="selpanel swappanel" id="swappanel" hidden>
-  <div><b id="swapname">—</b></div>
-  <div class="pos" id="swaphint">Pick a design. Position, rotation and colours carry over.</div>
-  <div class="dlist" id="swaplist"></div>
-  <div class="row"><button id="swapDone">Done</button></div>
+<div class="editbar" id="editbar" hidden>
+  <select id="addType" class="sel" aria-label="Item to add"></select><button id="addBtn">Add</button>
+  <button id="undoBtn" title="Undo (Ctrl+Z)">Undo</button><button id="redoBtn" title="Redo (Ctrl+Shift+Z)">Redo</button>
+  <button id="resetPlan">Reset to published</button>
+  <button id="exportPlan">Export JSON</button><button id="importPlan">Import JSON</button><input id="importFile" type="file" accept=".json,application/json" hidden>
+  <button id="copyChanges">Copy changes</button><span class="status" id="changeCount"></span>
+  <textarea id="changeText" rows="4" readonly hidden aria-label="Change summary"></textarea>
 </div>
 <div class="selpanel" id="selpanel" hidden>
   <div><b id="selname">—</b></div>
   <div class="pos" id="selpos"></div>
-  <div class="row">
-    <button id="rotL" title="Rotate left 15° (Shift+R)">⟲ 15°</button>
-    <button id="rotR" title="Rotate right 15°">⟳ 15°</button>
-    <button id="rot90" title="Rotate 90° (R)">⟳ 90°</button>
-    <button id="selReset">Put back</button>
-    <button id="lookReset">Original look</button>
+  <div class="fields" id="selfields"></div>
+  <div class="row" id="selactions">
+    <button id="rotL" title="Rotate left 90° (Shift: 15°)">⟲ 90°</button>
+    <button id="rotR" title="Rotate right 90° (R; Shift: 15°)">⟳ 90°</button>
+    <button id="dupBtn">Duplicate</button>
+    <button id="delBtn" title="Delete (Del)">Delete</button>
   </div>
-  <div class="sizebox">
-    <h3>Size (m)</h3>
+  <div class="sizebox" id="sizebox">
+    <h3>Size (m) · scales the design</h3>
     <div class="sizerow">
       <label for="szW">Width<input id="szW" type="number" step="0.01" min="0.05" inputmode="decimal"></label>
       <label for="szD">Depth<input id="szD" type="number" step="0.01" min="0.05" inputmode="decimal"></label>
@@ -116,8 +118,8 @@
     <div class="row"><label class="lock" for="szLock"><input id="szLock" type="checkbox"> Keep proportions</label><button id="szReset">Original size</button></div>
   </div>
   <div class="parts" id="selparts"></div>
-  <div class="row"><button id="resetAll">Reset all furniture</button><button id="selDone">Done</button></div>
-  <div class="note">Drag to move · type a size to resize · arrow keys nudge 1 cm (Shift = 10 cm) · R rotates · Esc deselects</div>
+  <div class="row"><button id="lookReset">Original look</button><button id="selDone">Done</button></div>
+  <div class="note">Type a value to change it · drag to move · arrow keys nudge 1 cm (Shift = 10 cm) · R rotates · Del deletes · Esc deselects · Ctrl+Z undo</div>
 </div>
 
 <script type="module" src="/src/main.js"></script>

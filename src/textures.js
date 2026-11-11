@@ -3,6 +3,7 @@ import { frame } from './scene.js';
 
 /* ================= procedural noise ================= */
 let SEED = 11;
+export function reseed(text) { let h = 2166136261; for (let i = 0; i < text.length; i++) h = Math.imul(h ^ text.charCodeAt(i), 16777619); SEED = (h >>> 0) % 2147483646 + 1; } // one stream per item id
 export const rand = () => { SEED = (SEED * 16807) % 2147483647; return (SEED - 1) / 2147483646; };
 export function vnoise(nx, ny = nx) {
   const g = new Float32Array(nx * ny); for (let i = 0; i < g.length; i++) g[i] = rand();

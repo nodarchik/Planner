@@ -1,34 +1,15 @@
-import * as THREE from 'three';
-import { CUT, H, V3, camera, controls, frame, loader, renderer, scene, state, statusEl, world } from './scene.js';
+import { CUT, H, V3, camera, controls, frame, loader, renderer, scene, state, statusEl } from './scene.js';
 import { buildTextures } from './textures.js';
 import { buildMaterials } from './materials.js';
-import { buildArchitecture } from './arch/shell.js';
-import { buildItems } from './items/index.js';
-import { bbox, plan } from './plan/plan.js';
-import { emissives } from './materials.js';
-import { attachLabels, loadLayout } from './ui/editor.js';
-import { loadStyle } from './ui/style.js';
-import { loadTypes } from './ui/swap.js';
-import { renderPlanNotes } from './ui/panels.js';
+import { PUBLISHED, bbox, plan, setPlan } from './plan/plan.js';
+import { buildAll } from './build.js';
 import { composer } from './post.js';
-import { furnitureLabels, labels, setupOverlays } from './ui/dims.js';
+import { labels } from './ui/dims.js';
 import { setMood } from './ui/toolbar.js';
 import { setView } from './ui/views.js';
+import { loadEdits } from './ui/editor.js';
+import { loadStyle } from './ui/style.js';
 import { rebuildPT } from './pathtracer.js';
-import './lighting.js';
-import './primitives.js';
-import './arch/walls.js';
-import './arch/soft.js';
-import './furniture/storage.js';
-import './furniture/plants.js';
-import './furniture/decor.js';
-import './furniture/bed.js';
-import './furniture/chairs.js';
-import './catalog.js';
-import './ui/editor.js';
-import './ui/style.js';
-import './ui/swap.js';
-import './ui/panels.js';
 
 // extent of the ceilings: the camera counts as inside (wide lens, ceiling shown) within it
 const ROOF = bbox(plan.ceilings.flatMap(c => [[c.rect[0], c.rect[1]], [c.rect[2], c.rect[3]]]));
@@ -36,12 +17,8 @@ const ROOF = bbox(plan.ceilings.flatMap(c => [[c.rect[0], c.rect[1]], [c.rect[2]
 async function build() {
   await frame(); await buildTextures(); buildMaterials();
   loader.textContent = 'Building apartment…'; await frame();
-  state.ceiling = buildArchitecture(); buildItems();
-  emissives.forEach(m => m.emissiveIntensity = state.night ? m.userData.night : m.userData.day);
-  world.updateMatrixWorld(true);
-  world.traverse(o => { if (o.isMesh && !o.userData.clamp && o.userData.minY === undefined) { const bb = new THREE.Box3().setFromObject(o); o.userData.minY = bb.min.y; o.userData.maxY = bb.max.y; } });
-  scene.traverse(o => { if (o.isPointLight) o.visible = state.night; });
-  setupOverlays(); loadTypes(); loadLayout(); loadStyle(); furnitureLabels(); attachLabels(); renderPlanNotes();
+  loadEdits(); loadStyle();
+  try { buildAll(); } catch (err) { console.error('stored edits could not be built; using the published plan', err); setPlan(PUBLISHED); buildAll(); }
   setMood(false); setView('overview', true);
   loader.hidden = true;
 }

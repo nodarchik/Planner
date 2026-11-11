@@ -1,8 +1,10 @@
 import * as THREE from 'three';
-import { movables, state } from '../scene.js';
+import { state } from '../scene.js';
 import { M, P, T } from '../materials.js';
 import { plan } from '../plan/plan.js';
 import { rebuildPT } from '../pathtracer.js';
+import { itemGroups } from '../items/index.js';
+import { edit } from './editor.js';
 
 /* ================= colours, finishes and style presets ================= */
 const SKEY = 'palace1-style-v3', DS = THREE.DoubleSide;
@@ -71,20 +73,20 @@ function applyPreset(name) {
   if (!BASE) { BASE = {}; for (const k in CAT) BASE[k] = M[k].color.getHex(); }
   curPreset = PRESETS[name] ? name : 'warm'; document.getElementById('style').value = curPreset;
   for (const k in CAT) M[k].color.set(PRESETS[curPreset][k] || BASE[k]);
-  if (state.sel) renderParts(state.sel); rebuildPT();
+  rebuildPT();
 }
+const itemOfGroup = g => plan.items.find(i => i.id === g.userData.item);
+function paint(g, key, fin, color) { const m = makeFinish(fin, color); g.traverse(o => { if (o.isMesh && o.userData.mkey === key) o.material = m; }); g.userData.custom[key] = { fin, color }; }
+// change the finish / colour of one part of an item; saved in the plan as item.look
 export function applyPart(g, key, fin, color, save = true) {
-  const m = makeFinish(fin, color);
-  g.traverse(o => { if (o.isMesh && o.userData.mkey === key) o.material = m; });
-  g.userData.custom[key] = { fin, color };
-  if (save) { saveStyle(); rebuildPT(); }
+  const it = itemOfGroup(g); (it ? itemGroups.get(it.id) || [g] : [g]).forEach(gg => paint(gg, key, fin, color));
+  if (save && it) { edit(() => { (it.look ||= {})[key] = { fin, color }; }, { none: true }); rebuildPT(); }
 }
-export function resetLook(g, quiet) { g.traverse(o => { if (o.isMesh && o.userData.mkey) o.material = M[o.userData.mkey]; }); g.userData.custom = {}; if (!quiet) { saveStyle(); rebuildPT(); } }
-export function saveStyle() { try { const custom = {}; movables.forEach((g, i) => { if (Object.keys(g.userData.custom).length) custom[i] = g.userData.custom; });
-  localStorage.setItem(SKEY, JSON.stringify({ preset: curPreset, custom })); } catch (e) {} }
+export function applyLook(g, look) { if (look) for (const k in look) if (CAT[k]) paint(g, k, look[k].fin, look[k].color); }
+function resetLook(g) { const it = itemOfGroup(g); if (it && it.look) edit(() => { delete it.look; }, { item: it.id }); }
+function saveStyle() { try { localStorage.setItem(SKEY, JSON.stringify({ preset: curPreset })); } catch (e) {} }
 export function loadStyle() { let d = null; try { d = JSON.parse(localStorage.getItem(SKEY) || 'null'); } catch (e) {}
-  applyPreset(d && d.preset || plan.meta.style.preset);
-  if (d && d.custom) for (const i in d.custom) { const g = movables[i]; if (!g) continue; for (const k in d.custom[i]) { const c = d.custom[i][k]; if (CAT[k]) applyPart(g, k, c.fin, c.color, false); } } }
+  applyPreset(d && d.preset || plan.meta.style.preset); }
 export function partsOf(g) { const cnt = {}; g.traverse(o => { const k = o.isMesh && o.userData.mkey; if (k && CAT[k]) cnt[k] = (cnt[k] || 0) + 1; });
   return Object.keys(cnt).sort((a, b) => cnt[b] - cnt[a]).slice(0, 6); }
 export function renderParts(g) {
@@ -103,10 +105,10 @@ export function renderParts(g) {
     SW[cat].forEach(c => { const b = document.createElement('button'); b.className = 'sw'; b.style.background = c; b.title = c; b.setAttribute('aria-label', 'Colour ' + c);
       b.setAttribute('aria-pressed', c.toLowerCase() === color.toLowerCase()); b.onclick = () => { applyPart(g, key, fin, c); renderParts(g); }; sws.appendChild(b); });
     const inp = document.createElement('input'); inp.type = 'color'; inp.value = color; inp.title = 'Custom colour'; inp.id = 'col-' + key;
-    inp.oninput = () => { mesh.material === M[key] ? applyPart(g, key, fin, inp.value, false) : g.traverse(o => { if (o.isMesh && o.userData.mkey === key) o.material.color.set(inp.value); }); g.userData.custom[key] = { fin, color: inp.value }; };
-    inp.onchange = () => { saveStyle(); rebuildPT(); renderParts(g); };
+    inp.oninput = () => applyPart(g, key, fin, inp.value, false);
+    inp.onchange = () => { applyPart(g, key, fin, inp.value); renderParts(g); };
     sws.appendChild(inp); wrap.appendChild(sws); box.appendChild(wrap);
   }
 }
 document.getElementById('style').onchange = e => { applyPreset(e.target.value); saveStyle(); };
-document.getElementById('lookReset').onclick = () => { if (state.sel) { resetLook(state.sel); renderParts(state.sel); } };
+document.getElementById('lookReset').onclick = () => { const g = state.sel && state.sel.kind === 'item' && (itemGroups.get(state.sel.id) || [])[0]; if (g) resetLook(g); };

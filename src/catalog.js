@@ -1,14 +1,12 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
-import { movables, state } from './scene.js';
+import { movables } from './scene.js';
 import { lamp } from './lighting.js';
 import { M } from './materials.js';
 import { B, C, RB, S, add, beginG, drape, endGRaw, lathe, pillow, pillowGeo, sector, tube } from './primitives.js';
 import { cab } from './furniture/storage.js';
 import { book, vase } from './furniture/decor.js';
 import { barStool, shellChair, taskChair } from './furniture/chairs.js';
-import { select } from './ui/editor.js';
-import { applyPart, partsOf } from './ui/style.js';
 
 
 /* ================= furniture designs (Swap designs mode) ================= */
@@ -132,13 +130,4 @@ export const DESIGNS = {
   deskchair: { label: 'Desk chair', items: [{ name: 'Swivel task chair', info: 'Ø0.60', build: () => taskChair(0, 0, -Math.PI / 2) }] }
 };
 function makeTyped(type, d, opts) { beginG(DESIGNS[type].label); DESIGNS[type].items[d].build(opts || {}); const g = endGRaw(); g.userData.type = type; g.userData.design = d; return g; }
-export function replaceWith(old, type, d, keepCustom = true) {
-  const g = makeTyped(type, d); g.position.set(old.position.x, 0, old.position.z); g.rotation.y = old.rotation.y; g.visible = old.visible;
-  g.userData.home = { ...old.userData.home };
-  if (keepCustom) for (const k in old.userData.custom) { if (partsOf(g).includes(k)) { const c = old.userData.custom[k]; applyPart(g, k, c.fin, c.color, false); } }
-  const i = movables.indexOf(old); if (i >= 0) movables[i] = g; else movables.push(g);
-  old.parent && old.parent.remove(old);
-  if (state.sel === old) select(g);
-  return g;
-}
 export function typed(type, d, x, y, face = 0, opts) { const g = makeTyped(type, d, opts); g.position.set(x, 0, y); g.rotation.y = face; g.userData.home = { x, z: y, r: face }; movables.push(g); return g; }

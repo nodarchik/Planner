@@ -8,6 +8,7 @@ export const labelsEl = document.getElementById('labels'), labels = [];
 export const dimGroup = new THREE.Group(); scene.add(dimGroup); dimGroup.visible = false;
 function label(x, y, h, html, cls, group) { const d = document.createElement('div'); d.className = 'lbl ' + (cls || ''); d.innerHTML = html; labelsEl.appendChild(d);
   const L = { el: d, p: new V3(x, h, y), group }; labels.push(L); return L; }
+export function clearOverlays() { labels.splice(0).forEach(l => l.el.remove()); dimGroup.clear(); }
 const row = (a, b) => `<tr><td>${a}</td><td>${b}</td></tr>`;
 
 export function setupOverlays() {

@@ -53,7 +53,7 @@ export function buildArchitecture() {
   const st = plan.meta.style; M.wall.color.set(st.wallTint); M.ceiling.color.set(st.ceilingTint); M.skirting.color.set(st.trimTint);
   for (const s of plan.slabs) B(...s.rect, -.36, -.05, M.concrete, { clamp: false });
   for (const f of plan.floors) { B(...f.rect, -.05, f.top ?? 0, M[f.material], { clamp: false }); if (f.finish) B(...f.rect, 0, .006, M[f.finish], { clamp: false, cast: false }); }
-  for (const w of plan.walls) buildWall(w);
+  for (const w of plan.walls) { const n = world.children.length; buildWall(w); world.children.slice(n).forEach(o => { o.userData.wall = w.id; }); }
   for (const b of plan.blocks) B(...b.rect, 0, H, M.wall);
   // balconies: open, no walls — frameless glass balustrade (1.05 m) with a steel handrail on the three open sides
   for (const { inner: xi, outer: xo, from: ya, to: yb } of plan.balconies) {

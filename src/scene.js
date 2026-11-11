@@ -49,6 +49,4 @@ export const state = {
   lastCeil: null,
   moveMode: false,
   sel: null,
-  selBox: null,
-  swapMode: false,
 };

@@ -3,20 +3,36 @@
 Interactive, photoreal-leaning 3D model of one real apartment ("Palace 1", Tbilisi; plan PDF 107.3 m², owner counts 130 m² total with balconies). The owner iterates on layout and furniture by plain-language requests ("make the closet 1.30 m", "rotate the bed to face the balcony"). Every request must be answerable by a small, safe edit.
 
 ## Current state
-- Vite + vanilla ES modules: `index.html` (markup), `src/style.css`, `src/main.js` + modules (three 0.160 + three-gpu-pathtracer from npm, everything procedural, no external assets). Only the Soft classic plan exists in code.
-- `legacy/palace-apartment.html` — the original single-file app (2,626 lines, Claude artifact version 22). Reference only; do not edit.
-- `PLAN.md` — the refactor + realism plan. Phases 0–2 are done; next is Phase 3 (plan as data).
-- `baseline/*.png` — 13 reference screenshots (12 views day + `top_night`) of the unmodified app.
-- `tools/shot.py` — headless screenshots (Playwright + SwiftShader, waits for `window.__settled`; ~22 min for all 13 views); `tools/diff.py` — compares two screenshot folders.
+- Vite + vanilla ES modules, three 0.160 + three-gpu-pathtracer, everything procedural (no external assets).
+- **The apartment is data: `src/plan/palace1.json`** (rooms, walls with openings, blocks, items, views). Code in `src/` builds whatever the file says. A layout or furniture request is an edit to that file, not to code.
+- `PLAN.md` — the refactor + realism plan and its status.
+- `legacy/palace-apartment.html` — the original single-file app (Claude artifact version 22). Reference only; do not edit.
+- `baseline/*.png` — 13 reference screenshots (12 views day + `top_night`).
 
 ## Commands
-- `npm run dev` — dev server. `npm run check` — lint + build. `npm run preview` — serve `dist/` on :4173.
-- `npm run shots` — 13 screenshots of the preview server into `shots/`; `npm run shots:diff` — compare `shots/` with `baseline/` (fails above 2 % differing pixels; identical builds differ by 0.2–1.5 % from unseeded ambient-occlusion noise, so also look at `shots/diff/*.png`: grain is noise, shapes are real changes).
+- `npm run dev` — dev server. `npm run check` — lint + validate + build. `npm run preview` — serve `dist/` on :4173.
+- `npm run validate` — schema + reference checks, then the geometric checks (overlaps, clearances, door swings, routes). Findings are listed; `-- --strict` makes errors fail. `-- --all` lists passed checks too.
+- `npm run shots` — 13 screenshots of the preview server into `shots/` (~22 min, software GL); `npm run shots:diff` — compare with `baseline/` (fails above 2 % differing pixels; identical builds differ by 0.2–1.5 % from unseeded ambient-occlusion noise, so also look at `shots/diff/*.png`: grain is noise, shapes are real changes).
+- `python3 tools/editor_test.py <url> [dir]` — functional test of the in-page editor.
 - Python needs `pip install playwright pillow numpy`; Chromium is taken from `CHROME_PATH` or `/opt/pw-browsers/chromium`.
+
+## How to make a change
+1. Edit `src/plan/palace1.json` (one value where possible). Examples: closet depth → `items[closet-b1].unitDepth`; wardrobe width → `from`/`to`; vanity basins → `basins`; guest shower side → `along`; move a wall → its `from`/`to` (and the room `poly` points on it).
+2. `npm run validate` and read the findings. Report any value below standard.
+3. Screenshot the affected views and look at them.
+The owner can make the same edits in the page (Edit plan) and paste the "Copy changes" summary; apply those lines to the JSON.
+
+### Plan file conventions
+- Walls: `from`–`to` is the reference face (axis-aligned), `t` thickness grows towards `grow` (N/S/E/W). Openings: `at` (coordinate along the wall) + `w`; types `door`, `window`, `balconyDoor`, `arch`; `leaf` = hinge end, swing side, open angle in degrees.
+- Wall-attached items: `wall` + `side` (the face the item stands against and protrudes from) + `from`/`to` along the wall + `depth`. Moving the wall moves the item. Alternative without a wall: `axis` + `back` + `face`.
+- Free furniture (catalog types sofa, coffee, dining, chair, armchair, stool, sidetable, floorlamp, desk, deskchair): `pos` [x, y], `rot` degrees clockwise as seen from above (0 = facing north) or `lookAt` [x, y], `variant` index into `DESIGNS` in `src/catalog.js`.
+- Beds: `anchor` { wall, side, offset along the wall, gap } or free `pos` + `rot`.
+- `coversWall` (margin in m) makes wall mouldings skip the item. `label` puts the item in the Furniture overlay and table (sizes are measured from what is built).
+- Skirting, wall cladding, mouldings, rounded corners and ceiling trays are derived from rooms and walls; nothing is listed by hand.
 
 ## Owner preferences
 - Replies: blunt, short, no filler, no questions, no offers. State what changed and stop.
-- Only the **Soft classic** layout matters (`LAYOUTS.soft`, walls `softStudio`). All other layouts (studio, swap, open A–E, office F–J) are dead and get deleted in Phase 1.
+- Only the **Soft classic** layout exists.
 - Design language: greige walls (#E9DDCC), picture-frame mouldings + chair rail, light-oak chevron floor, rounded-shoulder arches, fluted rounded corners, coffered ceilings with LED cove, brass, travertine, cream lacquer, bouclé.
 - Dimensions are in metres, shown to 2 decimals. Walk-in closet units: 0.30 m deep maximum.
 
@@ -50,17 +66,14 @@ Plan coordinates `(x, y)` in metres, x → east, y → south, origin at the NW i
 - **East balcony**: sofa x 13.92–14.72, y 0.15–1.75; dining for 4 at (14.85, 3.6); herb garden y 6.72–7.05; 2 lounge chairs at y 6.0.
 
 ## Code map (`src/`)
-- `scene.js` — renderer, scene, camera, controls, `world`, `movables`, `clampables`, constants `H`/`CUT`, and `state` (all shared mutable state: `CUR` current group, `night`, `cutOn`, `sel`, `photo`…). No implicit globals.
-- `textures.js` — `makeSet`, `SETS`, `texFor` (procedural PBR sets), canvas images, seeded `rand()`
-- `lighting.js` — sky, sun, `lamp()` · `materials.js` — material table `M`, `buildMaterials` · `post.js` — composer, GTAO, bloom · `pathtracer.js` — Photo render
-- `primitives.js` — `beginG/endG` (named movable groups), `add`, `B` box, `RB` rounded box, `C` cylinder, `S` sphere, `lathe`, `tube`, `pillow`, `merged`
-- `arch/walls.js` — `wallX/wallY`, openings, glazing, `door`, `skirt` · `arch/shell.js` — `buildArchitecture` (slab, floors, exterior walls, fixed partitions, doors, skirting, ceiling) · `arch/soft.js` — `ARCH.softStudio` (studio/office/closet partitions, arches, mouldings, trays), `softPanels`, `softArch`, `softBullnose`, `softTray`
-- `furniture/` — `storage.js` (`cab` cabinet run), `bed.js`, `chairs.js`, `plants.js`, `decor.js`
-- `catalog.js` — `DESIGNS`, `makeTyped`, `typed`: swappable furniture designs (sofa, coffee, dining, chair, desk, armchair…)
-- `layout.js` — `buildFurniture` (B2 bed group, curtains, west balcony, lamps), `LAYOUTS.soft` (plan notes, labels, `build()` with all other furniture), `applyLayout` (runs once at start-up)
-- `ui/` — `toolbar.js` (walls cut, day/night, overlays), `views.js` (`VIEWS` camera presets `[[camX, camH, camY], [targetX, targetH, targetY]]`), `dims.js` (labels, `ROOM_SIZES`), `editor.js` (drag, resize, storage), `style.js` (finishes, presets), `swap.js`, `panels.js` (Plan notes)
-- `main.js` — build sequence and render loop
-- The seeded generator `rand()` drives textures, plants, drapes, hanging garments and books. Adding or removing a `rand()` consumer changes everything built after it; keep the order or expect screenshot differences.
+- `plan/` — `palace1.json` (the apartment), `schema.json`, `plan.js` (working copy `plan`, `PUBLISHED`, wall/face/frame lookups), `geom.js` (pure geometry), `frame.js` (local frame for wall-attached builders: `u` along the wall, `d` out from it; works on all four wall directions), `footprints.js` + `checks.js` (automatic checks), `patch.js` (diff / patch / change summary)
+- `arch/shell.js` — `buildArchitecture`: slabs, floors, walls, openings, door leaves, skirting, cladding, mouldings, corners, ceilings from the plan · `arch/walls.js` — `wallRun`, glazing, `door`, `skirt` · `arch/soft.js` — `softPanels`, `softArch`, `softBullnose`, `softTray`
+- `items/` — one parametric builder per item type: `loose.js` (bed, nightstand, rug, planter, curtain, wall art, light…), `hall.js`, `kitchen.js`, `storage.js` (wardrobe, laundry tower, walk-in closet, sliding door, bookshelf, built-in desk), `bath.js` (tub, shower, WC, vanity…), `living.js` (TV wall, beauty table, terrace sofa); `index.js` = registry + `buildItem`
+- `catalog.js` — `DESIGNS`: swappable free-furniture designs · `furniture/` — shared shape helpers (`cab` cabinet run, `bed`, chairs, plants, decor)
+- `build.js` — `buildAll()` (after structural edits) and `rebuildItem(id)`
+- `scene.js` — renderer, scene, camera, `world`, `movables`, and `state` (all shared mutable state). `textures.js`, `materials.js` (`M`), `lighting.js`, `post.js`, `pathtracer.js`, `primitives.js` (`B` box, `RB` rounded box, `C`, `S`, `lathe`, `tube`…)
+- `ui/` — `editor.js` (select, fields, drag with snapping, add/duplicate/delete, wall move, undo/redo, export/import, change summary, per-device persistence), `style.js` (finishes, presets), `dims.js` (labels computed from the plan), `panels.js` (Plan notes + checks), `toolbar.js`, `views.js`
+- Random details (leaves, drapes, garments, books) are seeded per item id, so editing one item never changes another.
 
 ## Working rules
 - Never change a room's wall coordinates without being asked — they come from the measured plan.
