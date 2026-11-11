@@ -436,7 +436,7 @@ function door(hx, hy, cdx, cdy, len, ang, sign, m, o = {}) {
   const ex = hx + dx * (len - .07), ey = hy + dy * (len - .07), nx = -dy, ny = dx;
   for (const sd of [-1, 1]) {
     C(ex + nx * .03 * sd, ey + ny * .03 * sd, .025, 0.99, 1.0, M[o.handle || 'blackMetal'], { rt: .025 }).rotation.x = 0;
-    const lv = add(new THREE.BoxGeometry(.13, .016, .016), M[o.handle || 'blackMetal'], ex + nx * .045 * sd - dx * .055, 1.0, ey + ny * .045 * sd - dy * .055, { rotY: rot });
+    add(new THREE.BoxGeometry(.13, .016, .016), M[o.handle || 'blackMetal'], ex + nx * .045 * sd - dx * .055, 1.0, ey + ny * .045 * sd - dy * .055, { rotY: rot });
   }
 }
 function skirt(axis, at, inSign, a, b, gaps = []) {
@@ -477,7 +477,7 @@ function buildArchitecture() {
   wallX(2.77, 2.87, 4.69, 7.07, [DOOR(5.47, 6.27)]);
   wallY(7.07, 7.17, 0, 2.87);
   wallY(5.06, 5.16, 4.08, 7.13, [DOOR(4.89, 5.79)]);
-  // swapped plan: hall + old kitchen + south band of the old living room = one open living/kitchen; office takes the north room
+  // column at the kitchen bar, riser shafts (office, bathroom)
   B(8.86, 0, 9.35, .2, 0, H, M.wall);
   B(9.25, 6.64, 10.88, 7.13, 0, H, M.wall);
   B(4.98, 0, 6.29, .48, 0, H, M.wall);
@@ -839,12 +839,12 @@ function applyCut(on) {
 
 /* ================= camera views ================= */
 const VIEWS = {
-  overview: [[3.0, 12.5, 14.5], [7.0, 0, 3.6]], livingArea: [[9.6, 10.5, 1.2], [9.6, 0, 5.3]], top: [[7.0, 27, 3.801], [7.0, 0, 3.8]],
-  living: [[1.5, 1.6, 6.75], [4.3, .75, 8.7]], kitchen: [[3.0, 1.65, 6.4], [5.3, .8, 8.9]],
-  bed1: [[3.75, 1.55, .85], [1.9, .8, 3.6]], bed2: [[1.0, 1.55, 4.5], [4.7, .8, 6.5]],
-  bath: [[6.7, 1.6, 2.55], [5.0, .85, .7]], hall: [[8.75, 1.45, 3.7], [5.5, 1.0, 6.7]], wc: [[8.6, 1.6, 7.5], [7.2, .8, 8.6]], office: [[7.9, 1.6, 2.9], [12.0, .85, .8]],
-  loggiaW: [[-1.0, 1.6, 6.9], [-1.0, .6, 1.2]], loggiaE: [[14.8, 1.6, 6.8], [14.8, .6, 1.2]],
-  entrance: [[6.25, 1.5, 6.95], [8.6, 1.2, 1.4]], closet: [[3.75, 1.55, .85], [1.9, .8, 3.6]], closet2: [[3.92, 1.6, 6.05], [4.95, 1.0, 7.05]], console: [[6.0, 1.55, 4.9], [8.86, 1.3, 6.0]], corridor: [[6.1, 1.55, 6.4], [5.9, 1.3, 2.9]]
+  overview: [[3.0, 12.5, 14.5], [7.0, 0, 3.6]], livingArea: [[10.3, 10.5, 5.6], [10.3, 0, 2.0]], top: [[7.0, 27, 3.801], [7.0, 0, 3.8]],
+  living: [[8.2, 1.65, 2.35], [12.8, .8, 1.3]], kitchen: [[10.4, 1.6, 3.4], [7.6, 1.0, .6]], office: [[9.3, 1.6, 4.75], [12.8, .85, 6.4]],
+  bed1: [[3.05, 1.6, 3.55], [.3, .9, 2.4]], closet: [[3.66, 1.6, 3.55], [3.66, 1.05, .2]], bed2: [[4.6, 1.55, 4.5], [1.5, .8, 6.8]], closet2: [[3.92, 1.6, 6.05], [4.95, 1.0, 7.05]],
+  bath: [[6.25, 1.65, 2.6], [5.0, .8, .6]], wc: [[8.75, 1.6, 7.5], [7.3, .8, 8.8]], corridor: [[5.4, 1.55, 4.3], [7.0, 1.1, 3.2]],
+  hall: [[6.25, 1.5, 6.95], [8.6, 1.2, 1.4]], entrance: [[6.25, 1.5, 6.95], [8.6, 1.2, 1.4]], console: [[6.0, 1.55, 4.9], [8.86, 1.3, 6.0]],
+  loggiaW: [[-1.0, 1.6, 6.9], [-1.0, .6, 1.2]], loggiaE: [[14.85, 1.65, 7.0], [14.6, .6, .6]]
 };
 let anim = null;
 function setView(name, instant) {
@@ -1104,7 +1104,7 @@ document.getElementById('style').onchange = e => { applyPreset(e.target.value); 
 document.getElementById('lookReset').onclick = () => { if (sel) { resetLook(sel); renderParts(sel); } };
 
 
-/* ================= furniture designs (swap mode) + living layouts ================= */
+/* ================= furniture designs (Swap designs mode) ================= */
 // every design is built around (0,0) in plan; the sitter / front faces -y (north) at rotation 0
 const FACE = { N: 0, S: Math.PI, E: -Math.PI / 2, W: Math.PI / 2 };
 const faceTo = (x, y, tx, ty) => Math.atan2(-(tx - x), -(ty - y));
@@ -1138,7 +1138,7 @@ const DESIGNS = {
     { name: 'Cloud modular', info: '2.30 × 1.05 · deep & low', build: (o) => { const W = o.W || 2.3, x1 = -W / 2, x2 = W / 2, y1 = -.525, y2 = .525;
       RB(x1, y1, x2, y2, 0, .28, .1, M.boucle, { seg: 5 });
       [x1 + .16, x2 - .16].forEach(x => { const g = pillowGeo(.34, .58, 1.0, .5); add(g, M.boucle, x, .32, 0); });
-      const w = (W - .34) / 3; for (let i = 0; i < 3; i++) { const cx = x1 + .32 + w * i + w / 2 - .15;
+      const w = (W - .34) / 3; for (let i = 0; i < 3; i++) {
         add(pillowGeo(w - .02, .24, .78, .6), M.boucle, x1 + .17 + w * i + w / 2, .38, y1 + .41);
         pillow(x1 + .17 + w * i + w / 2, y2 - .17, .58, w - .04, .26, .5, M.boucle, 1.35, Math.PI); }
       pillow(x1 + .55, -.05, .62, .4, .14, .4, M.velvetSage, 1.2, Math.PI); } },
@@ -1257,12 +1257,11 @@ function diningDecor(x, y) {
 function typed(type, d, x, y, face = 0, opts) { const g = makeTyped(type, d, opts); g.position.set(x, 0, y); g.rotation.y = face; g.userData.home = { x, z: y, r: face }; movables.push(g); return g; }
 /* ================= layout ================= */
 const LAYOUTS = {
-  soft: { walls: 'softStudio', preset: 'soft', wallTint: 0xe9ddcc, ceilTint: 0xf3ebe0, trimTint: 0xeadfcf,
+  soft: { preset: 'soft', wallTint: 0xe9ddcc, ceilTint: 0xf3ebe0, trimTint: 0xeadfcf,
     name: 'Soft classic · arches, panels, chevron oak', tag: 'Design vibe',
     why: 'Your reference applied to the original plan (studio + office): warm greige walls with picture-frame mouldings and chair rail, light oak chevron floor everywhere, rounded-shoulder arches corridor → hall → studio, fluted rounded corners on the column and shaft, coffered ceilings with rounded corners, fluted lip and LED cove in every room, arched mirror fronts with oak knobs on the hall wardrobe, sculptural stone console under a textured plaster artwork with a brass sconce, bouclé and light-oak palette.',
     met: 'Studio: corner sofa 4 + armchair + dining 4 + 3 bar stools · TV 3.31 m · Office: 2.66 m built-in desk',
     clr: [['Bathroom free floor', '1.18 × 1.74'], ['Guest room: shower glass → WC / basin', '0.32 · 0.64'], ['Hall: entrance clear', 'wardrobe removed'], ['Closet units (max depth)', '0.30'], ['Closet aisle (B1)', '0.75'], ['B2 bed side → wardrobe', '0.60'], ['U-kitchen aisle (west leg → bar)', '1.07'], ['Bar stools → chaise', '1.45'], ['Sofa front → TV', '3.31'], ['Chaise → coffee table', '0.30'], ['Sofa seat → coffee table', '0.38'], ['Dining table → partition', '0.05'], ['Dining chair → bar end', '0.58'], ['Hall passage (open, no door)', '1.46'], ['Office door swing → armchair', 'clear']],
-    views: { bath: [[6.25, 1.65, 2.6], [5.0, .8, .6]], wc: [[8.75, 1.6, 7.5], [7.3, .8, 8.8]], loggiaE: [[14.85, 1.65, 7.0], [14.6, .6, .6]], bed2: [[4.6, 1.55, 4.5], [1.5, .8, 6.8]], closet2: [[3.92, 1.6, 6.05], [4.95, 1.0, 7.05]], corridor: [[5.4, 1.55, 4.3], [7.0, 1.1, 3.2]], closet: [[3.66, 1.6, 3.55], [3.66, 1.05, .2]], bed1: [[3.05, 1.6, 3.55], [.3, .9, 2.4]], kitchen: [[10.4, 1.6, 3.4], [7.6, 1.0, .6]], living: [[8.2, 1.65, 2.35], [12.8, .8, 1.3]], livingArea: [[10.3, 10.5, 5.6], [10.3, 0, 2.0]], hall: [[6.25, 1.5, 6.95], [8.6, 1.2, 1.4]], office: [[9.3, 1.6, 4.75], [12.8, .85, 6.4]] },
     rooms: [[7.0, 5.0, 'Hall', '≈13.7 m²'], [10.2, 3.4, 'Studio: living + kitchen', '≈27.9 m²'], [10.6, 5.0, 'Office', '≈12.6 m²']],
     furn: [['Bathtub (west wall)', 5.065, 1.33, .58, '0.75', '1.70', '0.58'], ['Walk-in shower', 6.68, .72, 2.05, '0.78', '1.45', '2.05'], ['Guest shower (full depth, 2 doors)', 7.46, 8.22, 2.0, '0.80', '1.67', '2.00'], ['Double vanity 1.25', 6.84, 2.12, .85, '0.45', '1.25', '0.85'], ['Wardrobe (B2)', 4.0, 6.83, 2.6, '2.11', '0.60', '2.60'], ['Beauty organiser (B1)', 1.92, 3.79, 1.27, '0.40', '0.40', '1.27'], ['Terrace sofa', 14.32, .95, .78, '0.80', '1.60', '0.78'], ['Terrace dining (4)', 14.85, 3.6, .75, '0.80', '1.40', '0.75'], ['Laundry tower + wardrobe', 6.75, 3.64, 2.63, '0.64', '1.49', '2.63'], ['Walk-in closet (B1)', 3.94, 1.47, 2.6, '1.30', '2.95', '2.60'], ['Corner kitchen (L)', 7.6, .9, .92, '1.69', '2.31', '0.92'], ['Fridge + oven towers', 7.48, 2.91, 2.6, '0.62', '1.20', '2.60'], ['Kitchen bar (U extension) + 3 stools', 9.1, 1.07, .92, '0.49', '1.75', '0.92'], ['Corner sofa 3 + chaise (L)', 12.2, .47, .84, '2.70', '2.10', '0.84'], ['Coffee table (rect)', 12.65, 1.6, .38, '1.20', '0.60', '0.38'], ['TV wall + 65" TV', 12.3, 4.1, 1.8, '2.50', '0.40', '2.70'], ['Dining table 1.40 (4 seats)', 9.9, 3.87, .75, '1.40', '0.80', '0.75'], ['Built-in desk (wall to wall)', 12.25, 6.79, .76, '2.66', '0.68', '2.60'], ['Bookshelf (on shaft)', 10.06, 6.47, 2.4, '1.59', '0.34', '2.40']],
     plants() { G('Fig plant', () => fig(13.25, 3.95, 1)); G('Snake plant', () => snake(13.3, 4.75, .8)); },
@@ -1476,7 +1475,6 @@ function applyLayout() { // builds the Soft classic plan once at start-up
   world.updateMatrixWorld(true);
   world.traverse(o => { if (o.isMesh && !o.userData.clamp && o.userData.minY === undefined) { const bb = new THREE.Box3().setFromObject(o); o.userData.minY = bb.min.y; o.userData.maxY = bb.max.y; } });
   scene.traverse(o => { if (o.isPointLight) o.visible = night; });
-  Object.assign(VIEWS, L.views);
   loadTypes(); loadLayout(); loadStyle();
   zoneLabels(L); attachLabels();
   renderPlanNotes(); rebuildPT();
