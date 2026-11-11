@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { H } from '../scene.js';
-import { hobTex, planar, rand } from '../textures.js';
+import { planar, rand } from '../textures.js';
 import { lamp } from '../lighting.js';
 import { M, P } from '../materials.js';
 import { B, C, S, add, beginG, endG, lathe, tube } from '../primitives.js';
@@ -21,11 +21,6 @@ export function mushroomLamp(x, y, h) {
 }
 export function book(x, y, h, w, d, t, m, rot = 0) { add(new THREE.BoxGeometry(w, t, d), m, x, h + t / 2, y, { rotY: rot }); add(new THREE.BoxGeometry(w - .01, t - .006, d - .006), M.paper, x + .006, h + t / 2, y, { rotY: rot }); }
 export function vase(x, y, h, s, m) { lathe([[0, 0], [.05 * s, 0], [.09 * s, .08 * s], [.1 * s, .16 * s], [.05 * s, .27 * s], [.035 * s, .32 * s], [.04 * s, .34 * s], [.03 * s, .34 * s], [0, .1 * s]], x, y, h, m); }
-export function artFrame(axis, at, inSign, a, b, h1, h2, artMat) {
-  const f = .03, dp = .035;
-  if (axis === 'x') { const y0 = at, y1 = at + inSign * dp; B(a, y0, b, y1, h1, h2, M.oakFurn); B(a + f, y1, b - f, y1 + inSign * .002, h1 + f, h2 - f, M.paper); B(a + f + .06, y1 + inSign * .002, b - f - .06, y1 + inSign * .003, h1 + f + .06, h2 - f - .06, artMat); }
-}
-export function hobAt(x0, y0) { return P({ color: 0xffffff, map: planar(hobTex, x0, y0, .64, .52), roughness: .06, clearcoat: 1, clearcoatRoughness: .02 }); }
 export function artAt(tex, a, h1, w, h, flip) { return P({ color: 0xffffff, roughness: .92, map: planar(tex, a, h1, w, h, flip) }); }
 
 export function livingRug(cx, cy, rx, ry) { beginG('Living rug');

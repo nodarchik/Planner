@@ -77,6 +77,13 @@ canvas{display:block}
 .layouts .list{display:grid;gap:8px;margin-top:10px}
 .layouts{font:12px/1.4 var(--f-mono)}
 .layouts .note{display:grid;gap:3px}
+.layouts tr.chk{cursor:pointer}
+.layouts tr.chk span{color:var(--muted);font-size:10px}
+.layouts tr.chk.error td:first-child{box-shadow:inset 3px 0 0 #d0342c;padding-left:7px}
+.layouts tr.chk.warn td:first-child{box-shadow:inset 3px 0 0 #d79a2b;padding-left:7px}
+.layouts tr.chk:hover td{background:color-mix(in srgb,var(--fg) 6%,transparent)}
+.layouts .passed{margin-top:10px}
+.layouts .passed summary{font:700 10px var(--f-display);letter-spacing:.1em;color:var(--muted)}
 .layouts .note b{font:700 12px var(--f-display);letter-spacing:.01em}
 .layouts .note .why{color:var(--muted);font-size:11px}
 .layouts .note .met{font-size:10px;color:var(--accent);font-variant-numeric:tabular-nums}

@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { movables, state } from '../scene.js';
 import { M, P, T } from '../materials.js';
-import { LAYOUTS } from '../layout.js';
+import { plan } from '../plan/plan.js';
 import { rebuildPT } from '../pathtracer.js';
 
 /* ================= colours, finishes and style presets ================= */
@@ -83,7 +83,7 @@ export function resetLook(g, quiet) { g.traverse(o => { if (o.isMesh && o.userDa
 export function saveStyle() { try { const custom = {}; movables.forEach((g, i) => { if (Object.keys(g.userData.custom).length) custom[i] = g.userData.custom; });
   localStorage.setItem(SKEY, JSON.stringify({ preset: curPreset, custom })); } catch (e) {} }
 export function loadStyle() { let d = null; try { d = JSON.parse(localStorage.getItem(SKEY) || 'null'); } catch (e) {}
-  applyPreset(d && d.preset || LAYOUTS.soft.preset);
+  applyPreset(d && d.preset || plan.meta.style.preset);
   if (d && d.custom) for (const i in d.custom) { const g = movables[i]; if (!g) continue; for (const k in d.custom[i]) { const c = d.custom[i][k]; if (CAT[k]) applyPart(g, k, c.fin, c.color, false); } } }
 export function partsOf(g) { const cnt = {}; g.traverse(o => { const k = o.isMesh && o.userData.mkey; if (k && CAT[k]) cnt[k] = (cnt[k] || 0) + 1; });
   return Object.keys(cnt).sort((a, b) => cnt[b] - cnt[a]).slice(0, 6); }

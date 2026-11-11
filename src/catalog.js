@@ -10,11 +10,9 @@ import { barStool, shellChair, taskChair } from './furniture/chairs.js';
 import { select } from './ui/editor.js';
 import { applyPart, partsOf } from './ui/style.js';
 
-export function namedTyped(name, type, d, x, y, face = 0, opts) { const g = typed(type, d, x, y, face, opts); g.name = name; return g; }
 
 /* ================= furniture designs (Swap designs mode) ================= */
 // every design is built around (0,0) in plan; the sitter / front faces -y (north) at rotation 0
-export const FACE = { N: 0, S: Math.PI, E: -Math.PI / 2, W: Math.PI / 2 };
 export const faceTo = (x, y, tx, ty) => Math.atan2(-(tx - x), -(ty - y));
 const legs4 = (x1, y1, x2, y2, h, r, m, inset = .06, rt) => [[x1 + inset, y1 + inset], [x2 - inset, y1 + inset], [x1 + inset, y2 - inset], [x2 - inset, y2 - inset]].forEach(([x, y]) => C(x, y, r, 0, h, m, { seg: 14, rt: rt ?? r }));
 function cylAlong(axis, x, y, h, r, len, m) { const g = new THREE.CylinderGeometry(r, r, len, 28); axis === 'x' ? g.rotateZ(Math.PI / 2) : g.rotateX(Math.PI / 2); return add(g, m, x, h, y); }

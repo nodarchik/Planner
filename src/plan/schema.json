@@ -1,0 +1,633 @@
+{
+ "$schema": "http://json-schema.org/draft-07/schema#",
+ "title": "Palace 1 plan",
+ "type": "object",
+ "additionalProperties": false,
+ "required": [
+  "meta",
+  "slabs",
+  "floors",
+  "ceilings",
+  "balconies",
+  "rooms",
+  "walls",
+  "blocks",
+  "items",
+  "views"
+ ],
+ "properties": {
+  "meta": {
+   "type": "object",
+   "required": [
+    "name",
+    "ceiling",
+    "cut",
+    "style",
+    "notes"
+   ],
+   "properties": {
+    "name": {
+     "type": "string"
+    },
+    "layout": {
+     "type": "string"
+    },
+    "ceiling": {
+     "type": "number"
+    },
+    "cut": {
+     "type": "number"
+    },
+    "north": {
+     "type": [
+      "number",
+      "null"
+     ],
+     "description": "compass bearing of plan north (\u2212y), degrees; null until measured"
+    },
+    "style": {
+     "type": "object",
+     "required": [
+      "preset",
+      "wallTint",
+      "ceilingTint",
+      "trimTint"
+     ]
+    },
+    "notes": {
+     "type": "object",
+     "required": [
+      "why",
+      "metrics"
+     ]
+    }
+   }
+  },
+  "slabs": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "required": [
+     "rect"
+    ],
+    "properties": {
+     "rect": {
+      "type": "array",
+      "items": {
+       "type": "number"
+      },
+      "minItems": 4,
+      "maxItems": 4
+     }
+    }
+   }
+  },
+  "floors": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "required": [
+     "rect",
+     "material"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "rect": {
+      "type": "array",
+      "items": {
+       "type": "number"
+      },
+      "minItems": 4,
+      "maxItems": 4
+     },
+     "material": {
+      "type": "string"
+     },
+     "finish": {
+      "type": "string"
+     },
+     "top": {
+      "type": "number"
+     }
+    }
+   }
+  },
+  "ceilings": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "required": [
+     "rect"
+    ],
+    "properties": {
+     "rect": {
+      "type": "array",
+      "items": {
+       "type": "number"
+      },
+      "minItems": 4,
+      "maxItems": 4
+     }
+    }
+   }
+  },
+  "balconies": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "required": [
+     "id",
+     "inner",
+     "outer",
+     "from",
+     "to"
+    ]
+   }
+  },
+  "rooms": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "required": [
+     "id",
+     "name",
+     "poly"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "id": {
+      "type": "string"
+     },
+     "name": {
+      "type": "string"
+     },
+     "short": {
+      "type": "string"
+     },
+     "poly": {
+      "type": "array",
+      "items": {
+       "type": "array",
+       "items": {
+        "type": "number"
+       },
+       "minItems": 2,
+       "maxItems": 2
+      },
+      "minItems": 3
+     },
+     "skirting": {
+      "type": "boolean"
+     },
+     "outdoor": {
+      "type": "boolean"
+     },
+     "wallFinish": {
+      "type": "string"
+     },
+     "wallFinishSkip": {
+      "type": "array",
+      "items": {
+       "enum": [
+        "N",
+        "S",
+        "E",
+        "W"
+       ]
+      }
+     },
+     "labelAt": {
+      "type": "array",
+      "items": {
+       "type": "number"
+      },
+      "minItems": 2,
+      "maxItems": 2
+     },
+     "area": {
+      "type": "number"
+     },
+     "spots": {
+      "type": "array",
+      "items": {
+       "type": "array",
+       "items": {
+        "type": "number"
+       },
+       "minItems": 2,
+       "maxItems": 2
+      }
+     },
+     "ceiling": {
+      "type": "object",
+      "required": [
+       "type",
+       "border",
+       "radius"
+      ],
+      "additionalProperties": false,
+      "properties": {
+       "type": {
+        "enum": [
+         "tray"
+        ]
+       },
+       "rect": {
+        "type": "array",
+        "items": {
+         "type": "number"
+        },
+        "minItems": 4,
+        "maxItems": 4
+       },
+       "border": {
+        "type": "number"
+       },
+       "radius": {
+        "type": "number"
+       }
+      }
+     }
+    }
+   }
+  },
+  "walls": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "required": [
+     "id",
+     "from",
+     "to",
+     "t",
+     "grow"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "id": {
+      "type": "string"
+     },
+     "from": {
+      "type": "array",
+      "items": {
+       "type": "number"
+      },
+      "minItems": 2,
+      "maxItems": 2
+     },
+     "to": {
+      "type": "array",
+      "items": {
+       "type": "number"
+      },
+      "minItems": 2,
+      "maxItems": 2
+     },
+     "t": {
+      "type": "number",
+      "exclusiveMinimum": 0
+     },
+     "grow": {
+      "enum": [
+       "N",
+       "S",
+       "E",
+       "W"
+      ]
+     },
+     "exterior": {
+      "type": "boolean"
+     },
+     "openings": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "required": [
+        "type",
+        "at",
+        "w"
+       ],
+       "additionalProperties": false,
+       "properties": {
+        "id": {
+         "type": "string"
+        },
+        "type": {
+         "enum": [
+          "door",
+          "window",
+          "balconyDoor",
+          "arch"
+         ]
+        },
+        "at": {
+         "type": "number"
+        },
+        "w": {
+         "type": "number",
+         "exclusiveMinimum": 0
+        },
+        "sill": {
+         "type": "number"
+        },
+        "head": {
+         "type": "number"
+        },
+        "top": {
+         "type": "number"
+        },
+        "radius": {
+         "type": "number"
+        },
+        "leaf": {
+         "type": "object",
+         "required": [
+          "hinge",
+          "swing",
+          "open"
+         ],
+         "additionalProperties": false,
+         "properties": {
+          "hinge": {
+           "enum": [
+            "start",
+            "end"
+           ]
+          },
+          "swing": {
+           "enum": [
+            "N",
+            "S",
+            "E",
+            "W"
+           ]
+          },
+          "open": {
+           "type": "number"
+          },
+          "material": {
+           "type": "string"
+          },
+          "handle": {
+           "type": "string"
+          }
+         }
+        }
+       }
+      }
+     },
+     "bullnose": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "required": [
+        "end",
+        "side"
+       ],
+       "properties": {
+        "end": {
+         "enum": [
+          "from",
+          "to"
+         ]
+        },
+        "side": {
+         "enum": [
+          "N",
+          "S",
+          "E",
+          "W"
+         ]
+        }
+       }
+      }
+     },
+     "finish": {
+      "type": "object",
+      "propertyNames": {
+       "enum": [
+        "N",
+        "S",
+        "E",
+        "W"
+       ]
+      },
+      "additionalProperties": {
+       "type": "object",
+       "properties": {
+        "panels": {
+         "type": "array",
+         "items": {
+          "type": "array",
+          "items": {
+           "type": "number"
+          },
+          "minItems": 2,
+          "maxItems": 2
+         }
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "blocks": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "required": [
+     "id",
+     "rect"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "id": {
+      "type": "string"
+     },
+     "name": {
+      "type": "string"
+     },
+     "rect": {
+      "type": "array",
+      "items": {
+       "type": "number"
+      },
+      "minItems": 4,
+      "maxItems": 4
+     },
+     "bullnose": {
+      "type": "array",
+      "items": {
+       "enum": [
+        "NW",
+        "NE",
+        "SW",
+        "SE"
+       ]
+      }
+     }
+    }
+   }
+  },
+  "items": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "required": [
+     "id",
+     "type"
+    ],
+    "properties": {
+     "id": {
+      "type": "string"
+     },
+     "type": {
+      "type": "string"
+     },
+     "name": {
+      "type": "string"
+     },
+     "label": {
+      "type": "string"
+     },
+     "room": {
+      "type": "string"
+     },
+     "wall": {
+      "type": "string"
+     },
+     "side": {
+      "enum": [
+       "N",
+       "S",
+       "E",
+       "W"
+      ]
+     },
+     "face": {
+      "enum": [
+       "N",
+       "S",
+       "E",
+       "W"
+      ]
+     },
+     "axis": {
+      "enum": [
+       "x",
+       "y"
+      ]
+     },
+     "back": {
+      "type": "number"
+     },
+     "offset": {
+      "type": "number"
+     },
+     "from": {
+      "type": "number"
+     },
+     "to": {
+      "type": "number"
+     },
+     "depth": {
+      "type": "number"
+     },
+     "height": {
+      "type": "number"
+     },
+     "pos": {
+      "type": "array",
+      "items": {
+       "type": "number"
+      },
+      "minItems": 2,
+      "maxItems": 2
+     },
+     "rot": {
+      "type": "number"
+     },
+     "lookAt": {
+      "type": "array",
+      "items": {
+       "type": "number"
+      },
+      "minItems": 2,
+      "maxItems": 2
+     },
+     "variant": {
+      "type": [
+       "integer",
+       "string"
+      ]
+     },
+     "rect": {
+      "type": "array",
+      "items": {
+       "type": "number"
+      },
+      "minItems": 4,
+      "maxItems": 4
+     },
+     "coversWall": {
+      "type": "number",
+      "minimum": 0
+     },
+     "unitDepth": {
+      "type": "number",
+      "exclusiveMinimum": 0
+     },
+     "basins": {
+      "type": "integer",
+      "minimum": 1
+     },
+     "doors": {
+      "type": "integer",
+      "minimum": 1
+     },
+     "along": {
+      "enum": [
+       "N",
+       "S",
+       "E",
+       "W"
+      ]
+     },
+     "width": {
+      "type": "number"
+     }
+    }
+   }
+  },
+  "views": {
+   "type": "object",
+   "additionalProperties": {
+    "type": "object",
+    "required": [
+     "cam",
+     "target"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "cam": {
+      "type": "array",
+      "items": {
+       "type": "number"
+      },
+      "minItems": 3,
+      "maxItems": 3
+     },
+     "target": {
+      "type": "array",
+      "items": {
+       "type": "number"
+      },
+      "minItems": 3,
+      "maxItems": 3
+     }
+    }
+   }
+  }
+ }
+}

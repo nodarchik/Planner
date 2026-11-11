@@ -3,9 +3,14 @@ import { CUT, H, V3, camera, controls, frame, loader, renderer, scene, state, st
 import { buildTextures } from './textures.js';
 import { buildMaterials } from './materials.js';
 import { buildArchitecture } from './arch/shell.js';
-import { applyLayout, buildFurniture } from './layout.js';
+import { buildItems } from './items/index.js';
+import { emissives } from './materials.js';
+import { attachLabels, loadLayout } from './ui/editor.js';
+import { loadStyle } from './ui/style.js';
+import { loadTypes } from './ui/swap.js';
+import { renderPlanNotes } from './ui/panels.js';
 import { composer } from './post.js';
-import { labels, setupOverlays } from './ui/dims.js';
+import { furnitureLabels, labels, setupOverlays } from './ui/dims.js';
 import { setMood } from './ui/toolbar.js';
 import { setView } from './ui/views.js';
 import { rebuildPT } from './pathtracer.js';
@@ -27,10 +32,13 @@ import './ui/panels.js';
 async function build() {
   await frame(); await buildTextures(); buildMaterials();
   loader.textContent = 'Building apartment…'; await frame();
-  state.ceiling = buildArchitecture(); buildFurniture();
+  state.ceiling = buildArchitecture(); buildItems();
+  emissives.forEach(m => m.emissiveIntensity = state.night ? m.userData.night : m.userData.day);
   world.updateMatrixWorld(true);
-  world.traverse(o => { if (o.isMesh && !o.userData.clamp) { const bb = new THREE.Box3().setFromObject(o); o.userData.minY = bb.min.y; o.userData.maxY = bb.max.y; } });
-  setupOverlays(); applyLayout(); setMood(false); setView('overview', true);
+  world.traverse(o => { if (o.isMesh && !o.userData.clamp && o.userData.minY === undefined) { const bb = new THREE.Box3().setFromObject(o); o.userData.minY = bb.min.y; o.userData.maxY = bb.max.y; } });
+  scene.traverse(o => { if (o.isPointLight) o.visible = state.night; });
+  setupOverlays(); loadTypes(); loadLayout(); loadStyle(); furnitureLabels(); attachLabels(); renderPlanNotes();
+  setMood(false); setView('overview', true);
   loader.hidden = true;
 }
 

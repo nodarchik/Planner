@@ -14,7 +14,6 @@ export function endG() { const g = state.CUR; state.CUR = world; const bb = new 
   if (!MKEY) MKEY = new Map(Object.entries(M).map(([k, v]) => [v, k]));
   g.traverse(o => { if (o.isMesh) o.userData.mkey = MKEY.get(o.material); }); }
 let MKEY = null;
-export function G(name, fn) { beginG(name); fn(); endG(); }
 function worldUV(g, ox = 0, oy = 0, oz = 0) {
   if (!g.attributes.normal) g.computeVertexNormals();
   const p = g.attributes.position, n = g.attributes.normal, uv = new Float32Array(p.count * 2);
