@@ -3,9 +3,9 @@
 Interactive, photoreal-leaning 3D model of one real apartment ("Palace 1", Tbilisi; plan PDF 107.3 m², owner counts 130 m² total with balconies). The owner iterates on layout and furniture by plain-language requests ("make the closet 1.30 m", "rotate the bed to face the balcony"). Every request must be answerable by a small, safe edit.
 
 ## Current state
-- Vite + vanilla ES modules. `index.html` (markup), `src/style.css`, `src/legacy.js` (the whole app, 1,531 lines; three 0.160 + three-gpu-pathtracer from npm, everything procedural, no external assets). Only the Soft classic plan exists in code.
+- Vite + vanilla ES modules: `index.html` (markup), `src/style.css`, `src/main.js` + modules (three 0.160 + three-gpu-pathtracer from npm, everything procedural, no external assets). Only the Soft classic plan exists in code.
 - `legacy/palace-apartment.html` — the original single-file app (2,626 lines, Claude artifact version 22). Reference only; do not edit.
-- `PLAN.md` — the refactor + realism plan. Phases 0 and 1 are done; next is Phase 2 (split into modules).
+- `PLAN.md` — the refactor + realism plan. Phases 0–2 are done; next is Phase 3 (plan as data).
 - `baseline/*.png` — 13 reference screenshots (12 views day + `top_night`) of the unmodified app.
 - `tools/shot.py` — headless screenshots (Playwright + SwiftShader, waits for `window.__settled`; ~22 min for all 13 views); `tools/diff.py` — compares two screenshot folders.
 
@@ -49,18 +49,18 @@ Plan coordinates `(x, y)` in metres, x → east, y → south, origin at the NW i
 - **Guest shower room**: shower strip x 7.06–7.86 full depth, glass wall along x 7.86 with a door at each end; WC on south wall x 8.18–8.54; basin on east wall y 7.75–8.20.
 - **East balcony**: sofa x 13.92–14.72, y 0.15–1.75; dining for 4 at (14.85, 3.6); herb garden y 6.72–7.05; 2 lounge chairs at y 6.0.
 
-## Code map (line numbers in `src/legacy.js`)
-- 54 `makeSet`, 76 `SETS`, 162 `texFor` — procedural PBR texture sets
-- 324–405 geometry helpers: `beginG/endG` (named movable groups), `add`, `B` box, `RB` rounded box, `C` cylinder, `S` sphere, `lathe`, `tube`, `pillow`, `merged`
-- 430 `door`, 442 `skirt`, 447 `buildArchitecture` (shell, exterior walls, fixed partitions, doors, skirting, ceiling), 598 `cab` (cabinet run with shadow gaps), 668 `bed`
-- 512 `ARCH.softStudio` — studio/office/closet partitions, arches, mouldings, ceilings; 551–590 `softPanels`, `softArch`, `softBullnose`, `softTray`
-- 722 `buildFurniture` — bedroom 2 bed group, curtains, west balcony, general lamps
-- 781 `ROOM_SIZES`, 784 `roomSizes`, 789 `zoneLabels` — Dims labels
-- 841 `VIEWS` — camera presets `[[camX, camH, camY], [targetX, targetH, targetY]]`
-- 1113 `DESIGNS`, 1234 `makeTyped`, 1257 `typed` — swappable furniture designs (sofa, coffee, dining, chair, desk, armchair…)
-- 1259 `LAYOUTS.soft` — plan notes (why / metrics / clearances), labels, and `build()` with all other Soft-classic furniture
-- 1470 `applyLayout` (runs once at start-up), 1485 `renderPlanNotes`
-- The seeded generator `rand()` drives textures, plants, hanging garments and books. Adding or removing a `rand()` consumer changes everything built after it; keep the order or expect screenshot differences.
+## Code map (`src/`)
+- `scene.js` — renderer, scene, camera, controls, `world`, `movables`, `clampables`, constants `H`/`CUT`, and `state` (all shared mutable state: `CUR` current group, `night`, `cutOn`, `sel`, `photo`…). No implicit globals.
+- `textures.js` — `makeSet`, `SETS`, `texFor` (procedural PBR sets), canvas images, seeded `rand()`
+- `lighting.js` — sky, sun, `lamp()` · `materials.js` — material table `M`, `buildMaterials` · `post.js` — composer, GTAO, bloom · `pathtracer.js` — Photo render
+- `primitives.js` — `beginG/endG` (named movable groups), `add`, `B` box, `RB` rounded box, `C` cylinder, `S` sphere, `lathe`, `tube`, `pillow`, `merged`
+- `arch/walls.js` — `wallX/wallY`, openings, glazing, `door`, `skirt` · `arch/shell.js` — `buildArchitecture` (slab, floors, exterior walls, fixed partitions, doors, skirting, ceiling) · `arch/soft.js` — `ARCH.softStudio` (studio/office/closet partitions, arches, mouldings, trays), `softPanels`, `softArch`, `softBullnose`, `softTray`
+- `furniture/` — `storage.js` (`cab` cabinet run), `bed.js`, `chairs.js`, `plants.js`, `decor.js`
+- `catalog.js` — `DESIGNS`, `makeTyped`, `typed`: swappable furniture designs (sofa, coffee, dining, chair, desk, armchair…)
+- `layout.js` — `buildFurniture` (B2 bed group, curtains, west balcony, lamps), `LAYOUTS.soft` (plan notes, labels, `build()` with all other furniture), `applyLayout` (runs once at start-up)
+- `ui/` — `toolbar.js` (walls cut, day/night, overlays), `views.js` (`VIEWS` camera presets `[[camX, camH, camY], [targetX, targetH, targetY]]`), `dims.js` (labels, `ROOM_SIZES`), `editor.js` (drag, resize, storage), `style.js` (finishes, presets), `swap.js`, `panels.js` (Plan notes)
+- `main.js` — build sequence and render loop
+- The seeded generator `rand()` drives textures, plants, drapes, hanging garments and books. Adding or removing a `rand()` consumer changes everything built after it; keep the order or expect screenshot differences.
 
 ## Working rules
 - Never change a room's wall coordinates without being asked — they come from the measured plan.
