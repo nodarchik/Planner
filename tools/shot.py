@@ -19,6 +19,6 @@ async def main():
             if mode == 'night': await pg.click('#mnight')
             await pg.select_option('#view', v); f0 = await pg.evaluate('window.__frames||0')
             await pg.wait_for_function(f'(window.__frames||0)>{f0}+3', timeout=600000, polling=1000)
-            await pg.screenshot(path=f'{out}/{v}{"_" + mode if mode else ""}.png')
+            await pg.screenshot(timeout=300000, path=f'{out}/{v}{"_" + mode if mode else ""}.png')
         print('\n'.join(errs[:15])); await b.close()
 asyncio.run(main())
