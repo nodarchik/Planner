@@ -1530,18 +1530,16 @@ function applyLayout(id, user = true) {
   if (cutOn) applyCut(true);
   for (const g of movables) { const hid = !!((L.hide && L.hide.includes(g.name)) || (L.hideIf && L.hideIf(g))); if (hid) { g.visible = false; g.userData.layoutHidden = true; } else if (g.userData.layoutHidden) { g.visible = true; g.userData.layoutHidden = false; } }
   zoneLabels(L); attachLabels();
-  document.getElementById('clrTable').innerHTML = L.clr.map(c => `<tr><td>${c[0]}</td><td>${c[1]}</td></tr>`).join('');
-  renderLayoutList(); rebuildPT();
+  renderPlanNotes(); rebuildPT();
   if (user) { try { localStorage.setItem(LIVKEY, id); } catch (e) {} }
 }
 function loadLiving() { try { return localStorage.getItem(LIVKEY); } catch (e) { return null; } }
 function saveTypes() { try { const d = {}; movables.forEach((g, i) => { if (g.userData.type) d[i] = g.userData.design; }); localStorage.setItem(keyFor(TKEY), JSON.stringify(d)); } catch (e) {} }
 function loadTypes() { let d = null; try { d = JSON.parse(localStorage.getItem(keyFor(TKEY)) || 'null'); } catch (e) {} if (!d) return;
   for (const i in d) { const g = movables[i]; if (g && g.userData.type && DESIGNS[g.userData.type].items[d[i]] && g.userData.design !== d[i]) replaceWith(g, g.userData.type, d[i]); } }
-function renderLayoutList() { const box = document.getElementById('layoutList'); if (!box) return; box.textContent = '';
-  Object.entries(LAYOUTS).forEach(([id, L], i) => { const b = document.createElement('button'); b.className = 'lcard'; b.setAttribute('aria-pressed', id === curLiving);
-    b.innerHTML = `<b>${i + 1}. ${L.name}</b><span class="met">${L.tag}</span><span class="why">${L.why}</span><span class="met">${L.met}</span>`;
-    b.onclick = () => { applyLayout(id); setView('livingArea'); }; box.appendChild(b); }); }
+function renderPlanNotes() { const L = LAYOUTS.soft;
+  document.getElementById('planNotes').innerHTML = `<div class="note"><b>${L.name}</b><span class="why">${L.why}</span><span class="met">${L.met}</span></div>`
+    + `<h2>Clearances (m)</h2><table>${L.clr.map(c => `<tr><td>${c[0]}</td><td>${c[1]}</td></tr>`).join('')}</table><p>Clearances are for the published plan; they do not update when you move furniture.</p>`; }
 if (innerWidth < 700) document.getElementById('layouts').open = false;
 /* ---- swap mode ---- */
 let swapMode = false, swapSel = null;
