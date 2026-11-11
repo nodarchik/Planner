@@ -2,6 +2,8 @@
 
 Goal: the same apartment, (1) changeable by editing data instead of code, (2) editable in the page, (3) visibly more realistic. Baseline: `legacy/palace-apartment.html` (artifact version 22). Read `CLAUDE.md` first.
 
+Status: Phase 0 and Phase 1 done (`src/legacy.js` 1,534 lines; 13 screenshots within noise of `baseline/`). Next: Phase 2.
+
 Rules for every phase:
 - The app must load and look correct at the end of each phase. No phase leaves the model broken.
 - Visual check after each step: `python3 tools/shot.py <target> top,hall,bed1,bed2,bath,wc,corridor,closet,kitchen,living,office,loggiaE` and compare against `baseline/` (created in Phase 0).

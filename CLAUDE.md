@@ -7,11 +7,11 @@ Interactive, photoreal-leaning 3D model of one real apartment ("Palace 1", Tbili
 - `legacy/palace-apartment.html` — the original single-file app (2,626 lines, Claude artifact version 22). Reference only; do not edit.
 - `PLAN.md` — the refactor + realism plan. Phases 0 and 1 are done; next is Phase 2 (split into modules).
 - `baseline/*.png` — 13 reference screenshots (12 views day + `top_night`) of the unmodified app.
-- `tools/shot.py` — headless screenshots (Playwright + SwiftShader, ~45 s per view); `tools/diff.py` — compares two screenshot folders.
+- `tools/shot.py` — headless screenshots (Playwright + SwiftShader, waits for `window.__settled`; ~22 min for all 13 views); `tools/diff.py` — compares two screenshot folders.
 
 ## Commands
 - `npm run dev` — dev server. `npm run check` — lint + build. `npm run preview` — serve `dist/` on :4173.
-- `npm run shots` — 13 screenshots of the preview server into `shots/`; `npm run shots:diff` — compare `shots/` with `baseline/` (fails above 0.5 % differing pixels).
+- `npm run shots` — 13 screenshots of the preview server into `shots/`; `npm run shots:diff` — compare `shots/` with `baseline/` (fails above 2 % differing pixels; identical builds differ by 0.2–1.5 % from unseeded ambient-occlusion noise, so also look at `shots/diff/*.png`: grain is noise, shapes are real changes).
 - Python needs `pip install playwright pillow numpy`; Chromium is taken from `CHROME_PATH` or `/opt/pw-browsers/chromium`.
 
 ## Owner preferences

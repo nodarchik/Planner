@@ -1,9 +1,10 @@
-"""Compare two screenshot folders. Usage: python3 tools/diff.py baseline shots [tolerance=0.5]
-Prints per image: % of pixels differing by more than 8/255 and the mean abs difference. Exit 1 if any image exceeds tolerance (%)."""
+"""Compare two screenshot folders. Usage: python3 tools/diff.py baseline shots [tolerance=2]
+Prints per image: % of pixels differing by more than 8/255 and the mean abs difference. Exit 1 if any image exceeds tolerance (%).
+Noise floor between two runs of the same build is ~0.2-1.5 %: the ambient-occlusion pass uses an unseeded noise texture."""
 import sys, os
 import numpy as np
 from PIL import Image
-a, b = sys.argv[1], sys.argv[2]; tol = float(sys.argv[3]) if len(sys.argv) > 3 else 0.5; bad = 0
+a, b = sys.argv[1], sys.argv[2]; tol = float(sys.argv[3]) if len(sys.argv) > 3 else 2.0; bad = 0
 for f in sorted(os.listdir(a)):
     if not f.endswith('.png'): continue
     if not os.path.exists(os.path.join(b, f)): print(f'{f:20s} MISSING'); bad += 1; continue
