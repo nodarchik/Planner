@@ -544,7 +544,6 @@ ARCH.softStudio = function () {
   softTray(0, 0, 3.19, 3.98, .3, .4); softTray(0, 4.08, 5.06, 7.13, .35, .45); softTray(4.69, 2.87, 7.07, 4.30, .18, .25);
   softTray(5.16, 4.42, 8.86, 7.13, .25, .4); softTray(7.17, 0, 13.62, 4.32, .45, .6); softTray(8.96, 4.42, 13.62, 7.13, .3, .45);
 };
-let archG = null;
 /* ---- "Soft classic" architecture: chevron oak, boiserie panels, rounded arches, fluted rounded corners, coffered ceilings ---- */
 function rrPath(x1, y1, x2, y2, r, n = 10) { r = Math.min(r, (x2 - x1) / 2, (y2 - y1) / 2); const pts = [];
   const C4 = [[x2 - r, y1 + r, -Math.PI / 2], [x2 - r, y2 - r, 0], [x1 + r, y2 - r, Math.PI / 2], [x1 + r, y1 + r, Math.PI]];
@@ -592,9 +591,8 @@ function softTray(x1, y1, x2, y2, border, r, drop = .16) { // coffered ceiling: 
   const c = new THREE.CurvePath(); for (let i = 0; i < inner.length; i++) { const [ax, ay] = inner[i], [bx, by] = inner[(i + 1) % inner.length]; c.add(new THREE.LineCurve3(new V3(ax, H - .012, ay), new V3(bx, H - .012, by))); }
   add(new THREE.TubeGeometry(c, inner.length * 3, .007, 6, true), M.led, 0, 0, 0, { parent: softCeil, cast: false, uv: false });
 }
-function buildArchVar(id) { if (archG && archG.parent) archG.parent.remove(archG); if (softCeil && softCeil.parent) { softCeil.parent.remove(softCeil); softCeil = null; }
-  { const L = LAYOUTS[id] || {}; M.wall.color.set(L.wallTint || 0xffffff); M.ceiling.color.set(L.ceilTint || 0xffffff); M.skirting.color.set(L.trimTint || 0xefe8df); }
-  archG = new THREE.Group(); archG.name = 'archVar'; world.add(archG); const prev = CUR; CUR = archG; (ARCH[LAYOUTS[id].walls || id] || ARCH.open)(); CUR = prev; }
+function buildArchVar() { const L = LAYOUTS.soft; M.wall.color.set(L.wallTint); M.ceiling.color.set(L.ceilTint); M.skirting.color.set(L.trimTint);
+  const archG = new THREE.Group(); archG.name = 'archVar'; world.add(archG); CUR = archG; ARCH.softStudio(); CUR = world; }
 
 /* ================= furniture & objects ================= */
 function cab(o) { // run of cabinets with real 3.5 mm shadow gaps between fronts
@@ -721,61 +719,26 @@ function taskChair(x, y, face) { // swivel chair, face = plan angle the sitter l
 function hobAt(x0, y0) { return P({ color: 0xffffff, map: planar(hobTex, x0, y0, .64, .52), roughness: .06, clearcoat: 1, clearcoatRoughness: .02 }); }
 function artAt(tex, a, h1, w, h, flip) { return P({ color: 0xffffff, roughness: .92, map: planar(tex, a, h1, w, h, flip) }); }
 function namedTyped(name, type, d, x, y, face = 0, opts) { const g = typed(type, d, x, y, face, opts); g.name = name; return g; }
-function buildFurniture() {
-  /* ---- Bedroom 1 (4.59 × 3.98) ---- */
-  beginG('Bed (B1)'); bed(1.55, 0, 1.60, 2.00, 1, M.velvetTerra, M.linenSand, M.velvetSage); endG();
-  G('Nightstand', () => nightstand(.48, .32)); G('Nightstand', () => nightstand(2.62, .32));
-  beginG('Wall art (B1)'); artFrame('x', 0, 1, 1.2, 1.9, 1.28, 2.28, artAt(art1Tex, 1.29, 1.37, .52, .82)); endG();
-  G('Rug (B1)', () => RB(.4, .9, 2.7, 2.95, 0, .014, .3, M.rug, { cast: false }));
-  beginG('Wardrobe (B1)'); cab({ axis: 'y', a1: .05, a2: 2.95, back: 4.59, front: 3.99, h1: 0, h2: 2.65, cols: [[1, 1], [1, 1], [1, 1], [1, 1], [1, 1]], fm: M.lacquerCream });
-  [.6, 1.76, 2.34].forEach(y => B(3.975, y - .006, 3.985, y + .006, .85, 1.55, M.brass)); endG();
-  beginG('Beauty table (B1)'); RB(2.0, 3.52, 3.1, 3.98, .72, .75, .008, M.walnut); cab({ axis: 'x', a1: 2.02, a2: 3.08, back: 3.98, front: 3.54, h1: .6, h2: .72, cols: [[1, 1], [1, 1]], fm: M.lacquerCream });
-  [2.06, 3.04].forEach(x => C(x, 3.56, .012, 0, .6, M.brass, { seg: 12 }));
-  add(new THREE.CircleGeometry(.36, 96), M.mirror, 2.55, 1.45, 3.975, { uv: false, rotY: Math.PI }); add(new THREE.TorusGeometry(.365, .014, 16, 96), M.led, 2.55, 1.45, 3.974, { uv: false, rotY: Math.PI });
-  lathe([[0, 0], [.025, 0], [.027, .07], [.012, .08], [.012, .1], [0, .1]], 2.3, 3.8, .75, M.glassTint); vase(2.85, 3.8, .75, .5, M.stoneware); lamp(2.55, 3.7, 1.4, 0xffe6c8, 1.4); endG();
-  G('Vanity stool', () => { lathe([[0, 0], [.17, 0], [.17, .01], [.03, .03], [.025, .36], [0, .36]], 2.55, 3.22, 0, M.brass); lathe([[0, .36], [.17, .36], [.18, .38], [.18, .43], [.16, .46], [0, .465]], 2.55, 3.22, 0, M.velvetTerra); });
-  namedTyped('Armchair (B1)', 'armchair', 1, 3.35, 2.45, faceTo(3.35, 2.45, 1.6, 3.2));
+function buildFurniture() { // loose items outside LAYOUTS.soft.build(): bedroom 2 bed group, curtains, west balcony, general lamps
+  /* ---- Bedroom 1 curtains ---- */
   curtain('y', .1, 1.25, 1.6, .02, 2.74, M.sheer); curtain('y', .1, 3.63, 3.95, .02, 2.74, M.sheer);
   /* ---- Bedroom 2 (5.06 × 3.05) ---- */
   beginG('Bed (B2)'); bed(1.55, 7.13, 1.60, 2.00, -1, M.velvetSage, M.linenWhite, M.velvetToffee); endG();
   G('Nightstand', () => nightstand(.48, 6.81)); G('Nightstand', () => nightstand(2.62, 6.81));
   beginG('Wall art (B2)'); B(1.15, 7.13, 1.95, 7.10, 1.25, 1.96, M.oakFurn); B(1.18, 7.10, 1.92, 7.098, 1.28, 1.93, M.paper); B(1.24, 7.098, 1.86, 7.097, 1.34, 1.87, artAt(art2Tex, 1.24, 1.34, .62, .53, true)); endG();
   G('Rug (B2)', () => RB(.4, 4.55, 2.7, 6.6, 0, .014, .3, M.rugDark, { cast: false }));
-  beginG('Wardrobe (B2)'); cab({ axis: 'x', a1: 2.65, a2: 4.95, back: 4.08, front: 4.68, h1: 0, h2: 2.65, cols: [[1, 1], [1, 1], [1, 1], [1, 1]], fm: M.lacquerCream });
-  [3.22, 3.8, 4.37].forEach(x => B(x - .006, 4.685, x + .006, 4.695, .85, 1.55, M.brass)); endG();
-  namedTyped('Work desk (B2)', 'desk', 0, 4.76, 6.5, FACE.E); namedTyped('Desk chair (B2)', 'deskchair', 0, 4.12, 6.5, FACE.E);
   curtain('y', .1, 4.4, 4.72, .02, 2.74, M.sheer); curtain('y', .1, 6.73, 7.05, .02, 2.74, M.sheer);
-  /* ---- Bathroom (2.38 × 2.77): built-in tub with shower, wall-hung WC, floating vanity, washer ---- */
-  beginG('Bathtub'); RB(4.69, .48, 6.39, 1.2, 0, .58, .01, M.marble); RB(4.78, .56, 6.30, 1.12, .3, .585, .2, M.resin, { seg: 5 });
-  { const g = new THREE.PlaneGeometry(1.44, .48); g.rotateX(-Math.PI / 2); add(g, M.water, 5.54, .5, .84, { uv: false, cast: false }); }
-  B(5.9, .5, 5.912, 1.2, .58, 2.1, M.glass, { cast: false }); B(5.895, .5, 5.917, 1.2, 2.08, 2.1, M.brass);
-  C(5.4, .84, .15, 2.2, 2.22, M.brass); C(5.4, .84, .01, 2.22, H, M.brass, { seg: 8 }); B(5.3, .485, 5.5, .5, 1.05, 1.2, M.brass); endG();
-  beginG('WC'); RB(4.69, 1.68, 5.24, 2.04, .30, .44, .16, M.ceramic, { seg: 6 }); RB(4.72, 1.685, 5.23, 2.035, .44, .455, .15, M.ceramic, { seg: 6 }); B(4.695, 1.78, 4.705, 1.94, .9, 1.06, M.brass); endG();
-  beginG('Bathroom vanity'); RB(6.61, 1.46, 7.065, 2.16, .45, .85, .015, M.walnut);
-  lathe([[0, 0], [.17, 0], [.2, .04], [.2, .14], [.19, .14], [.17, .05], [0, .03]], 6.82, 1.81, .85, M.ceramic, { sx: .8, sz: 1 });
-  tube([[7.065, 1.1, 1.81], [6.98, 1.1, 1.81], [6.95, 1.08, 1.81]], .01, M.brass);
-  add(new THREE.CircleGeometry(.3, 96), M.mirror, 7.062, 1.62, 1.81, { uv: false, rotY: -Math.PI / 2 }); add(new THREE.TorusGeometry(.305, .014, 16, 96), M.led, 7.061, 1.62, 1.81, { uv: false, rotY: -Math.PI / 2 });
-  B(6.63, 1.48, 7.06, 1.5, .42, .44, M.led, { cast: false }); lamp(6.75, 1.81, 1.6, 0xffe2c0, 2.5); endG();
-  beginG('Washing machine'); RB(6.48, 2.18, 7.065, 2.76, 0, .85, .02, M.ceramic); add(new THREE.TorusGeometry(.17, .025, 12, 48).rotateY(Math.PI / 2), M.steel, 6.475, .45, 2.47, { uv: false });
-  add(new THREE.CircleGeometry(.15, 48).rotateY(-Math.PI / 2), M.blackGlass, 6.474, .45, 2.47, { uv: false }); B(6.47, 2.25, 6.48, 2.7, .74, .8, M.blackGlass); endG();
-  G('Bath mat', () => RB(5.0, 1.25, 5.9, 1.7, .008, .02, .04, M.towel, { cast: false }));
-  G('Towel ring', () => { add(new THREE.TorusGeometry(.1, .008, 8, 32), M.brass, 6.0, 1.3, 2.762, { uv: false }); RB(5.93, 2.72, 6.07, 2.76, .95, 1.3, .02, M.towel); });
+  /* ---- Bathroom + hall lamps, hall panel ---- */
   lamp(5.9, 1.4, 2.6, 0xffe2c0, 4);
-  /* ---- Guest WC ---- */
-  beginG('Guest WC'); RB(7.06, 8.42, 7.61, 8.78, .30, .44, .16, M.ceramic, { seg: 6 }); RB(7.09, 8.425, 7.6, 8.775, .44, .455, .15, M.ceramic, { seg: 6 });
-  RB(7.06, 7.6, 7.42, 8.1, .62, .85, .015, M.walnut); lathe([[0, 0], [.14, 0], [.16, .04], [.16, .12], [.15, .12], [.13, .04], [0, .03]], 7.25, 7.85, .85, M.ceramic, { sz: 1.2 });
-  add(new THREE.CircleGeometry(.24, 64), M.mirror, 7.066, 1.55, 7.85, { uv: false, rotY: Math.PI / 2 }); add(new THREE.TorusGeometry(.245, .012, 12, 64), M.led, 7.067, 1.55, 7.85, { uv: false, rotY: Math.PI / 2 });
-  lamp(7.95, 8.2, 2.5, 0xffe2c0, 3); endG();
-  /* ---- Hall ---- */
-  beginG('Hall wardrobe'); cab({ axis: 'y', a1: 5.85, a2: 7.08, back: 5.16, front: 5.76, h1: .06, h2: 2.65, cols: [[1, 1], [1, 1]], fm: M.lacquerCream }); B(5.17, 5.86, 5.75, 7.07, 0, .06, M.carcass); endG();
   B(6.6, 7.10, 7.0, 7.13, 1.5, 1.9, M.lacquerCream);
   lamp(6.9, 5.6, 2.6, 0xffdcb4, 5); lamp(5.9, 3.5, 2.6, 0xffdcb4, 4);
-  /* ---- Loggias ---- */
+  /* ---- West balcony ---- */
   namedTyped('Lounge chair (loggia)', 'armchair', 4, -1.05, 2.2, FACE.W); namedTyped('Lounge chair (loggia)', 'armchair', 4, -1.05, 3.3, FACE.W);
   namedTyped('Side table (loggia)', 'sidetable', 0, -1.25, 2.75);
   G('Planter (W)', () => { pot(-1.5, 6.6, .2, .16, .46, M.stoneware); snake(-1.5, 6.6, 1); }); G('Planter (W)', () => { pot(-1.5, 1.0, .18, .14, .42, M.stonewareDark); fig(-1.5, 1.0, .75); });
-  namedTyped('Bistro table (loggia)', 'coffee', 1, 14.85, 3.4); namedTyped('Bistro chair', 'chair', 4, 14.85, 2.85, FACE.S); namedTyped('Bistro chair', 'chair', 4, 14.85, 3.95, FACE.N);
-  G('Herb planter (E)', () => { RB(15.3, 5.8, 15.72, 7.05, 0, .7, .02, M.concrete); for (let i = 0; i < 5; i++) { pot(15.5, 5.95 + i * .25, .09, .07, .2, M.stoneware); } snake(15.5, 6.45, .5); });
+  // the herb planter that stood on the east balcony before the Soft classic plan drew 55 numbers from the seeded generator here;
+  // skip them so plants, hanging garments and books stay identical to the baseline screenshots
+  for (let i = 0; i < 55; i++) rand();
 }
 
 /* ================= post-processing ================= */
@@ -800,7 +763,7 @@ async function build() {
   ceiling = buildArchitecture(); buildFurniture();
   world.updateMatrixWorld(true);
   world.traverse(o => { if (o.isMesh && !o.userData.clamp) { const bb = new THREE.Box3().setFromObject(o); o.userData.minY = bb.min.y; o.userData.maxY = bb.max.y; } });
-  setupOverlays(); applyLayout(loadLiving() || 'soft', false); setMood(false); setView('overview', true);
+  setupOverlays(); applyLayout(); setMood(false); setView('overview', true);
   loader.hidden = true;
 }
 
@@ -818,17 +781,16 @@ const RS_CORR = ['Corridor', 5.88, 3.62, '2.38 × 1.53'];
 const ROOM_SIZES = {
   softStudio: [['Bedroom 1', 1.55, 2.4, '3.19 × 3.98 + entry 1.30 × 0.93'], ['Walk-in closet', 3.94, 1.5, '1.30 × 2.95 (units 0.30 deep)'], ['Bedroom 2', 1.8, 5.6, '5.06 × 3.05'], RS_CORR, ['Hall', 7.0, 5.9, '3.70 × 2.73'], ['Studio (living + kitchen)', 10.4, 2.7, '6.45 × 4.32'], ['Office', 11.3, 5.9, '4.66 × 2.71']]
 };
-function roomSizes(L) {
-  const key = L.walls || curLiving, extra = ROOM_SIZES[key] || ROOM_SIZES.open, list = [...RS_BASE.filter(r => !extra.some(e => e[0] === r[0])), ...extra];
-  list.forEach(([n, x, y, t]) => { label(x, y, .6, `<b>${n}</b>${t} m`, 'dim', 'dim').zone = true; });
+function roomSizes() {
+  const extra = ROOM_SIZES.softStudio, list = [...RS_BASE.filter(r => !extra.some(e => e[0] === r[0])), ...extra];
+  list.forEach(([n, x, y, t]) => { label(x, y, .6, `<b>${n}</b>${t} m`, 'dim', 'dim'); });
   document.getElementById('roomSizeTable').innerHTML = list.map(([n, , , t]) => `<tr><td>${n}</td><td>${t}</td></tr>`).join('');
 }
 function zoneLabels(L) {
-  for (let i = labels.length - 1; i >= 0; i--) if (labels[i].zone) { labels[i].el.remove(); labels.splice(i, 1); }
-  (L.rooms || []).forEach(([x, y, n, a]) => { label(x, y, .05, `<b>${n}</b>${a}`, '', 'room').zone = true; });
-  (L.furn || []).forEach(f => { const l = label(f[1], f[2], f[3] + .05, `${f[0]}<i>${sizeTxt(f)}</i>`, 'furn', 'furn'); l.top = f[3] + .05; l.zone = true; });
-  document.getElementById('furnTable').innerHTML = [...BASEFURN, ...(L.furn || [])].map(f => `<tr><td>${f[0]}</td><td>${sizeTxt(f)}</td></tr>`).join('');
-  roomSizes(L);
+  L.rooms.forEach(([x, y, n, a]) => label(x, y, .05, `<b>${n}</b>${a}`, '', 'room'));
+  L.furn.forEach(f => { const l = label(f[1], f[2], f[3] + .05, `${f[0]}<i>${sizeTxt(f)}</i>`, 'furn', 'furn'); l.top = f[3] + .05; });
+  document.getElementById('furnTable').innerHTML = [...BASEFURN, ...L.furn].map(f => `<tr><td>${f[0]}</td><td>${sizeTxt(f)}</td></tr>`).join('');
+  roomSizes();
 }
 function setupOverlays() {
   [[2.3, 2.6, 'Bedroom 1', '≈18.3 m²'], [3.4, 5.5, 'Bedroom 2', '≈15.4 m²'], [5.9, 1.9, 'Bathroom', '≈6.6 m²'], 
@@ -844,11 +806,8 @@ function setupOverlays() {
   dim(7.17, .3, 13.62, .3, '6.45'); dim(13.3, 0, 13.3, 7.13, '7.13');
   dim(-1.85, 7.0, -.25, 7.0, '1.60'); dim(13.87, 7.0, 15.75, 7.0, '1.88');
   const FURN = [
-    ['Platform bed 160 (B1)', 1.55, 1.2, .6, '1.60', '2.00', '0.54'], ['Platform bed 160 (B2)', 1.55, 6.0, .6, '1.60', '2.00', '0.54'],
-    ['Wardrobe (B1)', 4.29, 1.5, 2.65, '0.60', '2.90', '2.65'], ['Wardrobe (B2)', 3.8, 4.38, 2.65, '2.30', '0.60', '2.65'],
-    ['Beauty table + lit mirror (B1)', 2.55, 3.75, .75, '1.10', '0.46', '0.75'], ['Vanity stool (B1)', 2.55, 3.22, .47, 'Ø0.36', '', '0.46'], ['Work desk (B2)', 4.76, 6.5, .75, '0.60', '0.90', '0.75'],
-    ['Built-in tub + shower screen', 5.54, .84, .58, '1.70', '0.72', '0.58'], ['Floating vanity', 6.84, 1.81, .85, '0.46', '0.70', '0.40'], ['Washing machine', 6.77, 2.47, .85, '0.59', '0.58', '0.85'],
-    ['Hall wardrobe', 5.46, 6.45, 2.65, '0.60', '1.23', '2.60']];
+    ['Platform bed 160 (B1)', 2.19, 1.62, .6, '2.00', '1.60', '0.54'], ['Platform bed 160 (B2)', 1.55, 6.0, .6, '1.60', '2.00', '0.54'],
+    ['Beauty table + lit mirror (B1)', 1.15, 3.75, .75, '1.10', '0.46', '0.75'], ['Vanity stool (B1)', 1.15, 3.22, .47, 'Ø0.36', '', '0.46'], ['Work desk (B2)', 2.9, 4.43, .75, '0.90', '0.60', '0.75']];
   BASEFURN = FURN;
   FURN.forEach(f => { const L = label(f[1], f[2], f[3] + .05, `${f[0]}<i>${sizeTxt(f)}</i>`, 'furn', 'furn'); L.top = f[3] + .05; });
   document.getElementById('furnTable').innerHTML = FURN.map(f => `<tr><td>${f[0]}</td><td>${sizeTxt(f)}</td></tr>`).join('');
@@ -1296,9 +1255,7 @@ function diningDecor(x, y) {
 function typed(type, d, x, y, face = 0, opts) { const g = makeTyped(type, d, opts); g.position.set(x, 0, y); g.rotation.y = face; g.userData.home = { x, z: y, r: face }; movables.push(g); return g; }
 /* ================= layout ================= */
 const LAYOUTS = {
-  soft: { walls: 'softStudio', preset: 'soft', hideIf: g => !g.userData.layoutBuilt && ((g.position.z < 4.0 && g.position.x < 4.6 && ['Bed (B1)', 'Nightstand', 'Wall art (B1)', 'Rug (B1)', 'Wardrobe (B1)', 'Beauty table (B1)', 'Vanity stool', 'Armchair (B1)'].includes(g.name))
-      || ['Hall wardrobe', 'Wardrobe (B2)', 'Work desk (B2)', 'Desk chair (B2)', 'Bathtub', 'WC', 'Bathroom vanity', 'Washing machine', 'Bath mat', 'Towel ring', 'Guest WC', 'Herb planter (E)'].includes(g.name)
-      || (g.position.x > 13 && ['Bistro table (loggia)', 'Bistro chair'].includes(g.name))), wallTint: 0xe9ddcc, ceilTint: 0xf3ebe0, trimTint: 0xeadfcf,
+  soft: { walls: 'softStudio', preset: 'soft', wallTint: 0xe9ddcc, ceilTint: 0xf3ebe0, trimTint: 0xeadfcf,
     name: 'Soft classic · arches, panels, chevron oak', tag: 'Design vibe',
     why: 'Your reference applied to the original plan (studio + office): warm greige walls with picture-frame mouldings and chair rail, light oak chevron floor everywhere, rounded-shoulder arches corridor → hall → studio, fluted rounded corners on the column and shaft, coffered ceilings with rounded corners, fluted lip and LED cove in every room, arched mirror fronts with oak knobs on the hall wardrobe, sculptural stone console under a textured plaster artwork with a brass sconce, bouclé and light-oak palette.',
     met: 'Studio: corner sofa 4 + armchair + dining 4 + 3 bar stools · TV 3.31 m · Office: 2.66 m built-in desk',
@@ -1508,32 +1465,21 @@ const LAYOUTS = {
       beginG('Office rug'); RB(10.7, 4.85, 13.3, 6.35, 0, .012, .05, M.rug, { cast: false }); endG();
     } },
 };
-const ZONE = new Set(['Washer + dryer', 'Walk-in closet', 'Built-in desk', 'Mirror wardrobe fronts', 'Stone arch console', 'Plaster artwork', 'Wall sconce', 'Kitchen bar', 'Bar stool', 'Side table', 'Bookshelf', 'Office rug', 'Nook rug', 'Hall bench + mirror', 'Hall runner', 'Kitchen run', 'Kitchen bar', 'Kitchen island', 'Bar stool', 'Fridge-freezer', 'Wall cabinets', 'Air fryer', 'Coffee machine', 'Oil bottles', 'Dining table', 'Dining chair', 'Table decor', 'Pendant lights', 'Sofa', 'Living rug', 'Coffee table', 'TV wall panel', 'TV + console', 'Fig plant', 'Snake plant', 'Side table', 'Armchair', 'Floor lamp', 'Desk', 'Desk chair']);
-let curLiving = 'studio'; const LIVKEY = 'palace1-layout-v4', TKEY = 'palace1-types-v2';
+const curLiving = 'soft', LIVKEY = 'palace1-layout-v4', TKEY = 'palace1-types-v2';
 const keyFor = k => k + ':' + curLiving;
-const inScene = o => { for (; o; o = o.parent) if (o === scene) return true; return false; };
-function applyLayout(id, user = true) {
-  if (!LAYOUTS[id]) id = 'studio'; curLiving = id; const L = LAYOUTS[id];
-  if (sel) select(null); if (swapSel) showSwap(null);
-  for (const g of movables) if (ZONE.has(g.name) || g.userData.layoutBuilt) g.parent && g.parent.remove(g);
-  buildArchVar(id);
-  for (let i = movables.length - 1; i >= 0; i--) if (!inScene(movables[i])) movables.splice(i, 1);
-  for (let i = clampables.length - 1; i >= 0; i--) if (!inScene(clampables[i].me)) clampables.splice(i, 1);
-  for (let i = nightLights.length - 1; i >= 0; i--) if (!inScene(nightLights[i])) nightLights.splice(i, 1);
-  const nBefore = movables.length; L.build(); if (L.plants) L.plants(); for (let i = nBefore; i < movables.length; i++) movables[i].userData.layoutBuilt = true;
+function applyLayout() { // builds the Soft classic plan once at start-up
+  const L = LAYOUTS.soft;
+  buildArchVar();
+  L.build(); L.plants();
   emissives.forEach(m => m.emissiveIntensity = night ? m.userData.night : m.userData.day);
   world.updateMatrixWorld(true);
   world.traverse(o => { if (o.isMesh && !o.userData.clamp && o.userData.minY === undefined) { const bb = new THREE.Box3().setFromObject(o); o.userData.minY = bb.min.y; o.userData.maxY = bb.max.y; } });
   scene.traverse(o => { if (o.isPointLight) o.visible = night; });
   Object.assign(VIEWS, L.views);
   loadTypes(); loadLayout(); loadStyle();
-  if (cutOn) applyCut(true);
-  for (const g of movables) { const hid = !!((L.hide && L.hide.includes(g.name)) || (L.hideIf && L.hideIf(g))); if (hid) { g.visible = false; g.userData.layoutHidden = true; } else if (g.userData.layoutHidden) { g.visible = true; g.userData.layoutHidden = false; } }
   zoneLabels(L); attachLabels();
   renderPlanNotes(); rebuildPT();
-  if (user) { try { localStorage.setItem(LIVKEY, id); } catch (e) {} }
 }
-function loadLiving() { try { return localStorage.getItem(LIVKEY); } catch (e) { return null; } }
 function saveTypes() { try { const d = {}; movables.forEach((g, i) => { if (g.userData.type) d[i] = g.userData.design; }); localStorage.setItem(keyFor(TKEY), JSON.stringify(d)); } catch (e) {} }
 function loadTypes() { let d = null; try { d = JSON.parse(localStorage.getItem(keyFor(TKEY)) || 'null'); } catch (e) {} if (!d) return;
   for (const i in d) { const g = movables[i]; if (g && g.userData.type && DESIGNS[g.userData.type].items[d[i]] && g.userData.design !== d[i]) replaceWith(g, g.userData.type, d[i]); } }
