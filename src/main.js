@@ -6,7 +6,7 @@ import { PUBLISHED, bbox, plan, setPlan } from './plan/plan.js';
 import { buildAll, refreshOverlays } from './build.js';
 import { composer } from './post.js';
 import { labels } from './ui/dims.js';
-import { loadSky, setMood } from './ui/toolbar.js';
+import { applySun, loadSky } from './ui/toolbar.js';
 import { setView } from './ui/views.js';
 import { loadEdits } from './ui/editor.js';
 import { loadStyle } from './ui/style.js';
@@ -20,7 +20,7 @@ async function build() {
   loader.textContent = 'Building apartment…'; await frame();
   loadEdits(); loadStyle();
   try { buildAll(); } catch (err) { console.error('stored edits could not be built; using the published plan', err); setPlan(PUBLISHED); buildAll(); }
-  setMood(false); setView('overview', true);
+  applySun(false); setView('overview', true);
   loader.hidden = true;
   upgradeMaterials(textured); loadSky(); whenIdle(refreshOverlays); // scanned detail maps and models arrive after the first frame
 }

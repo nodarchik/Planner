@@ -3,7 +3,7 @@
 Interactive, photoreal-leaning 3D model of one real apartment ("Palace 1", Tbilisi; plan PDF 107.3 m², owner counts 130 m² total with balconies). The owner iterates on layout and furniture by plain-language requests ("make the closet 1.30 m", "rotate the bed to face the balcony"). Every request must be answerable by a small, safe edit.
 
 ## Current state
-- Vite + vanilla ES modules, three 0.160 + three-gpu-pathtracer, everything procedural (no external assets).
+- Vite + vanilla ES modules, three 0.160 + three-gpu-pathtracer. Procedural geometry and textures, plus CC0 Poly Haven assets in `public/assets/` (13 models, scanned normal/roughness maps, sky HDRI; sources in `assets/CREDITS.md`). Every asset has a procedural fallback.
 - **The apartment is data: `src/plan/palace1.json`** (rooms, walls with openings, blocks, items, views). Code in `src/` builds whatever the file says. A layout or furniture request is an edit to that file, not to code.
 - `PLAN.md` — the refactor + realism plan and its status.
 - `legacy/palace-apartment.html` — the original single-file app (Claude artifact version 22). Reference only; do not edit.
@@ -12,6 +12,8 @@ Interactive, photoreal-leaning 3D model of one real apartment ("Palace 1", Tbili
 ## Commands
 - `npm run dev` — dev server. `npm run check` — lint + validate + build. `npm run preview` — serve `dist/` on :4173.
 - `npm run validate` — schema + reference checks, then the geometric checks (overlaps, clearances, door swings, routes). Findings are listed; `-- --strict` makes errors fail. `-- --all` lists passed checks too.
+- `npm run build:single` — `dist-single/index.html`, one self-contained file without external assets, for the Claude artifact.
+- `node tools/fetch_assets.mjs` / `node tools/fetch_textures.mjs` — re-download and convert the Poly Haven assets (needs network access to polyhaven.com).
 - `npm run shots` — 13 screenshots of the preview server into `shots/` (~22 min, software GL); `npm run shots:diff` — compare with `baseline/` (fails above 2 % differing pixels; identical builds differ by 0.2–1.5 % from unseeded ambient-occlusion noise, so also look at `shots/diff/*.png`: grain is noise, shapes are real changes).
 - `python3 tools/editor_test.py <url> [dir]` — functional test of the in-page editor.
 - Python needs `pip install playwright pillow numpy`; Chromium is taken from `CHROME_PATH` or `/opt/pw-browsers/chromium`.
@@ -28,6 +30,8 @@ The owner can make the same edits in the page (Edit plan) and paste the "Copy ch
 - Free furniture (catalog types sofa, coffee, dining, chair, armchair, stool, sidetable, floorlamp, desk, deskchair): `pos` [x, y], `rot` degrees clockwise as seen from above (0 = facing north) or `lookAt` [x, y], `variant` index into `DESIGNS` in `src/catalog.js`.
 - Beds: `anchor` { wall, side, offset along the wall, gap } or free `pos` + `rot`.
 - `coversWall` (margin in m) makes wall mouldings skip the item. `label` puts the item in the Furniture overlay and table (sizes are measured from what is built).
+- Models: a catalog design marked "(3D model)", a `planter` with `model`, or an item of type `model` (`model` id from `MODELS` in `src/assets.js`, `pos`, `rot`, `h` = height of its base, optional `width`).
+- `meta.site` (lat, lon, time zone) and `meta.north` (compass bearing of plan north, degrees; 352 was read off a map screenshot and is approximate) drive the sun; `meta.sun` is the default month and hour.
 - Skirting, wall cladding, mouldings, rounded corners and ceiling trays are derived from rooms and walls; nothing is listed by hand.
 
 ## Owner preferences
@@ -71,6 +75,7 @@ Plan coordinates `(x, y)` in metres, x → east, y → south, origin at the NW i
 - `items/` — one parametric builder per item type: `loose.js` (bed, nightstand, rug, planter, curtain, wall art, light…), `hall.js`, `kitchen.js`, `storage.js` (wardrobe, laundry tower, walk-in closet, sliding door, bookshelf, built-in desk), `bath.js` (tub, shower, WC, vanity…), `living.js` (TV wall, beauty table, terrace sofa); `index.js` = registry + `buildItem`
 - `catalog.js` — `DESIGNS`: swappable free-furniture designs · `furniture/` — shared shape helpers (`cab` cabinet run, `bed`, chairs, plants, decor)
 - `build.js` — `buildAll()` (after structural edits) and `rebuildItem(id)`
+- `assets.js` — model and scanned-map loading (`MODELS`, `instance`, `swapIn`, `upgradeMaterials`); `lighting.js` — `solar()`, `setSun()`, sky
 - `scene.js` — renderer, scene, camera, `world`, `movables`, and `state` (all shared mutable state). `textures.js`, `materials.js` (`M`), `lighting.js`, `post.js`, `pathtracer.js`, `primitives.js` (`B` box, `RB` rounded box, `C`, `S`, `lathe`, `tube`…)
 - `ui/` — `editor.js` (select, fields, drag with snapping, add/duplicate/delete, wall move, undo/redo, export/import, change summary, per-device persistence), `style.js` (finishes, presets), `dims.js` (labels computed from the plan), `panels.js` (Plan notes + checks), `toolbar.js`, `views.js`
 - Random details (leaves, drapes, garments, books) are seeded per item id, so editing one item never changes another.

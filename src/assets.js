@@ -6,6 +6,7 @@ import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
 import { rebuildPT } from './pathtracer.js';
 
 const BASE = import.meta.env.BASE_URL;
+const OFF = !!import.meta.env.VITE_NO_ASSETS; // single-file build: no external files, procedural fallbacks only
 let pending = 0; const idle = [];
 window.__assetsReady = true; // read by tools/shot.py
 const begin = () => { pending++; window.__assetsReady = false; };
@@ -29,7 +30,7 @@ export const MODELS = {
   modern_ceiling_lamp_01: { name: 'Ceiling lamp', size: [.43, .43, .95] }
 };
 const draco = new DRACOLoader().setDecoderPath(BASE + 'draco/'), gltf = new GLTFLoader().setDRACOLoader(draco), cache = new Map();
-function template(id) { if (!cache.has(id)) { begin(); cache.set(id, gltf.loadAsync(`${BASE}assets/models/${id}.glb`).then(g => g.scene).finally(end)); } return cache.get(id); }
+function template(id) { if (OFF) return Promise.reject(new Error('assets are disabled in this build')); if (!cache.has(id)) { begin(); cache.set(id, gltf.loadAsync(`${BASE}assets/models/${id}.glb`).then(g => g.scene).finally(end)); } return cache.get(id); }
 // a fresh instance standing on y = 0, centred on its footprint, front towards −z; width (m) rescales it uniformly
 export async function instance(id, width) {
   const src = await template(id), obj = src.clone(true), box = new THREE.Box3().setFromObject(obj), c = box.getCenter(new THREE.Vector3()), wrap = new THREE.Group();
@@ -44,14 +45,14 @@ export function swapIn(g, id, opts = {}) {
     g.clear(); if (opts.pos) g.position.set(opts.pos[0], 0, opts.pos[1]); obj.position.y = opts.h || 0; g.add(obj); g.updateMatrixWorld(true);
     const bb = new THREE.Box3().setFromObject(obj); g.userData.size = bb.getSize(new THREE.Vector3()); g.userData.minY0 = bb.min.y; g.userData.model = id;
     g.traverse(o => { if (o.isMesh) { const b = new THREE.Box3().setFromObject(o); o.userData.minY = b.min.y; o.userData.maxY = b.max.y; } });
-    window.dispatchEvent(new CustomEvent('modelswap', { detail: g })); }).catch(err => console.warn(`model ${id} not loaded; keeping the placeholder`, err));
+    window.dispatchEvent(new CustomEvent('modelswap', { detail: g })); }).catch(err => { if (!OFF) console.warn(`model ${id} not loaded; keeping the placeholder`, err); });
 }
 // scanned normal + roughness maps for the procedural texture sets (sizes in metres per tile)
 const SCANS = { plaster: 1.0, boucle: .31, linen: .27, velvet: .28, micro: 2.0, wood: 1.83 };
-export function upgradeMaterials(registry) { const tl = new THREE.TextureLoader();
+export function upgradeMaterials(registry) { if (OFF) return; const tl = new THREE.TextureLoader();
   for (const [set, size] of Object.entries(SCANS)) { const mats = registry.filter(r => r.set === set).map(r => r.material); if (!mats.length) continue;
     for (const [file, slot] of [['nor', 'normalMap'], ['rough', 'roughnessMap']]) { begin();
       tl.load(`${BASE}assets/textures/${set}_${file}.webp`, t => { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(1 / size, 1 / size); t.anisotropy = 4;
         mats.forEach(m => { m[slot] = t; m.needsUpdate = true; }); end(); }, undefined, () => { console.warn(`scan ${set}_${file} not loaded; keeping the procedural map`); end(); }); } }
 }
-export function loadSkyHDR() { begin(); return new RGBELoader().loadAsync(`${BASE}assets/hdri/sky_2k.hdr`).finally(end); }
+export function loadSkyHDR() { if (OFF) return Promise.reject(new Error('assets are disabled in this build')); begin(); return new RGBELoader().loadAsync(`${BASE}assets/hdri/sky_2k.hdr`).finally(end); }

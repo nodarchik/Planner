@@ -62,4 +62,4 @@ export function applySun(save) { const month = +sunMonth.value, hour = +sunTime.
   setMood(state.night); }
 { let d = plan.meta.sun; try { d = JSON.parse(localStorage.getItem(SUNKEY) || 'null') || d; } catch (e) {} sunMonth.value = d.month; sunTime.value = d.hour; setSun(d.month, d.hour); }
 sunTime.oninput = () => applySun(true); sunMonth.onchange = () => applySun(true);
-export function loadSky() { loadSkyHDR().then(t => { useHDRI(t); applySun(false); }).catch(err => console.warn('sky HDRI not loaded; keeping the procedural sky', err)); }
+export function loadSky() { loadSkyHDR().then(t => { useHDRI(t); applySun(false); }).catch(() => {}); } // without the HDRI the procedural sky stays
