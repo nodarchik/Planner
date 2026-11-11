@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { plan } from './plan/plan.js';
 import { MOBILE, V3, scene, state, world } from './scene.js';
 
 /* ================= sky (equirectangular, shared by raster + path tracer) ================= */
@@ -27,7 +28,7 @@ export const skyDay = makeSky(false), skyNight = makeSky(true);
 
 /* ================= lights ================= */
 export const sun = new THREE.DirectionalLight(0xfff1de, 3.2);
-const TARGET = new V3(7.0, 0, 3.8);
+const TARGET = new V3(...plan.meta.sunTarget);
 sun.position.copy(TARGET).addScaledVector(SUN_DIR, 25);
 sun.target.position.copy(TARGET);
 sun.castShadow = true;

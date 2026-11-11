@@ -4,6 +4,7 @@ import { buildTextures } from './textures.js';
 import { buildMaterials } from './materials.js';
 import { buildArchitecture } from './arch/shell.js';
 import { buildItems } from './items/index.js';
+import { bbox, plan } from './plan/plan.js';
 import { emissives } from './materials.js';
 import { attachLabels, loadLayout } from './ui/editor.js';
 import { loadStyle } from './ui/style.js';
@@ -29,6 +30,9 @@ import './ui/style.js';
 import './ui/swap.js';
 import './ui/panels.js';
 
+// extent of the ceilings: the camera counts as inside (wide lens, ceiling shown) within it
+const ROOF = bbox(plan.ceilings.flatMap(c => [[c.rect[0], c.rect[1]], [c.rect[2], c.rect[3]]]));
+
 async function build() {
   await frame(); await buildTextures(); buildMaterials();
   loader.textContent = 'Building apartment…'; await frame();
@@ -49,7 +53,7 @@ function tick(now) {
   if (state.anim) { const k = Math.min(1, (now - state.anim.t0) / 900), e = k < .5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2;
     camera.position.lerpVectors(state.anim.from.p, state.anim.to.p, e); controls.target.lerpVectors(state.anim.from.t, state.anim.to.t, e); if (k >= 1) state.anim = null; if (state.photo && state.pt) state.pt.updateCamera(); }
   controls.update();
-  const inside = camera.position.y < H - .05 && camera.position.x > -0.25 && camera.position.x < 13.87 && camera.position.z > -0.29 && camera.position.z < 9.3;
+  const inside = camera.position.y < H - .05 && camera.position.x > ROOF[0] && camera.position.x < ROOF[2] && camera.position.z > ROOF[1] && camera.position.z < ROOF[3];
   const fov = (inside ? 62 : 42) + (innerWidth < 600 ? 14 : 0); if (Math.abs(camera.fov - fov) > .01) { camera.fov += (fov - camera.fov) * .15; if (Math.abs(camera.fov - fov) < .05) camera.fov = fov; camera.updateProjectionMatrix(); if (state.photo && state.pt) state.pt.updateCamera(); }
   window.__settled = !state.anim && camera.fov === fov; // camera at rest: read by tools/shot.py
   if (state.ceiling) { state.ceiling.visible = inside; if (state.lastCeil !== inside) { state.lastCeil = inside; rebuildPT(); } }

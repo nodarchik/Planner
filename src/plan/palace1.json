@@ -4,6 +4,7 @@
     "layout": "Soft classic · arches, panels, chevron oak",
     "ceiling": 2.8,
     "cut": 1.2,
+    "sunTarget": [7.0, 0, 3.8],
     "north": null,
     "style": {"preset": "soft", "wallTint": "#e9ddcc", "ceilingTint": "#f3ebe0", "trimTint": "#eadfcf"},
     "notes": {"why": "Your reference applied to the original plan (studio + office): warm greige walls with picture-frame mouldings and chair rail, light oak chevron floor everywhere, rounded-shoulder arches corridor → hall → studio, fluted rounded corners on the column and shaft, coffered ceilings with rounded corners, fluted lip and LED cove in every room, arched mirror fronts with oak knobs on the hall wardrobe, sculptural stone console under a textured plaster artwork with a brass sconce, bouclé and light-oak palette.", "metrics": "Studio: corner sofa 4 + armchair + dining 4 + 3 bar stools · TV 3.31 m · Office: 2.66 m built-in desk"}
