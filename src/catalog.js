@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { movables } from './scene.js';
+import { MODELS, swapIn } from './assets.js';
 import { lamp } from './lighting.js';
 import { M } from './materials.js';
 import { B, C, RB, S, add, beginG, drape, endGRaw, lathe, pillow, pillowGeo, sector, tube } from './primitives.js';
@@ -129,5 +130,10 @@ export const DESIGNS = {
       book(.5, -.2, .75, .2, .15, .04, M.book2, .1); } }] },
   deskchair: { label: 'Desk chair', items: [{ name: 'Swivel task chair', info: 'Ø0.60', build: () => taskChair(0, 0, -Math.PI / 2) }] }
 };
-function makeTyped(type, d, opts) { beginG(DESIGNS[type].label); DESIGNS[type].items[d].build(opts || {}); const g = endGRaw(); g.userData.type = type; g.userData.design = d; return g; }
+// model designs: a procedural design of the same type stands in until the GLB has loaded
+const MODEL_DESIGNS = { coffee: [['modern_coffee_table_01', 6]], armchair: [['modern_arm_chair_01', 3]], sidetable: [['side_table_01', 0]], chair: [['dining_chair_02', 1]], stool: [['bar_chair_round_01', 0]] };
+for (const [type, list] of Object.entries(MODEL_DESIGNS)) for (const [id, standIn] of list) { const m = MODELS[id];
+  DESIGNS[type].items.push({ name: m.name + ' (3D model)', info: `${m.size[0].toFixed(2)} × ${m.size[1].toFixed(2)} × ${m.size[2].toFixed(2)}`, model: id, build: DESIGNS[type].items[standIn].build }); }
+function makeTyped(type, d, opts) { const design = DESIGNS[type].items[d]; beginG(DESIGNS[type].label); design.build(opts || {}); const g = endGRaw(); g.userData.type = type; g.userData.design = d;
+  if (design.model) swapIn(g, design.model); return g; }
 export function typed(type, d, x, y, face = 0, opts) { const g = makeTyped(type, d, opts); g.position.set(x, 0, y); g.rotation.y = face; g.userData.home = { x, z: y, r: face }; movables.push(g); return g; }

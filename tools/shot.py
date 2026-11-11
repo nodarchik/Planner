@@ -13,6 +13,7 @@ async def main():
         pg = await b.new_page(viewport={'width': 1200, 'height': 720}); errs = []
         pg.on('console', lambda m: errs.append(m.type + ': ' + m.text) if m.type == 'error' else None); pg.on('pageerror', lambda e: errs.append('PAGE: ' + str(e)))
         await pg.goto(target); await pg.wait_for_selector('#loader[hidden]', state='attached', timeout=240000)
+        await pg.wait_for_function('window.__assetsReady !== false', timeout=240000)
         for v in views:
             mode = None
             if ':' in v: v, mode = v.split(':')

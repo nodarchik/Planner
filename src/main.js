@@ -1,8 +1,9 @@
 import { CUT, H, V3, camera, controls, frame, loader, renderer, scene, state, statusEl } from './scene.js';
 import { buildTextures } from './textures.js';
-import { buildMaterials } from './materials.js';
+import { buildMaterials, textured } from './materials.js';
+import { upgradeMaterials, whenIdle } from './assets.js';
 import { PUBLISHED, bbox, plan, setPlan } from './plan/plan.js';
-import { buildAll } from './build.js';
+import { buildAll, refreshOverlays } from './build.js';
 import { composer } from './post.js';
 import { labels } from './ui/dims.js';
 import { setMood } from './ui/toolbar.js';
@@ -21,7 +22,10 @@ async function build() {
   try { buildAll(); } catch (err) { console.error('stored edits could not be built; using the published plan', err); setPlan(PUBLISHED); buildAll(); }
   setMood(false); setView('overview', true);
   loader.hidden = true;
+  upgradeMaterials(textured); whenIdle(refreshOverlays); // scanned detail maps and models arrive after the first frame
 }
+
+window.__sceneTriangles = () => { let n = 0; scene.traverse(o => { if (o.isMesh && o.geometry) n += (o.geometry.index ? o.geometry.index.count : o.geometry.attributes.position.count) / 3; }); return Math.round(n); }; // budget check
 
 /* ================= loop ================= */
 const v = new V3();

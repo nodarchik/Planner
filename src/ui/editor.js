@@ -38,6 +38,8 @@ function drawBoxes() { boxes.splice(0).forEach(b => { scene.remove(b); b.geometr
 export function select(s) { sel = s; state.sel = s; selPanel.hidden = !s; drawBoxes(); if (s) renderPanel(); rebuildPT(); }
 function reselect() { if (sel && !(sel.kind === 'item' ? itemOf(sel.id) : wallOf(sel.id))) sel = null; select(sel); }
 
+addEventListener('modelswap', () => drawBoxes()); // a model replaced its placeholder: selection outlines follow
+
 /* ---------- picking ---------- */
 const ray = new THREE.Raycaster(), ndc = new V2(), dragPlane = new THREE.Plane(new V3(0, 1, 0), 0), hitP = new V3();
 function aim(ev) { const r = renderer.domElement.getBoundingClientRect(); ndc.set(((ev.clientX - r.left) / r.width) * 2 - 1, -((ev.clientY - r.top) / r.height) * 2 + 1); ray.setFromCamera(ndc, camera); }

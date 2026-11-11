@@ -1,6 +1,7 @@
 // Free-standing and simple items: beds, nightstands, rugs, plants, curtains, art, lights.
 import * as THREE from 'three';
 import { state } from '../scene.js';
+import { MODELS, swapIn } from '../assets.js';
 import { M } from '../materials.js';
 import { RB, beginG, endG, lathe } from '../primitives.js';
 import { lamp } from '../lighting.js';
@@ -34,7 +35,13 @@ export const loose = {
   organicRug(it) { livingRug(...it.center, it.rx, it.ry); },
   light(it) { lamp(it.pos[0], it.pos[1], it.h, hex(it.color), it.intensity); },
   wallPanel(it) { const { F, L } = framed(it); F.B(0, 0, L, it.depth, it.h[0], it.h[1], mat(it.material, 'lacquerCream')); },
-  planter(it) { const [x, y] = it.pos; group(it, () => { if (it.pot) pot(x, y, it.pot[0], it.pot[1], it.pot[2], M[it.pot[3]]); PLANTS[it.plant](x, y, it.scale ?? 1); }); },
+  // procedural plant; with "model" the procedural one is the placeholder until the GLB arrives
+  planter(it) { const [x, y] = it.pos; beginG(it.name || 'Planter'); if (it.pot) pot(x, y, it.pot[0], it.pot[1], it.pot[2], M[it.pot[3]]); PLANTS[it.plant](x, y, it.scale ?? 1); const g = state.CUR; endG();
+    if (it.model) swapIn(g, it.model, { width: it.width, pos: it.pos }); },
+  // any model from src/assets.js placed directly: pos, rot (degrees), h = height of its base (e.g. a table top), optional width to rescale
+  model(it) { const m = MODELS[it.model]; if (!m) throw new Error(`plan: item ${it.id} uses unknown model "${it.model}"`); const [x, y] = it.pos, h = it.h || 0, k = it.width ? it.width / m.size[0] : 1;
+    beginG(it.name || m.name); RB(x - m.size[0] * k / 2, y - m.size[1] * k / 2, x + m.size[0] * k / 2, y + m.size[1] * k / 2, h, h + m.size[2] * k, .01, M.carcass); const g = state.CUR; endG();
+    g.position.set(x, 0, y); g.children.forEach(c => c.position.set(0, c.position.y, 0)); g.rotation.y = -(it.rot || 0) * Math.PI / 180; swapIn(g, it.model, { width: it.width, h }); },
   tableDecor(it) { diningDecor(...it.pos); },
   vanityStool(it) { const [x, y] = it.pos; group(it, () => { lathe([[0, 0], [.17, 0], [.17, .01], [.03, .03], [.025, .36], [0, .36]], x, y, 0, M.brass);
     lathe([[0, .36], [.17, .36], [.18, .38], [.18, .43], [.16, .46], [0, .465]], x, y, 0, M.velvetTerra); }); },

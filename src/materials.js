@@ -8,8 +8,9 @@ export function P(o) { const ni = o.nightIntensity; delete o.nightIntensity;
   const m = new THREE.MeshPhysicalMaterial(Object.assign({ roughness: .8, metalness: 0 }, o));
   if (o.emissive !== undefined) { m.userData.night = ni ?? 3; m.userData.day = o.emissiveIntensity ?? 0; emissives.push(m); }
   return m; }
+export const textured = []; // { material, set } for every material built on a texture set (scanned maps replace the procedural ones when loaded)
 export function T(set, tile, o = {}) { const t = texFor(set, tile); const ns = o.normalScale ?? 1; delete o.normalScale;
-  return P(Object.assign({ map: t.map, normalMap: t.normalMap, roughnessMap: t.roughnessMap, roughness: 1, normalScale: new V2(ns, ns) }, o)); }
+  const material = P(Object.assign({ map: t.map, normalMap: t.normalMap, roughnessMap: t.roughnessMap, roughness: 1, normalScale: new V2(ns, ns) }, o)); textured.push({ material, set }); return material; }
 export const M = {};
 export function buildMaterials() {
   Object.assign(M, {

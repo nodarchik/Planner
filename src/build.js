@@ -37,6 +37,7 @@ export function buildAll() {
   state.ceiling = buildArchitecture(); state.lastCeil = null; buildItems(); plan.items.forEach(dress);
   finish(world); clearOverlays(); setupOverlays(); furnitureLabels(); renderPlanNotes(); rebuildPT();
 }
+export function refreshOverlays() { clearOverlays(); setupOverlays(); furnitureLabels(); }
 export function removeItemObjects(id) { for (const o of itemObjects.get(id) || []) o.parent && o.parent.remove(o); itemObjects.delete(id); itemGroups.delete(id); prune(); }
 export function rebuildItem(id, quiet) {
   removeItemObjects(id); const it = plan.items.find(i => i.id === id); if (!it) return [];
