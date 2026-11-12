@@ -16,6 +16,7 @@ Interactive, photoreal-leaning 3D model of one real apartment ("Palace 1", Tbili
 - `node tools/fetch_assets.mjs` / `node tools/fetch_textures.mjs` — re-download and convert the Poly Haven assets (needs network access to polyhaven.com).
 - `npm run shots` — 13 screenshots of the preview server into `shots/` (~22 min, software GL); `npm run shots:diff` — compare with `baseline/` (fails above 2 % differing pixels; identical builds differ by 0.2–1.5 % from unseeded ambient-occlusion noise, so also look at `shots/diff/*.png`: grain is noise, shapes are real changes).
 - `python3 tools/editor_test.py <url> [dir]` — functional test of the in-page editor.
+- `python3 tools/chat_test.py <url>` — test of the in-app assistant against a mocked `/api/chat` (no Claude API call).
 - Python needs `pip install playwright pillow numpy`; Chromium is taken from `CHROME_PATH` or `/opt/pw-browsers/chromium`.
 
 ## How to make a change
@@ -74,6 +75,7 @@ Plan coordinates `(x, y)` in metres, x → east, y → south, origin at the NW i
 - `arch/shell.js` — `buildArchitecture`: slabs, floors, walls, openings, door leaves, skirting, cladding, mouldings, corners, ceilings from the plan · `arch/walls.js` — `wallRun`, glazing, `door`, `skirt` · `arch/soft.js` — `softPanels`, `softArch`, `softBullnose`, `softTray`
 - `items/` — one parametric builder per item type: `loose.js` (bed, nightstand, rug, planter, curtain, wall art, light…), `hall.js`, `kitchen.js`, `storage.js` (wardrobe, laundry tower, walk-in closet, sliding door, bookshelf, built-in desk), `bath.js` (tub, shower, WC, vanity…), `living.js` (TV wall, beauty table, terrace sofa); `index.js` = registry + `buildItem`
 - `catalog.js` — `DESIGNS`: swappable free-furniture designs · `furniture/` — shared shape helpers (`cab` cabinet run, `bed`, chairs, plants, decor)
+- `api/chat.js` (repo root, Vercel function) + `ui/chat.js` — in-app assistant: the browser sends the conversation, the function adds the system prompt and the `apply_changes` tool and calls Claude (`claude-opus-5-5`); edits are applied in the browser as undoable steps and the check findings go back as the tool result. Needs `ANTHROPIC_API_KEY` in the Vercel project; optional `CHAT_PASSWORD`. Not available in `npm run dev` (use `vercel dev`) or the single-file build.
 - `build.js` — `buildAll()` (after structural edits) and `rebuildItem(id)`
 - `assets.js` — model and scanned-map loading (`MODELS`, `instance`, `swapIn`, `upgradeMaterials`); `lighting.js` — `solar()`, `setSun()`, sky
 - `scene.js` — renderer, scene, camera, `world`, `movables`, and `state` (all shared mutable state). `textures.js`, `materials.js` (`M`), `lighting.js`, `post.js`, `pathtracer.js`, `primitives.js` (`B` box, `RB` rounded box, `C`, `S`, `lathe`, `tube`…)

@@ -10,6 +10,7 @@ import { applySun, loadSky } from './ui/toolbar.js';
 import { setView } from './ui/views.js';
 import { loadEdits } from './ui/editor.js';
 import { loadStyle } from './ui/style.js';
+import './ui/chat.js';
 import { rebuildPT, stillTick } from './pathtracer.js';
 
 // extent of the ceilings: the camera counts as inside (wide lens, ceiling shown) within it

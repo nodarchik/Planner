@@ -138,3 +138,18 @@ canvas{touch-action:none}
 .sunctl{display:flex;align-items:center;gap:8px}
 .sunctl .sel{max-width:74px}
 .sunctl input[type=range]{width:120px;accent-color:var(--accent)}
+.chatpanel{position:fixed;z-index:6;left:max(16px,env(safe-area-inset-left,0px));bottom:calc(72px + env(safe-area-inset-bottom,0px));width:min(360px,calc(100vw - 32px));max-height:min(60vh,560px);display:grid;grid-template-rows:auto 1fr auto auto auto;gap:8px;
+  background:color-mix(in srgb,var(--panel) 95%,transparent);border:1px solid var(--line);border-radius:14px;padding:12px 14px;backdrop-filter:blur(10px);font:12px/1.45 var(--f-mono)}
+.chathead{display:flex;justify-content:space-between;align-items:center}.chathead b{font:700 12px var(--f-display);letter-spacing:.02em}
+.chatpanel button{font:600 11px var(--f-mono);letter-spacing:.04em;padding:7px 10px;border:1px solid var(--line);border-radius:999px;background:var(--panel);color:var(--fg);cursor:pointer}
+.chatpanel button:disabled{opacity:.4;cursor:default}
+.chatlog{overflow:auto;display:grid;gap:6px;align-content:start;min-height:80px}
+.msg{white-space:pre-wrap;overflow-wrap:anywhere;padding:6px 8px;border-radius:10px}
+.msg.user{background:var(--fg);color:var(--panel);justify-self:end;max-width:90%}
+.msg.bot{background:var(--panel);border:1px solid var(--line)}
+.msg.note{color:var(--muted);font-size:11px;padding:0 2px;font-variant-numeric:tabular-nums}.msg.note.error{color:var(--accent)}
+.chatrow,.chatpw{display:grid;grid-template-columns:1fr auto;gap:6px;align-items:end}
+.chatpanel textarea,.chatpanel input{width:100%;min-width:0;box-sizing:border-box;font:12px/1.4 var(--f-mono);padding:7px 8px;border:1px solid var(--line);border-radius:10px;background:var(--panel);color:var(--fg);resize:none}
+.chatpanel .note{font-size:10px;color:var(--muted)}
+#chatBtn[aria-pressed="true"]{background:var(--accent);color:#fff}
+@media (max-width:700px), (pointer:coarse){.chatpanel{left:0;right:0;bottom:0;width:auto;max-height:70vh;border-radius:16px 16px 0 0;padding-bottom:calc(12px + env(safe-area-inset-bottom,0px));z-index:9}.chatpanel textarea,.chatpanel input{font-size:16px}.chatpanel button{min-height:40px}}

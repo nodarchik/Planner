@@ -26,6 +26,8 @@ function updateBar() { const n = describe(PUBLISHED, plan).length; $('changeCoun
 // run a change: opts.item = rebuild only that item, opts.none = already applied to the scene, otherwise rebuild everything
 export function edit(fn, opts = {}) { undoStack.push(snapshot()); if (undoStack.length > 100) undoStack.shift(); redoStack.length = 0; fn(); persist();
   if (opts.none) return; if (opts.item) rebuildItem(opts.item); else buildAll(); reselect(); }
+// like edit(), for changes that may be invalid: on any error the plan is put back and the message is returned
+export function tryEdit(fn) { const before = snapshot(); try { edit(fn); return null; } catch (e) { if (undoStack[undoStack.length - 1] === before) undoStack.pop(); try { restore(before); } catch (e2) { console.error(e2); } return String((e && e.message) || e); } }
 function restore(json) { setPlan(JSON.parse(json)); persist(); buildAll(); reselect(); }
 function undo() { if (!undoStack.length) return; redoStack.push(snapshot()); restore(undoStack.pop()); }
 function redo() { if (!redoStack.length) return; undoStack.push(snapshot()); restore(redoStack.pop()); }
