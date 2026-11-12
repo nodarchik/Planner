@@ -6,14 +6,18 @@ import { syncLights } from './lighting.js';
 
 /* ================= path tracer ("Photo render") ================= */
 
-// transmissive window glass blocks the path tracer's shadow rays (black rooms): fully clear alpha glass lets light through; the floor clearcoat renders black patches, so it is off
-const GLASS = ['glassWin', 'glassRail'], glassKept = new Map(), coatKept = new Map();
-function ptGlass(on) { for (const k of GLASS) { const m = M[k]; if (!m) continue;
-  if (on && !glassKept.has(k)) { glassKept.set(k, [m.transmission, m.transparent, m.opacity]); m.transmission = 0; m.transparent = true; m.opacity = 0; m.needsUpdate = true; }
+// transmissive window glass blocks the path tracer's shadow rays (black rooms): fully clear alpha glass lets light through; clearcoat renders black patches or whole objects, so it is off in Photo
+const GLASS = { glassWin: 0, glassRail: 0, glassShower: .1 }, glassKept = new Map(), matKept = new Map(); // key → opacity in Photo
+// partly transmissive opal (lamp shades) renders black: opaque white in Photo (its emissive still glows at night)
+function ptMats(on) { if (on) scene.traverse(o => { for (const m of [].concat(o.material || [])) if (!matKept.has(m) && (m.clearcoat > 0 || (m.transmission > 0 && m.transmission < 1))) {
+      matKept.set(m, [m.clearcoat, m.transmission]); m.clearcoat = 0; if (m.transmission < 1) m.transmission = 0; m.needsUpdate = true; } });
+  else { for (const [m, [c, t]] of matKept) { m.clearcoat = c; m.transmission = t; m.needsUpdate = true; } matKept.clear(); } }
+function ptGlass(on) { for (const [k, op] of Object.entries(GLASS)) { const m = M[k]; if (!m) continue;
+  if (on && !glassKept.has(k)) { glassKept.set(k, [m.transmission, m.transparent, m.opacity]); m.transmission = 0; m.transparent = true; m.opacity = op; m.needsUpdate = true; }
   else if (!on && glassKept.has(k)) { [m.transmission, m.transparent, m.opacity] = glassKept.get(k); glassKept.delete(k); m.needsUpdate = true; } }
-  const c = M.chevron; if (c) { if (on && !coatKept.has(c)) { coatKept.set(c, c.clearcoat); c.clearcoat = 0; c.needsUpdate = true; } else if (!on && coatKept.has(c)) { c.clearcoat = coatKept.get(c); coatKept.delete(c); c.needsUpdate = true; } } }
+  ptMats(on); }
 // day sky 3x stronger in Photo: the room is lit only through the windows, the raster view gets unoccluded sky light everywhere
-export function ptSetScene() { scene.environmentIntensity = state.night ? 1 : 3; state.pt.setScene(scene, camera); }
+export function ptSetScene() { ptMats(true); scene.environmentIntensity = state.night ? 1 : 3; state.pt.setScene(scene, camera); }
 export function rebuildPT() { if (state.photo) state.ptDirty = true; }
 // 2560 × 1440 still of the current view: path-trace off the page size to `samples`, then download a PNG (or resolve a data URL for window.__still)
 const STILL = { w: 2560, h: 1440, samples: 96 }, stillBtn = document.getElementById('still');

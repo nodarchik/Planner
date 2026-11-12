@@ -19,7 +19,7 @@ export const bath = {
       [[.11, .15, .645], [.11, .32, .645], [.17, .23, 1.045]].forEach(([dx, dy, h]) => add(new THREE.CylinderGeometry(.06, .06, .22, 20).rotateZ(Math.PI / 2), M.towel, x1 + dx, h + .06, y1 + dy, { uv: false }));
       vase(x1 + .16, y1 + .24, 1.445, .3, M.stoneware); }); },
   // variant "niche": walk-in tray between walls with one fixed glass screen · variant "strip": full length of one room side behind a glass wall with a door at each end
-  shower(it) { const brass = M.brass, glass = M.glass;
+  shower(it) { const brass = M.brass, glass = M.glassShower;
     if (it.variant === 'strip') { const sp = alongRoom(it.room, it.along), F = frame(sp), L = sp.len, D = it.width, c = L / 2;
       group(it, () => { F.B(0, 0, L, D, 0, .025, M.micro, { cast: false }); F.B(.07, .04, L - .06, .08, .025, .027, M.steelDark, { cast: false });
         F.B(0, D - .005, .54, D + .007, .025, 2.0, glass, { cast: false }); F.B(.56, D + .012, L - .56, D + .024, .025, 2.0, glass, { cast: false }); F.B(L - .54, D - .005, L, D + .007, .025, 2.0, glass, { cast: false });
