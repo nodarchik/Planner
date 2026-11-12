@@ -7,7 +7,7 @@ Interactive, photoreal-leaning 3D model of one real apartment ("Palace 1", Tbili
 - **The apartment is data: `src/plan/palace1.json`** (rooms, walls with openings, blocks, items, views). Code in `src/` builds whatever the file says. A layout or furniture request is an edit to that file, not to code.
 - `PLAN.md` — the refactor + realism plan and its status.
 - `legacy/palace-apartment.html` — the original single-file app (Claude artifact version 22). Reference only; do not edit.
-- `baseline/*.png` — 13 reference screenshots (12 views day + `top_night`).
+- `baseline/*.png` — 13 reference screenshots (12 views day + `top_night`) of the current plan with models, scanned maps and sky loaded. Recapture them after any intended visual change.
 
 ## Commands
 - `npm run dev` — dev server. `npm run check` — lint + validate + build. `npm run preview` — serve `dist/` on :4173.
