@@ -1,4 +1,4 @@
-import { CUT, H, V3, camera, controls, frame, loader, renderer, scene, state, statusEl } from './scene.js';
+import { CUT, H, MOBILE, V3, camera, controls, frame, loader, renderer, scene, state, statusEl } from './scene.js';
 import { buildTextures } from './textures.js';
 import { buildMaterials, textured } from './materials.js';
 import { upgradeMaterials, whenIdle } from './assets.js';
@@ -43,7 +43,8 @@ function tick(now) {
   if (state.photo && state.pt) {
     if (state.ptDirty) { state.ptDirty = false; state.pt.setScene(scene, camera); }
     state.pt.renderSample(); if (!stillTick()) statusEl.textContent = `Photo · ${Math.floor(state.pt.samples)} samples`;
-  } else composer.render();
+  } else { if (MOBILE) { renderer.shadowMap.autoUpdate = false; renderer.shadowMap.needsUpdate = window.__frames % 15 === 1; } // phones: static sun shadows refreshed 4x a second
+    composer.render(); }
   const w = innerWidth, h = innerHeight;
   for (const l of labels) { const on = l.group === 'room' ? state.showRooms && camera.position.y > H : l.group === 'furn' ? state.showFurn && !!l.grp : state.showDims;
     if (l.grp) { if (!l.grp.visible || !l.grp.parent) { l.el.hidden = true; continue; } l.p.copy(l.local); l.grp.localToWorld(l.p); }
