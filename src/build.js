@@ -2,7 +2,7 @@
 import * as THREE from 'three';
 import { clampables, movables, scene, state, world } from './scene.js';
 import { emissives } from './materials.js';
-import { nightLights, syncLights } from './lighting.js';
+import { coveLights, nightLights, syncLights } from './lighting.js';
 import { plan, refreshGeom } from './plan/plan.js';
 import { buildArchitecture } from './arch/shell.js';
 import { buildItem, buildItems, itemGroups, itemObjects } from './items/index.js';
@@ -32,7 +32,7 @@ function dress(it) { // per-item look and resize factors [x, height, y] stored i
 }
 export function buildAll() {
   if (baseEmissives < 0) baseEmissives = emissives.length; else emissives.length = baseEmissives;
-  nightLights.forEach(l => l.parent && l.parent.remove(l)); world.clear(); clampables.length = 0; movables.length = 0; nightLights.length = 0;
+  nightLights.forEach(l => l.parent && l.parent.remove(l)); coveLights.forEach(l => l.parent && l.parent.remove(l)); coveLights.length = 0; world.clear(); clampables.length = 0; movables.length = 0; nightLights.length = 0;
   refreshGeom();
   state.ceiling = buildArchitecture(); state.lastCeil = null; buildItems(); plan.items.forEach(dress);
   finish(world); clearOverlays(); setupOverlays(); furnitureLabels(); renderPlanNotes(); rebuildPT();

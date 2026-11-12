@@ -39,7 +39,7 @@ function tick(now) {
   const fov = (inside ? 62 : 42) + (innerWidth < 600 ? 14 : 0); if (Math.abs(camera.fov - fov) > .01) { camera.fov += (fov - camera.fov) * .15; if (Math.abs(camera.fov - fov) < .05) camera.fov = fov; camera.updateProjectionMatrix(); if (state.photo && state.pt) state.pt.updateCamera(); }
   window.__settled = !state.anim && camera.fov === fov; // camera at rest: read by tools/shot.py
   if (state.ceiling) { state.ceiling.visible = inside; if (state.lastCeil !== inside) { state.lastCeil = inside; rebuildPT(); } }
-  renderer.toneMappingExposure = (state.night ? 1.25 : 1.0) * (state.photo ? (inside ? (state.night ? 1.1 : 6) : (state.night ? 2.2 : .5)) : 1);
+  renderer.toneMappingExposure = (state.night ? 1.25 : 1.0) * (state.photo ? (inside ? (state.night ? .75 : 6) : (state.night ? 1.3 : .5)) : 1);
   if (state.photo && state.pt) {
     if (state.ptDirty) { state.ptDirty = false; ptSetScene(); }
     state.pt.renderSample(); if (!stillTick()) statusEl.textContent = `Photo · ${Math.floor(state.pt.samples)} samples`;

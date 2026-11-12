@@ -1,7 +1,8 @@
 import * as THREE from 'three';
 import { plan } from './plan/plan.js';
 import { MOBILE, V3, scene, state, world } from './scene.js';
-import { isWindowless, kelvin, kindOf, pointCd } from './lights.js';
+import { RectAreaLightUniformsLib } from 'three/examples/jsm/lights/RectAreaLightUniformsLib.js';
+import { isWindowless, kelvin, kindOf, pointCd, stripNits } from './lights.js';
 
 /* ================= sun position ================= */
 // Solar azimuth (degrees clockwise from true north) and elevation for a site, day of year and local clock hour (NOAA approximation).
@@ -80,9 +81,18 @@ export function lamp(x, y, h, spec, n = 1) {
   const { lm, k } = typeof spec === 'string' ? kindOf(spec) : spec, l = new THREE.PointLight(kelvin(k || 2700), pointCd(lm * n), 0, 2);
   l.position.set(x, h, y); l.visible = false; l.userData.lm = lm * n; (state.CUR === world ? scene : state.CUR).add(l); nightLights.push(l); return l;
 }
+// LED cove as an area light (Photo night only; the raster view keeps the emissive tube): a straight strip from (x1, y1) to (x2, y2) at height h facing down
+export const coveLights = []; let rectInit = false;
+export function coveLight(x1, y1, x2, y2, h) {
+  if (!rectInit) { RectAreaLightUniformsLib.init(); rectInit = true; }
+  const len = Math.hypot(x2 - x1, y2 - y1), { lm, k } = kindOf('coveStrip'), W = .05, l = new THREE.RectAreaLight(kelvin(k || 3000), stripNits(lm * len, len * W), len, W);
+  const ex = new V3((x2 - x1) / len, 0, (y2 - y1) / len), up = new V3(0, 1, 0);
+  l.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(ex, up.clone().cross(ex), up));
+  l.position.set((x1 + x2) / 2, h, (y1 + y2) / 2); l.visible = false; scene.add(l); coveLights.push(l); return l; }
 // lamps are on at night, and by day in Photo renders for rooms without daylight
 const wp = new V3();
 // Photo by day is exposed for window light (x6), so these lamps are scaled down to match what the night exposure shows
 const DAY_LAMP = .2;
 export function syncLights() { for (const l of nightLights) { l.getWorldPosition(wp); l.visible = state.night || (state.photo && isWindowless(wp.x, wp.z));
-  l.intensity = pointCd(l.userData.lm) * (state.night || !state.photo ? 1 : DAY_LAMP); } }
+  l.intensity = pointCd(l.userData.lm) * (state.night || !state.photo ? 1 : DAY_LAMP); }
+  for (const l of coveLights) l.visible = state.night && state.photo; }

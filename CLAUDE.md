@@ -41,6 +41,7 @@ The owner can make the same edits in the page (Edit plan) and paste the "Copy ch
 - Beds: `anchor` { wall, side, offset along the wall, gap } or free `pos` + `rot`.
 - `coversWall` (margin in m) makes wall mouldings skip the item. `label` puts the item in the Furniture overlay and table (sizes are measured from what is built).
 - Models: a catalog design marked "(3D model)", a `planter` with `model`, or an item of type `model` (`model` id from `MODELS` in `src/assets.js`, `pos`, `rot`, `h` = height of its base, optional `width`).
+- Lights: `type:"light"` items take `lm` (lumens) and `k` (kelvin); builders' own lamps read `meta.lights.kinds` (lm, K per fixture or per metre); `meta.lights.scale` maps lumens to scene units (one constant). Lamps of rooms without windows are also on in day Photo.
 - `meta.site` (lat, lon, time zone) and `meta.north` (compass bearing of plan north, degrees; 352 was read off a map screenshot and is approximate) drive the sun; `meta.sun` is the default month and hour.
 - Skirting, wall cladding, mouldings, rounded corners and ceiling trays are derived from rooms and walls; nothing is listed by hand.
 

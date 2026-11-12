@@ -19,7 +19,7 @@
       "floorLamp": {"lm": 800, "k": 3000},
       "downlight": {"lm": 400, "k": 3000},
       "underCabinet": {"lm": 500, "k": 3000},
-      "coveStrip": {"lm": 800, "k": 3000},
+      "coveStrip": {"lm": 600, "k": 3000},
       "mirrorLight": {"lm": 650, "k": 3000},
       "shelfStrip": {"lm": 300, "k": 3000},
       "closetStrip": {"lm": 400, "k": 3000},
