@@ -1,6 +1,8 @@
 """Test of the in-app assistant with a mocked /api/chat (no Claude API call). Usage: python3 tools/chat_test.py <url>  (exit 1 on failure)"""
 import asyncio, sys, os, json
 from playwright.async_api import async_playwright
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from launch import launch
 async def main():
     fails = []; calls = []
     def check(name, ok, extra=''):
@@ -16,8 +18,7 @@ async def main():
         else:
             await route.fulfill(json={"content": [{"type": "text", "text": "Wardrobe (B2) is now 1.65 wide (x 2.95–4.60)."}], "stop_reason": "end_turn"})
     async with async_playwright() as p:
-        exe = os.environ.get('CHROME_PATH') or ('/opt/pw-browsers/chromium' if os.path.exists('/opt/pw-browsers/chromium') else None)
-        b = await p.chromium.launch(executable_path=exe, args=["--use-gl=angle", "--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist"])
+        b = await launch(p)
         pg = await b.new_page(viewport={'width': 1200, 'height': 720}); errs = []
         pg.on('console', lambda m: errs.append(m.text) if m.type == 'error' and '404' not in m.text else None); pg.on('pageerror', lambda e: errs.append('PAGE: ' + str(e)))
         await pg.route('**/api/chat', mock)
