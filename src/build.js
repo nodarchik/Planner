@@ -1,6 +1,6 @@
 // Build pipeline: everything in the scene comes from the plan. buildAll() after structural edits, rebuildItem() after an item edit.
 import * as THREE from 'three';
-import { clampables, movables, scene, state, world } from './scene.js';
+import { clampables, markShadows, movables, scene, state, world } from './scene.js';
 import { emissives } from './materials.js';
 import { coveLights, nightLights, syncLights } from './lighting.js';
 import { plan, refreshGeom } from './plan/plan.js';
@@ -35,13 +35,13 @@ export function buildAll() {
   nightLights.forEach(l => l.parent && l.parent.remove(l)); coveLights.forEach(l => l.parent && l.parent.remove(l)); coveLights.length = 0; world.clear(); clampables.length = 0; movables.length = 0; nightLights.length = 0;
   refreshGeom();
   state.ceiling = buildArchitecture(); state.lastCeil = null; buildItems(); plan.items.forEach(dress);
-  finish(world); clearOverlays(); setupOverlays(); furnitureLabels(); renderPlanNotes(); rebuildPT();
+  finish(world); clearOverlays(); setupOverlays(); furnitureLabels(); renderPlanNotes(); markShadows(); rebuildPT();
 }
 export function refreshOverlays() { clearOverlays(); setupOverlays(); furnitureLabels(); }
-export function removeItemObjects(id) { for (const o of itemObjects.get(id) || []) o.parent && o.parent.remove(o); itemObjects.delete(id); itemGroups.delete(id); prune(); }
+export function removeItemObjects(id) { for (const o of itemObjects.get(id) || []) o.parent && o.parent.remove(o); itemObjects.delete(id); itemGroups.delete(id); prune(); markShadows(); }
 export function rebuildItem(id, quiet) {
   removeItemObjects(id); const it = plan.items.find(i => i.id === id); if (!it) return [];
-  const groups = buildItem(it); dress(it); finish(world);
+  const groups = buildItem(it); dress(it); finish(world); markShadows();
   if (!quiet) { clearOverlays(); setupOverlays(); furnitureLabels(); renderPlanNotes(); rebuildPT(); }
   return groups;
 }

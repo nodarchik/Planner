@@ -1,4 +1,4 @@
-import { DPR, V2, camera, controls, frame, renderer, scene, state, statusEl } from './scene.js';
+import { DPR, V2, camera, controls, frame, markShadows, renderer, scene, state, statusEl } from './scene.js';
 import { composer } from './post.js';
 import { M } from './materials.js';
 import { setView } from './ui/views.js';
@@ -53,7 +53,7 @@ focalSel.onchange = fstopSel.onchange = () => setLens(+focalSel.value, +fstopSel
 export async function setPhoto(on) {
   document.getElementById('pcam').hidden = !on;
   const btn = document.getElementById('photo');
-  if (!on) { if (still) endStill(); ptGlass(false); state.photo = false; syncLights(); btn.setAttribute('aria-pressed', 'false'); stillBtn.disabled = true; statusEl.textContent = ''; return; }
+  if (!on) { if (still) endStill(); ptGlass(false); state.photo = false; syncLights(); markShadows(); btn.setAttribute('aria-pressed', 'false'); stillBtn.disabled = true; statusEl.textContent = ''; return; }
   btn.setAttribute('aria-pressed', 'true');
   try {
     if (!state.pt) { statusEl.textContent = 'Loading renderer…'; await frame();

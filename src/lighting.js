@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { plan } from './plan/plan.js';
-import { MOBILE, V3, scene, state, world } from './scene.js';
+import { MOBILE, V3, markShadows, scene, state, world } from './scene.js';
 import { RectAreaLightUniformsLib } from 'three/examples/jsm/lights/RectAreaLightUniformsLib.js';
 import { isWindowless, kelvin, kindOf, pointCd, stripNits } from './lights.js';
 
@@ -66,7 +66,7 @@ export function useHDRI(tex) { const src = tex.image.data, w = tex.image.width, 
   hdr = { data, w, h, sunCol, flipY: tex.flipY }; }
 export function setSun(month, hour) {
   const s = sunDirection(month, hour), up = s.el > 0; SKY.info = s; SKY.sunUp = up; SUN_DIR.copy(up ? s.dir : new V3(s.dir.x, .001, s.dir.z).normalize());
-  sun.position.copy(TARGET).addScaledVector(SUN_DIR, 25); const k = Math.max(0, Math.min(1, Math.sin(s.el * Math.PI / 180) * 2.6));
+  markShadows(); sun.position.copy(TARGET).addScaledVector(SUN_DIR, 25); const k = Math.max(0, Math.min(1, Math.sin(s.el * Math.PI / 180) * 2.6));
   sun.intensity = 3.2 * k; sun.color.setRGB(1, .86 + .085 * k, .62 + .25 * k);
   const old = [SKY.day, SKY.back]; SKY.day = makeSky(false); SKY.back = SKY.day;
   if (hdr && up) { const { data, w, h, sunCol } = hdr, phi = Math.atan2(SUN_DIR.z, SUN_DIR.x), col = Math.round((phi / (2 * Math.PI) + .5) * w), sh = ((col - sunCol) % w + w) % w, out = new Uint16Array(data.length);

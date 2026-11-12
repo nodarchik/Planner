@@ -1,7 +1,7 @@
 // In-page plan editor. Every edit changes the plan data, then the affected item (or everything) is rebuilt from it.
 // Edits are kept per device as a patch against the published plan; undo/redo, export/import and a pasteable change summary.
 import * as THREE from 'three';
-import { V2, V3, camera, controls, renderer, scene, stage, state, world } from '../scene.js';
+import { V2, V3, camera, controls, markShadows, renderer, scene, stage, state, world } from '../scene.js';
 import { M } from '../materials.js';
 import { DESIGNS } from '../catalog.js';
 import { PUBLISHED, plan, setPlan, wallAxis, wallRect } from '../plan/plan.js';
@@ -161,13 +161,13 @@ renderer.domElement.addEventListener('pointermove', ev => {
   if (drag && ev.pointerId === drag.id) { aim(ev); if (!ray.ray.intersectPlane(dragPlane, hitP)) return;
     let dx = hitP.x - drag.start.x, dy = hitP.z - drag.start.z; if (Math.hypot(dx, dy) > .02) drag.moved = true;
     dx = drag.axis === 'y' ? 0 : snapAxis(drag.bb.min.x, drag.bb.max.x, dx, drag.fx, ev.shiftKey); dy = drag.axis === 'x' ? 0 : snapAxis(drag.bb.min.z, drag.bb.max.z, dy, drag.fy, ev.shiftKey);
-    drag.dx = dx; drag.dy = dy; drag.objs.forEach((o, i) => { o.position.x = drag.home[i].x + dx; o.position.z = drag.home[i].z + dy; }); boxes.forEach(b => b.update()); $('selpos').textContent = `${sel.id} · moved ${dx.toFixed(2)}, ${dy.toFixed(2)} m`; return; }
+    drag.dx = dx; drag.dy = dy; drag.objs.forEach((o, i) => { o.position.x = drag.home[i].x + dx; o.position.z = drag.home[i].z + dy; }); boxes.forEach(b => b.update()); markShadows(); $('selpos').textContent = `${sel.id} · moved ${dx.toFixed(2)}, ${dy.toFixed(2)} m`; return; }
   if (state.moveMode && ev.pointerType === 'mouse' && !ev.buttons) renderer.domElement.style.cursor = pick(ev) ? 'grab' : ''; });
 function endDrag(ev) { if (!drag || ev.pointerId !== drag.id) return; const d = drag; drag = null; controls.enabled = true; renderer.domElement.style.cursor = 'grab';
   try { renderer.domElement.releasePointerCapture(ev.pointerId); } catch (e) {}
   const dx = r2(d.dx), dy = r2(d.dy);
   if (d.moved && (dx || dy)) { if (sel.kind === 'item') edit(() => d.mv.move(dx, dy), { item: sel.id }); else edit(() => moveWall(wallOf(sel.id), d.axis === 'x' ? dx : dy)); }
-  else d.objs.forEach((o, i) => o.position.copy(d.home[i]));
+  else { d.objs.forEach((o, i) => o.position.copy(d.home[i])); markShadows(); }
   if (photoWasOn) { photoWasOn = false; setPhoto(true); } }
 renderer.domElement.addEventListener('pointerup', endDrag); renderer.domElement.addEventListener('pointercancel', endDrag);
 addEventListener('keydown', ev => { if (!state.moveMode || /INPUT|SELECT|TEXTAREA/.test(document.activeElement?.tagName || '')) return;

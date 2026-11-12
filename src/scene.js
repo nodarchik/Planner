@@ -19,6 +19,8 @@ export const DPR = Math.min(devicePixelRatio, MOBILE ? 1.3 : 1.75);
 renderer.setPixelRatio(DPR);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.shadowMap.autoUpdate = false; // sun shadows are re-rendered only when markShadows() says the scene or sun changed
+export const markShadows = () => { renderer.shadowMap.needsUpdate = true; };
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.0;
 stage.appendChild(renderer.domElement);
