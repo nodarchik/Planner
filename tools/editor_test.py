@@ -1,14 +1,15 @@
 """Functional test of the in-page editor. Usage: python3 tools/editor_test.py <url> [screenshot-dir]  (exit 1 on failure)"""
 import asyncio, sys, os, json
 from playwright.async_api import async_playwright
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from launch import launch
 async def main():
     fails = []
     def check(name, ok, extra=''):
         print(('ok   ' if ok else 'FAIL ') + name + (' — ' + str(extra) if extra != '' else ''));
         if not ok: fails.append(name)
     async with async_playwright() as p:
-        exe = os.environ.get('CHROME_PATH') or ('/opt/pw-browsers/chromium' if os.path.exists('/opt/pw-browsers/chromium') else None)
-        b = await p.chromium.launch(executable_path=exe, args=["--use-gl=angle", "--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist"])
+        b = await launch(p)
         ctx = await b.new_context(viewport={'width': 1200, 'height': 720}); pg = await ctx.new_page(); errs = []
         pg.on('console', lambda m: errs.append(m.text) if m.type == 'error' and '404' not in m.text else None); pg.on('pageerror', lambda e: errs.append('PAGE: ' + str(e)))
         async def load():
