@@ -48,6 +48,7 @@ export function buildMaterials() {
     blackMetal: P({ color: 0x1a1918, metalness: .7, roughness: .45 }),
     frame: P({ color: 0x302c28, metalness: .6, roughness: .42 }),
     glass: P({ color: 0xffffff, roughness: 0, transmission: 1, thickness: .008, ior: 1.5, specularIntensity: 1 }),
+    glassWin: P({ color: 0xffffff, roughness: 0, transmission: 1, thickness: .008, ior: 1.5, specularIntensity: 1 }),
     glassRail: P({ color: 0xe2ecea, roughness: .02, transmission: 1, thickness: .012, ior: 1.5 }),
     glassTint: P({ color: 0xdfe6df, roughness: .03, transmission: 1, thickness: .012, ior: 1.5 }),
     opal: P({ color: 0xfff8ef, roughness: .45, transmission: .55, thickness: .02, emissive: 0xffd6a2, emissiveIntensity: 0, nightIntensity: 2.2 }),
