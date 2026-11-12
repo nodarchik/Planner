@@ -22,7 +22,7 @@ Rules
 - Walk-in closet units are at most 0.30 deep. Aisles should be at least 0.60. Report any value below standard that your change causes; read it from the checks in the tool result, do not guess.
 - If a tool result reports an error, fix the change or say plainly that it failed.
 - If the request is ambiguous in a way that changes the result (which bed, which wall), ask one short question instead of guessing.
-- Replies: blunt and short. State what changed with the numbers, then stop. No filler, no offers.`;
+- Replies: blunt and short, plain text only (no markdown, no bullet lists, no bold). State what changed with the numbers, then stop. No filler, no offers.`;
 
 const TOOLS = [{
   name: 'apply_changes',
