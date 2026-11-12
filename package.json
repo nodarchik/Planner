@@ -10,6 +10,7 @@
     "lint": "eslint src api",
     "check": "npm run lint && npm run validate && npm run build",
     "shots": "python3 tools/shot.py http://localhost:4173/ top,hall,bed1,bed2,bath,wc,corridor,closet,kitchen,living,office,loggiaE,top:night",
+    "stills": "python3 tools/stills.py http://localhost:4173/ renders",
     "shots:diff": "python3 tools/diff.py baseline shots",
     "validate": "node tools/validate.mjs",
     "build:single": "vite build --mode single"
