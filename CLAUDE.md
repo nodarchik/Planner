@@ -20,6 +20,14 @@ Interactive, photoreal-leaning 3D model of one real apartment ("Palace 1", Tbili
 - `python3 tools/chat_test.py <url>` — test of the in-app assistant against a mocked `/api/chat` (no Claude API call).
 - Python needs `pip install playwright pillow numpy`; Chromium is taken from `CHROME_PATH` or `/opt/pw-browsers/chromium`.
 
+## Local setup
+- Prerequisites: Node 20+ and `npm install`; Python 3 venv (`python3 -m venv .venv && source .venv/bin/activate && pip install playwright pillow numpy && playwright install chromium`); Vercel CLI (`npm i -g vercel`, then `vercel link` once).
+- `.env.local` (gitignored, copy from `.env.example`): `ANTHROPIC_API_KEY` (needed by the assistant); optional `CHAT_PASSWORD`.
+- `npm run dev` — app only, http://localhost:5173 (no assistant).
+- `npm run dev:full` — app + assistant API with `.env.local` loaded, http://127.0.0.1:3000 (`tools/dev-full.sh`; stops with a clear message if `.env.local` or `vercel` is missing).
+- `npm run check` — lint + validate + build.
+- Screenshots / stills: `npm run build && npm run preview`, then in another shell `SHOT_GPU=1 npm run shots` and `SHOT_GPU=1 npm run stills`.
+
 ## How to make a change
 1. Edit `src/plan/palace1.json` (one value where possible). Examples: closet depth → `items[closet-b1].unitDepth`; wardrobe width → `from`/`to`; vanity basins → `basins`; guest shower side → `along`; move a wall → its `from`/`to` (and the room `poly` points on it).
 2. `npm run validate` and read the findings. Report any value below standard.
