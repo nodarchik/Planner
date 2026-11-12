@@ -1,8 +1,14 @@
 import { DPR, V2, camera, controls, frame, renderer, scene, state, statusEl } from './scene.js';
 import { composer } from './post.js';
+import { M } from './materials.js';
 
 /* ================= path tracer ("Photo render") ================= */
 
+// transmissive glass blocks the path tracer's shadow rays (black rooms); near-clear alpha glass lets light through
+const GLASS = ['glass', 'glassRail', 'glassTint'], glassKept = new Map();
+function ptGlass(on) { for (const k of GLASS) { const m = M[k]; if (!m) continue;
+  if (on && !glassKept.has(k)) { glassKept.set(k, [m.transmission, m.transparent, m.opacity]); m.transmission = 0; m.transparent = true; m.opacity = .06; m.needsUpdate = true; }
+  else if (!on && glassKept.has(k)) { [m.transmission, m.transparent, m.opacity] = glassKept.get(k); glassKept.delete(k); m.needsUpdate = true; } } }
 export function rebuildPT() { if (state.photo) state.ptDirty = true; }
 // 2560 × 1440 still of the current view: path-trace off the page size for STILL_SAMPLES samples, then download a PNG
 const STILL = { w: 2560, h: 1440, samples: 96 }, stillBtn = document.getElementById('still');
@@ -17,7 +23,7 @@ export function stillTick() { if (!still) return false; statusEl.textContent = `
 stillBtn.onclick = startStill;
 export async function setPhoto(on) {
   const btn = document.getElementById('photo');
-  if (!on) { if (still) endStill(); state.photo = false; btn.setAttribute('aria-pressed', 'false'); stillBtn.disabled = true; statusEl.textContent = ''; return; }
+  if (!on) { if (still) endStill(); ptGlass(false); state.photo = false; btn.setAttribute('aria-pressed', 'false'); stillBtn.disabled = true; statusEl.textContent = ''; return; }
   btn.setAttribute('aria-pressed', 'true');
   try {
     if (!state.pt) { statusEl.textContent = 'Loading renderer…'; await frame();
@@ -27,8 +33,8 @@ export async function setPhoto(on) {
       state.pt.renderScale = Math.min(1, 1.4 / DPR);
       state.pt.rasterizeSceneCallback = () => composer.render(); }
     statusEl.textContent = 'Preparing scene…'; await frame(); await frame();
-    state.photo = true; state.pt.setScene(scene, camera); state.ptDirty = false; stillBtn.disabled = false;
-  } catch (err) { console.warn(err); state.photo = false; btn.setAttribute('aria-pressed', 'false'); statusEl.textContent = 'Photo render unavailable on this device'; }
+    ptGlass(true); state.photo = true; state.pt.setScene(scene, camera); state.ptDirty = false; stillBtn.disabled = false;
+  } catch (err) { console.warn(err); ptGlass(false); state.photo = false; btn.setAttribute('aria-pressed', 'false'); statusEl.textContent = 'Photo render unavailable on this device'; }
 }
 document.getElementById('photo').onclick = () => setPhoto(!state.photo);
 controls.addEventListener('change', () => { if (state.photo && state.pt) state.pt.updateCamera(); });
