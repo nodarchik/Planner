@@ -18,12 +18,12 @@ export const living = {
       F.B(c - .8, .10, c + .8, .40, .22, .225, M.led, { cast: false }); F.B(c - .72, .06, c + .72, .09, .98, 1.8, M.blackMetal);
       F.B(c - .7, .09, c + .7, .093, 1.0, 1.78, P({ color: 0x050506, roughness: .08, clearcoat: 1, emissive: 0xffffff, emissiveMap: planar(tvTex, sp.a0 + c - .7, 1.0, 1.40, .78, flipU), emissiveIntensity: 0, nightIntensity: 1.6 }), { cast: false });
       F.RB(c - .5, .26, c + .5, .37, .52, .58, .02, M.blackMetal); vase(...F.P(c - .71, .26), .52, .9, M.stoneware);
-      book(...F.P(c + .66, .26), .52, .22, .16, .035, M.book1, .1 + (sp.axis === 'y' ? Math.PI / 2 : 0)); lamp(...F.P(c, .52), 1.3, 0x9fc4ff, .8); }, 'TV + console'); },
+      book(...F.P(c + .66, .26), .52, .22, .16, .035, M.book1, .1 + (sp.axis === 'y' ? Math.PI / 2 : 0)); lamp(...F.P(c, .52), 1.3, 'tvGlow'); }, 'TV + console'); },
   beautyTable(it) { const { F, L, D } = framed(it);
     group(it, () => { F.RB(0, 0, L, D, .72, .75, .008, M.walnut); F.cab({ u1: .02, u2: L - .02, d1: D - .02, h1: .6, h2: .72, cols: [[1, 1], [1, 1]], fm: M.lacquerCream });
       [.06, L - .06].forEach(u => F.C(u, D - .04, .012, 0, .6, M.brass, { seg: 12 }));
       F.add(new THREE.CircleGeometry(.36, 96), M.mirror, L / 2, 1.45, .005, { uv: false, rotY: F.face }); F.add(new THREE.TorusGeometry(.365, .014, 16, 96), M.led, L / 2, 1.45, .006, { uv: false, rotY: F.face });
-      vase(...F.P(L - .25, .18), .75, .5, M.stoneware); lamp(...F.P(L / 2, .28), 1.4, 0xffe6c8, 1.4); }); },
+      vase(...F.P(L - .25, .18), .75, .5, M.stoneware); lamp(...F.P(L / 2, .28), 1.4, 'mirrorLight'); }); },
   // drawers below, two open shelves above
   beautyOrganiser(it) { const { F, L, D } = framed(it);
     group(it, () => { F.cab({ u1: 0, u2: L, d1: D, h1: .08, h2: .72, cols: [[1, 3]], fm: M.lacquerCream }); F.RB(-.02, 0, L + .02, D + .02, .72, .75, .008, M.walnut);

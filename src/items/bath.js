@@ -39,7 +39,7 @@ export const bath = {
       for (let i = 0; i < n; i++) { const u = n === 1 ? L / 2 : .32 + i * (L - .64) / (n - 1);
         F.lathe(BASIN, u, .23, .85, M.ceramic, { sd: .85, su: 1 }); F.tube([[u, 1.1, .005], [u, 1.1, .09], [u, 1.08, .12]], .01, M.brass);
         F.B(u - .27, .005, u + .27, .04, 1.15, 1.95, M.mirror); F.B(u - .29, .035, u + .29, .045, 1.13, 1.97, M.led, { cast: false }); }
-      F.B(.02, .01, .04, D - .04, .42, .44, M.led, { cast: false }); lamp(...F.P(L / 2 - .005, .27), 1.6, 0xffe2c0, 2.5); }); },
+      F.B(.02, .01, .04, D - .04, .42, .44, M.led, { cast: false }); lamp(...F.P(L / 2 - .005, .27), 1.6, 'mirrorLight'); }); },
   basinUnit(it) { const { F, L, D, sp } = framed(it), u = L / 2 + .005;
     group(it, () => { F.RB(0, 0, L, D, .62, .85, .015, M.walnut); F.lathe(SMALL, u, D / 2, .85, M.ceramic); F.tube([[u, 1.06, 0], [u, 1.06, .07], [u, 1.04, .09]], .009, M.brass);
       F.add(new THREE.CircleGeometry(.22, 64), M.mirror, u, 1.55, .005, { uv: false, rotY: F.face }); F.add(new THREE.TorusGeometry(.225, .012, 12, 64), M.led, u, 1.55, .006, { uv: false, rotY: F.face });

@@ -19,5 +19,5 @@ export const hall = {
     group(it, () => { F.B(0, 0, L, .045, h1, h2, M.plasterArt);
       F.B(-.02, 0, L + .02, .05, h1 - .02, h1, M.walnut); F.B(-.02, 0, L + .02, .05, h2, h2 + .02, M.walnut); F.B(-.02, 0, 0, .05, h1, h2, M.walnut); F.B(L, 0, L + .02, .05, h1, h2, M.walnut); }); },
   sconce(it) { const { F, L } = framed(it), [h1, h2] = it.h;
-    group(it, () => { F.RB(0, 0, L, .05, h1, h2, .02, M.brass); F.B(.02, .048, L - .02, .055, h1 + .04, h2 - .04, M.opal, { cast: false }); lamp(...F.P(L / 2, .21), (h1 + h2) / 2, 0xffcf96, 3); }); }
+    group(it, () => { F.RB(0, 0, L, .05, h1, h2, .02, M.brass); F.B(.02, .048, L - .02, .055, h1 + .04, h2 - .04, M.opal, { cast: false }); lamp(...F.P(L / 2, .21), (h1 + h2) / 2, 'sconce'); }); }
 };

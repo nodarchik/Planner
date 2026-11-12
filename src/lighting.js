@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { plan } from './plan/plan.js';
 import { MOBILE, V3, scene, state, world } from './scene.js';
+import { isWindowless, kelvin, kindOf, pointCd } from './lights.js';
 
 /* ================= sun position ================= */
 // Solar azimuth (degrees clockwise from true north) and elevation for a site, day of year and local clock hour (NOAA approximation).
@@ -74,6 +75,11 @@ export function setSun(month, hour) {
   return s;
 }
 export const nightLights = [];
-export function lamp(x, y, h, color = 0xffd2a0, intensity = 6, dist = 0) {
-  const l = new THREE.PointLight(color, intensity * .4, dist, 2); l.position.set(x, h, y); l.visible = false; (state.CUR === world ? scene : state.CUR).add(l); nightLights.push(l); return l;
+// lamp(x, y, h, kind | { lm, k }, n = 1): kind from meta.lights.kinds, n multiplies the lumens (fixtures or metres of strip)
+export function lamp(x, y, h, spec, n = 1) {
+  const { lm, k } = typeof spec === 'string' ? kindOf(spec) : spec, l = new THREE.PointLight(kelvin(k || 2700), pointCd(lm * n), 0, 2);
+  l.position.set(x, h, y); l.visible = false; l.userData.lm = lm * n; (state.CUR === world ? scene : state.CUR).add(l); nightLights.push(l); return l;
 }
+// lamps are on at night, and by day in Photo renders for rooms without daylight
+const wp = new V3();
+export function syncLights() { for (const l of nightLights) { l.getWorldPosition(wp); l.visible = state.night || (state.photo && isWindowless(wp.x, wp.z)); } }

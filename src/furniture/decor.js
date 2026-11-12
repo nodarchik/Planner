@@ -17,7 +17,7 @@ export function curtain(axis, at, a, b, h1, h2, m) {
 export function mushroomLamp(x, y, h) {
   lathe([[0, 0], [.07, 0], [.075, .008], [.02, .02], [.012, .3], [0, .3]], x, y, h, M.brass);
   lathe([[0, .38], [.06, .375], [.12, .35], [.155, .31], [.16, .285], [.0, .285]], x, y, h, M.opal);
-  lamp(x, y, h + .26, 0xffcf98, 2.2);
+  lamp(x, y, h + .26, 'tableLamp');
 }
 export function book(x, y, h, w, d, t, m, rot = 0) { add(new THREE.BoxGeometry(w, t, d), m, x, h + t / 2, y, { rotY: rot }); add(new THREE.BoxGeometry(w - .01, t - .006, d - .006), M.paper, x + .006, h + t / 2, y, { rotY: rot }); }
 export function vase(x, y, h, s, m) { lathe([[0, 0], [.05 * s, 0], [.09 * s, .08 * s], [.1 * s, .16 * s], [.05 * s, .27 * s], [.035 * s, .32 * s], [.04 * s, .34 * s], [.03 * s, .34 * s], [0, .1 * s]], x, y, h, m); }
@@ -34,4 +34,4 @@ export function diningDecor(x, y) {
   endG();
   beginG('Pendant lights');
   [[0, 0, 1.78, .16], [.2, .1, 1.98, .11], [-.18, .12, 2.06, .09]].forEach(([dx, dy, h, r]) => { S(x + dx, y + dy, h, r, M.opal, { cast: false }); C(x + dx, y + dy, .025, h + r - .01, h + r + .03, M.brass); C(x + dx, y + dy, .003, h + r + .03, H, M.blackMetal, { seg: 6 }); C(x + dx, y + dy, .045, H - .015, H, M.brass); });
-  lamp(x, y, 1.55, 0xffcf98, 9); endG(); }
+  lamp(x, y, 1.55, 'pendant', 3); endG(); }

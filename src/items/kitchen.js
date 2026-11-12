@@ -43,5 +43,5 @@ export const kitchen = {
       F.RB(.7, .10, 1.05, .40, .92, .94, .01, M.oakFurn); F.lathe([[0, 0], [.07, 0], [.14, .05], [.16, .09], [0, .02]], 1.45, .25, .92, M.stoneware);
       [[1.43, .29], [1.47, .21], [1.39, .25]].forEach(([u, d]) => F.S(u, d, .99, .037, M.fruit));
       [.55, 1.35].forEach(u => { F.S(u, .25, 1.75, .1, M.opal, { cast: false }); F.C(u, .25, .02, 1.84, 1.87, M.brass); F.C(u, .25, .003, 1.87, H, M.blackMetal, { seg: 6 }); F.C(u, .25, .04, H - .015, H, M.brass); });
-      lamp(...F.P(.95, .25), 1.55, 0xffd3a0, 4); }); }
+      lamp(...F.P(.95, .25), 1.55, 'pendant', 2); }); }
 };

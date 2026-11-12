@@ -53,7 +53,7 @@ export const storage = {
         [.08, .32].forEach(h => { Fn.B(Dw, 0, W, D - .02, h, h + .025, oak); for (let k = 0; k < 4; k++) Fn.RB(Dw + .08 + k * .24, .03, Dw + .26 + k * .24, D - .05, h + .025, h + .12, .02, [M.carcass, M.paper, M.rattanDark, M.velvetChoco][k]); });
         Fn.RB(.31, .02, .71, D - .03, 2.28, 2.5, .02, M.linenSand); }
       if (sd.east) { [.5, 1.6, 2.4].forEach(u => Fe.RB(u, .02, u + .4, D - .03, 2.28, 2.5, .02, M.linenSand)); Fe.B(.05 + D, D - .01, len - .05, D, 2.2, 2.24, M.led, { cast: false }); }
-      if (it.pendant) { const [px, py] = it.pendant; S(px, py, 2.5, .14, M.opal, { cast: false }); C(px, py, .003, 2.62, H, M.blackMetal, { seg: 6 }); lamp(px, py, 2.3, 0xffe6c8, 3); }
+      if (it.pendant) { const [px, py] = it.pendant; S(px, py, 2.5, .14, M.opal, { cast: false }); C(px, py, .003, 2.62, H, M.blackMetal, { seg: 6 }); lamp(px, py, 2.3, 'closetPendant'); }
       RB(x1 + Dw + .08, y1 + D + .15, x2 - D - .05, y2 - .07, 0, .012, .15, M.rug, { cast: false }); }); },
   // arched leaf sliding on a brass rail in front of an arched opening
   slidingDoor(it) { const { F } = framed({ ...it, from: it.at, to: it.at + it.w }), w = it.w, hs = 2.05, r = .3;
@@ -81,5 +81,5 @@ export const storage = {
       const us = it.seats.map(x => x - sp.a0);
       us.forEach(u => { F.B(u - .3, .18, u + .3, .21, 1.0, 1.36, M.blackMetal); F.B(u - .28, .21, u + .28, .211, 1.02, 1.34, M.laptop, { cast: false }); F.B(u - .03, .13, u + .03, .20, .76, 1.0, M.blackMetal);
         F.B(u - .12, .08, u + .12, .25, .76, .77, M.blackMetal); F.B(u - .22, .37, u + .22, .51, .76, .775, M.carcass); });
-      lamp(...F.P(us.reduce((p, c) => p + c, 0) / us.length, .33), 1.45, 0xffe2c0, 3); }); }
+      lamp(...F.P(us.reduce((p, c) => p + c, 0) / us.length, .33), 1.45, 'shelfStrip', L); }); }
 };

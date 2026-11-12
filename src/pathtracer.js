@@ -2,6 +2,7 @@ import { DPR, V2, camera, controls, frame, renderer, scene, state, statusEl } fr
 import { composer } from './post.js';
 import { M } from './materials.js';
 import { setView } from './ui/views.js';
+import { syncLights } from './lighting.js';
 
 /* ================= path tracer ("Photo render") ================= */
 
@@ -37,7 +38,7 @@ window.__still = async ({ view, samples, w, h, night = false } = {}) => {
   document.getElementById(prev.night ? 'mnight' : 'mday').click(); setView(prev.view, true); if (!prev.photo) await setPhoto(false); return url; };
 export async function setPhoto(on) {
   const btn = document.getElementById('photo');
-  if (!on) { if (still) endStill(); ptGlass(false); state.photo = false; btn.setAttribute('aria-pressed', 'false'); stillBtn.disabled = true; statusEl.textContent = ''; return; }
+  if (!on) { if (still) endStill(); ptGlass(false); state.photo = false; syncLights(); btn.setAttribute('aria-pressed', 'false'); stillBtn.disabled = true; statusEl.textContent = ''; return; }
   btn.setAttribute('aria-pressed', 'true');
   try {
     if (!state.pt) { statusEl.textContent = 'Loading renderer…'; await frame();
@@ -47,7 +48,7 @@ export async function setPhoto(on) {
       state.pt.renderScale = Math.min(1, 1.4 / DPR);
       state.pt.rasterizeSceneCallback = () => composer.render(); }
     statusEl.textContent = 'Preparing scene…'; await frame(); await frame();
-    ptGlass(true); state.photo = true; ptSetScene(); state.ptDirty = false; stillBtn.disabled = false;
+    ptGlass(true); state.photo = true; syncLights(); ptSetScene(); state.ptDirty = false; stillBtn.disabled = false;
   } catch (err) { console.warn(err); ptGlass(false); state.photo = false; btn.setAttribute('aria-pressed', 'false'); statusEl.textContent = 'Photo render unavailable on this device'; }
 }
 document.getElementById('photo').onclick = () => setPhoto(!state.photo);

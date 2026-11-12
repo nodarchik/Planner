@@ -1,5 +1,5 @@
 import { CUT, DPR, camera, clampables, renderer, scene, state, world } from '../scene.js';
-import { SKY, nightLights, setSun, sun, useHDRI } from '../lighting.js';
+import { SKY, setSun, syncLights, sun, useHDRI } from '../lighting.js';
 import { loadSkyHDR } from '../assets.js';
 import { plan } from '../plan/plan.js';
 import { emissives } from '../materials.js';
@@ -14,7 +14,7 @@ export function setMood(n) {
   document.getElementById('mday').setAttribute('aria-pressed', !n); document.getElementById('mnight').setAttribute('aria-pressed', n);
   scene.environment = n ? SKY.night : SKY.day; scene.background = n ? SKY.night : SKY.back;
   sun.visible = !n && SKY.sunUp;
-  nightLights.forEach(l => l.visible = n);
+  syncLights();
   emissives.forEach(m => m.emissiveIntensity = n ? m.userData.night : m.userData.day);
   bloom.strength = n ? .22 : .12;
   rebuildPT();

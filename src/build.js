@@ -2,7 +2,7 @@
 import * as THREE from 'three';
 import { clampables, movables, scene, state, world } from './scene.js';
 import { emissives } from './materials.js';
-import { nightLights } from './lighting.js';
+import { nightLights, syncLights } from './lighting.js';
 import { plan, refreshGeom } from './plan/plan.js';
 import { buildArchitecture } from './arch/shell.js';
 import { buildItem, buildItems, itemGroups, itemObjects } from './items/index.js';
@@ -23,7 +23,7 @@ function finish(root) {
   emissives.forEach(m => m.emissiveIntensity = state.night ? m.userData.night : m.userData.day);
   world.updateMatrixWorld(true);
   root.traverse(o => { if (o.isMesh && !o.userData.clamp && o.userData.minY === undefined) { const bb = new THREE.Box3().setFromObject(o); o.userData.minY = bb.min.y; o.userData.maxY = bb.max.y; } });
-  scene.traverse(o => { if (o.isPointLight) o.visible = state.night; });
+  syncLights();
   if (state.cutOn) applyCut(true);
 }
 function dress(it) { // per-item look and resize factors [x, height, y] stored in the plan

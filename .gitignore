@@ -7,3 +7,4 @@ dist-single/
 !.env.example
 .vercel/
 .venv/
+.DS_Store
