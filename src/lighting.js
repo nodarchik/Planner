@@ -82,4 +82,7 @@ export function lamp(x, y, h, spec, n = 1) {
 }
 // lamps are on at night, and by day in Photo renders for rooms without daylight
 const wp = new V3();
-export function syncLights() { for (const l of nightLights) { l.getWorldPosition(wp); l.visible = state.night || (state.photo && isWindowless(wp.x, wp.z)); } }
+// Photo by day is exposed for window light (x6), so these lamps are scaled down to match what the night exposure shows
+const DAY_LAMP = .2;
+export function syncLights() { for (const l of nightLights) { l.getWorldPosition(wp); l.visible = state.night || (state.photo && isWindowless(wp.x, wp.z));
+  l.intensity = pointCd(l.userData.lm) * (state.night || !state.photo ? 1 : DAY_LAMP); } }
