@@ -4,7 +4,7 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
-import { MOBILE, V2, camera, renderer, scene } from './scene.js';
+import { DPR, MOBILE, V2, camera, renderer, scene } from './scene.js';
 
 /* ================= post-processing ================= */
 const rt = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: MOBILE ? 2 : 4 });
@@ -19,3 +19,8 @@ composer.addPass(gtao);
 export const bloom = new UnrealBloomPass(new V2(1, 1), .18, .5, .92);
 composer.addPass(bloom);
 composer.addPass(new OutputPass());
+
+// while the camera moves (desktop): ratio <= 1.25, no AO, no bloom (~71 -> ~21 ms at 1080p DPR 1.75); full quality again once settled
+export const lod = { on: false };
+export function setMoving(on) { if (on === lod.on) return; lod.on = on;
+  const pr = on ? Math.min(DPR, 1.25) : DPR; renderer.setPixelRatio(pr); composer.setPixelRatio(pr); composer.setSize(innerWidth, innerHeight); gtao.enabled = !MOBILE && !on; bloom.enabled = !on; }

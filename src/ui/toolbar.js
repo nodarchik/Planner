@@ -1,4 +1,4 @@
-import { CUT, DPR, camera, clampables, markShadows, renderer, scene, state, world } from '../scene.js';
+import { CUT, camera, clampables, markShadows, renderer, scene, state, world } from '../scene.js';
 import { SKY, setSun, syncLights, sun, useHDRI } from '../lighting.js';
 import { loadSkyHDR } from '../assets.js';
 import { plan } from '../plan/plan.js';
@@ -43,7 +43,7 @@ tog('tfur', () => state.showFurn = !state.showFurn);
 
 function resize() {
   const w = innerWidth, h = innerHeight;
-  renderer.setSize(w, h); composer.setPixelRatio(DPR); composer.setSize(w, h);
+  renderer.setSize(w, h); composer.setPixelRatio(renderer.getPixelRatio()); composer.setSize(w, h);
   camera.aspect = w / h; camera.updateProjectionMatrix();
   if (state.photo && state.pt) state.pt.updateCamera();
 }
