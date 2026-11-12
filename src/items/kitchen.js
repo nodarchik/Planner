@@ -12,7 +12,7 @@ export const kitchen = {
     const spn = frameSpec(n), Fn = frame(spn), Ln = spn.len;
     const a0 = faceCoord(n.wall, n.side), Fw = frame(frameSpec({ ...w, from: a0, to: w.to })), Tw = w.to - a0, sum = it.towers.reduce((p, c) => p + c, 0);
     group(it, () => {
-      Fn.cab({ u1: .02, u2: DT, d1: D, h1: .1, h2: .88, cols: [[1, 1]], fm: ch }); Fn.cab({ u1: DT + .02, u2: Ln - .02, d1: D, h1: .1, h2: .88, cols: [[.6, 1], [.43, 3]], fm: ch });
+      Fn.cab({ u1: .02, u2: DT, d1: D, h1: .1, h2: .88, cols: [[1, 1]], fm: ch }); Fn.cab({ u1: DT + .02, u2: Ln - .02, d1: D, h1: .1, h2: .88, cols: [[.6, 1], [.43, 3]], fm: ch, skip: c => !c }); // the oven door has its own pull
       Fw.cab({ u1: DT + .02, u2: Tw - .02, d1: D, h1: .1, h2: .88, cols: [[.6, 1], [.6, 1], [.45, 3]], fm: ch });
       Fn.B(.02, .02, Ln - .04, D - .06, 0, .1, M.carcass); Fw.B(D - .06, .02, Tw - .04, D - .06, 0, .1, M.carcass);
       Fn.B(0, 0, Ln, DT, .88, .92, M.trav); Fw.B(DT, 0, Tw, DT, .88, .92, M.trav);
@@ -23,12 +23,12 @@ export const kitchen = {
       Fw.C(.96, .04, .028, .92, .97, M.brass); Fw.tube([[.96, .96, .04], [.96, 1.20, .06], [.96, 1.30, .16], [.96, 1.25, .27], [.96, 1.12, .30]], .011, M.brass, { seg: 48 });
       Fw.B(.66, D - .04, Tw - .04, D - .02, .02, .03, M.led, { cast: false }); Fn.B(.04, D - .04, Ln - .04, D - .02, .02, .03, M.led, { cast: false });
       let t = Tw; it.towers.forEach((tw, i) => { const u1 = t + (i ? .02 : 0), u2 = t + tw; t = u2;
-        Fw.cab({ u1, u2, d1: DT, h1: .1, h2: 2.6, cols: [[1, i ? 3 : 2]], fm: ch });
+        Fw.cab({ u1, u2, d1: DT, h1: .1, h2: 2.6, cols: [[1, i ? 3 : 2]], fm: ch, skip: i ? (c, r) => r < 2 : null });
         if (i) { Fw.B(u1 + .03, DT, u2 - .03, DT + .015, .86, 1.46, M.blackGlass); Fw.B(u1 + .07, DT + .015, u2 - .07, DT + .032, 1.42, 1.432, M.brass); } });
       Fw.B(Tw + .02, .02, Tw + sum - .02, D - .06, 0, .1, M.carcass); });
     group(it, () => {
-      Fw.cab({ u1: .02, u2: Tw - .02, d1: .35, h1: 1.5, h2: 2.6, cols: [[1, 1], [1, 1], [1, 1], [1, 1]], fm: M.lacquerCream });
-      Fn.cab({ u1: .37, u2: Ln - .02, d1: .35, h1: 1.5, h2: 2.6, cols: [[.3, 1], [.6, 1], [.4, 1]], fm: M.lacquerCream });
+      Fw.cab({ u1: .02, u2: Tw - .02, d1: .35, h1: 1.5, h2: 2.6, cols: [[1, 1], [1, 1], [1, 1], [1, 1]], fm: M.lacquerCream, pull: 'edge-bottom' });
+      Fn.cab({ u1: .37, u2: Ln - .02, d1: .35, h1: 1.5, h2: 2.6, cols: [[.3, 1], [.6, 1], [.4, 1]], fm: M.lacquerCream, pull: 'edge-bottom' });
       Fw.B(.02, .32, Tw - .04, .36, 1.49, 1.5, M.led, { cast: false }); Fn.B(.37, .31, Ln - .04, .35, 1.49, 1.5, M.led, { cast: false }); }, 'Wall cabinets'); },
   coffeeMachine(it) { const { F, L } = framed(it), h = it.h;
     group(it, () => { F.RB(0, .03, L, .43, h, h + .39, .02, M.steel); F.B(.04, .43, L - .04, .434, h + .27, h + .35, M.display); F.B(.04, .28, L - .04, .48, h, h + .03, M.steelDark); }); },

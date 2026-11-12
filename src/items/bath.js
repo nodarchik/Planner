@@ -38,6 +38,7 @@ export const bath = {
     group(it, () => { F.RB(0, .005, L, D - .02, .45, .82, .015, M.walnut); F.B(0, 0, L, D, .82, .85, M.trav);
       for (let i = 0; i < n; i++) { const u = n === 1 ? L / 2 : .32 + i * (L - .64) / (n - 1);
         F.lathe(BASIN, u, .23, .85, M.ceramic, { sd: .85, su: 1 }); F.tube([[u, 1.1, .005], [u, 1.1, .09], [u, 1.08, .12]], .01, M.brass);
+        F.pulls(D - .02, [{ kind: 'bar', u, h: .74, len: .256 }]);
         F.B(u - .27, .005, u + .27, .04, 1.15, 1.95, M.mirror); F.B(u - .29, .035, u + .29, .045, 1.13, 1.97, M.led, { cast: false }); }
       F.B(.02, .01, .04, D - .04, .42, .44, M.led, { cast: false }); lamp(...F.P(L / 2 - .005, .27), 1.6, 'mirrorLight'); }); },
   basinUnit(it) { const { F, L, D, sp } = framed(it), u = L / 2 + .005;

@@ -20,8 +20,7 @@ function hang(F, D, ua, ub, h, len, cloth, fromFront) {
 export const storage = {
   wardrobe(it) { const { F, L, D } = framed(it), Ht = it.height, n = it.doors;
     group(it, () => { F.cab({ u1: 0, u2: L, d1: D, h1: 0, h2: Ht, cols: Array.from({ length: n }, () => [1, 1]), fm: mat(it.front, 'lacquerCream') });
-      F.B(0, 0, L, D, Ht, Ht + .03, M.oakFurn);
-      for (let k = 1; k < n; k++) { const b = L * k / n; F.B(b - .0375, D, b - .0275, D + .015, .85, 1.55, M.brass); F.B(b + .0225, D, b + .0325, D + .015, .85, 1.55, M.brass); } }); },
+      F.B(0, 0, L, D, Ht, Ht + .03, M.oakFurn); }); },
   // washer below, dryer above, storage cabinet on top
   laundryTower(it) { const { F, L, D } = framed(it);
     group(it, () => { F.B(0, 0, .02, D, 0, 2.6, M.oakFurn); F.B(L - .02, 0, L, D, 0, 2.6, M.oakFurn); F.B(.02, 0, L - .02, D, 0, .04, M.oakFurn);
@@ -74,7 +73,7 @@ export const storage = {
     group(it, () => { F.B(0, 0, .04, D, 0, 2.6, oak); F.B(L - .04, 0, L, D, 0, 2.6, oak); F.B(.04, 0, L - .04, D, .72, .76, oak); F.B(.04, 0, L - .04, .03, .76, 1.55, oak);
       F.cab({ u1: .06, u2: .56, d0: .03, d1: D - .05, h1: .06, h2: .72, cols: [[1, 3]], fm: cream }); F.cab({ u1: L - .56, u2: L - .06, d0: .03, d1: D - .05, h1: .06, h2: .72, cols: [[1, 3]], fm: cream });
       F.B(.04, 0, L - .04, .33, 1.55, 1.58, oak); F.B(.04, 0, L - .04, .33, 1.95, 1.98, oak);
-      F.cab({ u1: .04, u2: L - .04, d1: .35, h1: 2.0, h2: 2.6, cols: [[1, 1], [1, 1], [1, 1], [1, 1]], fm: cream });
+      F.cab({ u1: .04, u2: L - .04, d1: .35, h1: 2.0, h2: 2.6, cols: [[1, 1], [1, 1], [1, 1], [1, 1]], fm: cream, pull: 'edge-bottom' });
       F.B(.06, .30, L - .06, .33, 1.535, 1.55, M.led, { cast: false });
       [[1.07, M.book1], [1.27, M.book3], [2.32, M.book2]].forEach(([u, m]) => { for (let k = 0; k < 6; k++) F.B(u + k * .035, .05, u + k * .035 + .03, .28, 1.58, 1.80 + (k % 3) * .03, [m, M.paper, M.book3][k % 3]); });
       vase(...F.P(.42, .18), 1.58, .5, M.stoneware); vase(...F.P(1.92, .18), 1.98, .6, M.stonewareDark);
