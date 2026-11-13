@@ -36,11 +36,11 @@ const TOOLS = [{
         items: {
           type: 'object', additionalProperties: false, required: ['op', 'list', 'id', 'path', 'value_json'],
           properties: {
-            op: { type: 'string', enum: ['set', 'unset', 'add', 'remove'], description: 'set / unset a field of an existing object; add a new object; remove an object.' },
-            list: { type: 'string', enum: ['items', 'walls', 'rooms', 'blocks', 'views', 'meta'], description: 'Which part of the plan.' },
-            id: { type: 'string', description: 'Object id (item, wall, room, block id or view name). Empty string for meta.' },
-            path: { type: 'string', description: 'Dotted path of the field for set / unset, e.g. "to", "anchor.offset", "pos", "openings.0.at". Empty string for add / remove.' },
-            value_json: { type: 'string', description: 'The new value as JSON text for set (e.g. "4.6", "[3.7, 4.43]", "\\"S\\""), the whole new object as JSON text for add. Empty string for unset / remove.' }
+            op: { type: 'string', enum: ['set', 'unset', 'add', 'remove'], description: 'set / unset a field of an existing object; add a new object; remove an object. For meta, add = set and remove = unset of the key at path (any key, including new ones).' },
+            list: { type: 'string', enum: ['items', 'walls', 'rooms', 'blocks', 'balconies', 'slabs', 'floors', 'ceilings', 'views', 'meta'], description: 'Which part of the plan.' },
+            id: { type: 'string', description: 'Object id (item, wall, room, block, balcony id or view name). For slabs, floors and ceilings, which have no id, the zero-based index as text ("0"); for add, any text. Empty string for meta.' },
+            path: { type: 'string', description: 'Dotted path of the field for set / unset, e.g. "to", "anchor.offset", "pos", "openings.0.at". Empty string for add / remove of a list entry; for meta add / remove use it like set / unset.' },
+            value_json: { type: 'string', description: 'The new value as JSON text for set (e.g. "4.6", "[3.7, 4.43]", "\\"S\\""), the whole new object as JSON text for add (for meta: the new value). Empty string for unset / remove.' }
           }
         }
       }
