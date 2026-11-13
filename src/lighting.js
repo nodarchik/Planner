@@ -1,6 +1,8 @@
 import * as THREE from 'three';
-import { plan } from './plan/plan.js';
-import { MOBILE, V3, scene, state, world } from './scene.js';
+import { H, bbox, plan } from './plan/plan.js';
+import { MOBILE, V3, markShadows, scene, state, world } from './scene.js';
+import { RectAreaLightUniformsLib } from 'three/examples/jsm/lights/RectAreaLightUniformsLib.js';
+import { isWindowless, kelvin, kindOf, pointCd, stripNits } from './lights.js';
 
 /* ================= sun position ================= */
 // Solar azimuth (degrees clockwise from true north) and elevation for a site, day of year and local clock hour (NOAA approximation).
@@ -47,8 +49,9 @@ const TARGET = new V3(...plan.meta.sunTarget);
 sun.target.position.copy(TARGET);
 sun.castShadow = true;
 sun.shadow.mapSize.set(MOBILE ? 2048 : 4096, MOBILE ? 2048 : 4096);
-sun.shadow.bias = -0.00015; sun.shadow.normalBias = 0.02;
-Object.assign(sun.shadow.camera, { left: -11, right: 11, top: 11, bottom: -11, near: 5, far: 50 });
+sun.shadow.bias = -0.00015; sun.shadow.normalBias = 0.012;
+Object.assign(sun.shadow.camera, { left: -11, right: 11, top: 11, bottom: -11, near: 5, far: 50 }); // refitted to the apartment by fitShadow(); light-space x follows the plan's x axis (camera up = plan y) so the box fits tight
+sun.shadow.camera.up.set(0, 0, 1);
 scene.add(sun, sun.target);
 
 // SKY.day lights the rooms (procedural, tuned for the interiors, sun at the computed position). SKY.back is what is seen outside:
@@ -62,9 +65,18 @@ export function useHDRI(tex) { const src = tex.image.data, w = tex.image.width, 
   const k = .95 / (sum / n), cap = 6, data = new Uint16Array(src.length); // exposure close to the procedural sky; the sun disc is clamped
   for (let i = 0; i < w * h; i++) { for (let c = 0; c < 3; c++) data[i * 4 + c] = f.toHalfFloat(Math.min(cap, f.fromHalfFloat(src[i * 4 + c]) * k)); data[i * 4 + 3] = src[i * 4 + 3]; }
   hdr = { data, w, h, sunCol, flipY: tex.flipY }; }
+// fit the sun's orthographic shadow frustum to the apartment box (room extents + margin, floor to just above the ceiling) as seen along the sun
+export function fitShadow() {
+  const [x0, y0, x1, y1] = bbox(plan.rooms.flatMap(r => r.poly)), m = .5, z = SUN_DIR, x = new V3(0, 0, 1).cross(z).normalize(), y = z.clone().cross(x), v = new V3(), c = sun.shadow.camera;
+  let l = 1e9, r = -1e9, b = 1e9, t = -1e9, n = 1e9, f = -1e9;
+  for (const px of [x0 - m, x1 + m]) for (const pz of [y0 - m, y1 + m]) for (const py of [-.3, H + .4]) {
+    v.set(px, py, pz).sub(sun.position); const sx = v.dot(x), sy = v.dot(y), sd = -v.dot(z); l = Math.min(l, sx); r = Math.max(r, sx); b = Math.min(b, sy); t = Math.max(t, sy); n = Math.min(n, sd); f = Math.max(f, sd); }
+  Object.assign(c, { left: l, right: r, bottom: b, top: t, near: Math.max(.1, n - 1), far: f + 1 }); c.updateProjectionMatrix();
+  sun.shadow.bias = -.0068 / (c.far - c.near); // ~7 mm of depth offset whatever the frustum depth
+  markShadows(); }
 export function setSun(month, hour) {
   const s = sunDirection(month, hour), up = s.el > 0; SKY.info = s; SKY.sunUp = up; SUN_DIR.copy(up ? s.dir : new V3(s.dir.x, .001, s.dir.z).normalize());
-  sun.position.copy(TARGET).addScaledVector(SUN_DIR, 25); const k = Math.max(0, Math.min(1, Math.sin(s.el * Math.PI / 180) * 2.6));
+  sun.position.copy(TARGET).addScaledVector(SUN_DIR, 25); fitShadow(); const k = Math.max(0, Math.min(1, Math.sin(s.el * Math.PI / 180) * 2.6));
   sun.intensity = 3.2 * k; sun.color.setRGB(1, .86 + .085 * k, .62 + .25 * k);
   const old = [SKY.day, SKY.back]; SKY.day = makeSky(false); SKY.back = SKY.day;
   if (hdr && up) { const { data, w, h, sunCol } = hdr, phi = Math.atan2(SUN_DIR.z, SUN_DIR.x), col = Math.round((phi / (2 * Math.PI) + .5) * w), sh = ((col - sunCol) % w + w) % w, out = new Uint16Array(data.length);
@@ -74,6 +86,23 @@ export function setSun(month, hour) {
   return s;
 }
 export const nightLights = [];
-export function lamp(x, y, h, color = 0xffd2a0, intensity = 6, dist = 0) {
-  const l = new THREE.PointLight(color, intensity * .4, dist, 2); l.position.set(x, h, y); l.visible = false; (state.CUR === world ? scene : state.CUR).add(l); nightLights.push(l); return l;
+// lamp(x, y, h, kind | { lm, k }, n = 1): kind from meta.lights.kinds, n multiplies the lumens (fixtures or metres of strip)
+export function lamp(x, y, h, spec, n = 1) {
+  const { lm, k } = typeof spec === 'string' ? kindOf(spec) : spec, l = new THREE.PointLight(kelvin(k || 2700), pointCd(lm * n), 0, 2);
+  l.position.set(x, h, y); l.visible = false; l.userData.lm = lm * n; l.userData.k = k || 2700; (state.CUR === world ? scene : state.CUR).add(l); nightLights.push(l); return l;
 }
+// LED cove as an area light (Photo night only; the raster view keeps the emissive tube): a straight strip from (x1, y1) to (x2, y2) at height h facing down
+export const coveLights = []; let rectInit = false;
+export function coveLight(x1, y1, x2, y2, h) {
+  if (!rectInit) { RectAreaLightUniformsLib.init(); rectInit = true; }
+  const len = Math.hypot(x2 - x1, y2 - y1), { lm, k } = kindOf('coveStrip'), W = .05, l = new THREE.RectAreaLight(kelvin(k || 3000), stripNits(lm * len, len * W), len, W);
+  const ex = new V3((x2 - x1) / len, 0, (y2 - y1) / len), up = new V3(0, 1, 0);
+  l.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(ex, up.clone().cross(ex), up));
+  l.position.set((x1 + x2) / 2, h, (y1 + y2) / 2); l.visible = false; scene.add(l); coveLights.push(l); return l; }
+// lamps are on at night, and by day in Photo renders for rooms without daylight
+const wp = new V3();
+// Photo by day is exposed for window light (x6), so these lamps are scaled down to match what the night exposure shows
+const DAY_LAMP = .2, DAY_WB_K = 5200; // day Photo: windowless-room lamps are white-balanced (they are the only light there)
+export function syncLights() { for (const l of nightLights) { l.getWorldPosition(wp); l.visible = state.night || (state.photo && isWindowless(wp.x, wp.z));
+  l.intensity = pointCd(l.userData.lm) * (state.night || !state.photo ? 1 : DAY_LAMP); l.color.copy(kelvin(state.photo && !state.night ? DAY_WB_K : l.userData.k)); }
+  for (const l of coveLights) l.visible = state.night && state.photo; }

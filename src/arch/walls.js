@@ -16,7 +16,7 @@ function glazing(axis, c, o, inSign, thick) {
   const f = .055, d = .075, { a, b, sill: s, head: h } = o;
   const R = (a1, b1, h1, h2, m, dd = d, off = 0, opt = {}) => axis === 'x' ? B(a1, c - dd / 2 + off, b1, c + dd / 2 + off, h1, h2, m, opt) : B(c - dd / 2 + off, a1, c + dd / 2 + off, b1, h1, h2, m, opt);
   R(a, a + f, s, h, M.frame); R(b - f, b, s, h, M.frame); R(a, b, h - f, h, M.frame); R(a, b, s, s + f * (o.glass === 'door' ? .5 : 1), M.frame);
-  R(a + f, b - f, s + f * (o.glass === 'door' ? .5 : 1), h - f, M.glass, .012, 0, { cast: false });
+  R(a + f, b - f, s + f * (o.glass === 'door' ? .5 : 1), h - f, M.glassWin, .012, 0, { cast: false });
   // reveals (plaster returns) and sills
   if (o.glass === 'win') R(a - .01, b + .01, s - .025, s, M.trav, .2, inSign * (thick / 2 + .02));
   else R(a, b, 0, .012, M.steelDark, thick, 0);

@@ -1,16 +1,17 @@
-import { CUT, H, V3, camera, controls, frame, loader, renderer, scene, state, statusEl } from './scene.js';
+import { CUT, H, MOBILE, V3, camera, controls, frame, loader, markShadows, renderer, scene, state, statusEl } from './scene.js';
 import { buildTextures } from './textures.js';
 import { buildMaterials, textured } from './materials.js';
 import { upgradeMaterials, whenIdle } from './assets.js';
 import { PUBLISHED, bbox, plan, setPlan } from './plan/plan.js';
 import { buildAll, refreshOverlays } from './build.js';
-import { composer } from './post.js';
+import { composer, lod, setMoving } from './post.js';
 import { labels } from './ui/dims.js';
 import { applySun, loadSky } from './ui/toolbar.js';
 import { setView } from './ui/views.js';
 import { loadEdits } from './ui/editor.js';
 import { loadStyle } from './ui/style.js';
-import { rebuildPT, stillTick } from './pathtracer.js';
+import './ui/chat.js';
+import { focalFov, ptCamera, ptSetScene, rebuildPT, stillTick } from './pathtracer.js';
 
 // extent of the ceilings: the camera counts as inside (wide lens, ceiling shown) within it
 const ROOF = bbox(plan.ceilings.flatMap(c => [[c.rect[0], c.rect[1]], [c.rect[2], c.rect[3]]]));
@@ -29,18 +30,21 @@ window.__sceneTriangles = () => { let n = 0; scene.traverse(o => { if (o.isMesh 
 
 /* ================= loop ================= */
 const v = new V3();
+let idle = 99; // frames since the camera last moved
 function tick(now) {
   requestAnimationFrame(tick); window.__frames = (window.__frames || 0) + 1;
   if (state.anim) { const k = Math.min(1, (now - state.anim.t0) / 900), e = k < .5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2;
-    camera.position.lerpVectors(state.anim.from.p, state.anim.to.p, e); controls.target.lerpVectors(state.anim.from.t, state.anim.to.t, e); if (k >= 1) state.anim = null; if (state.photo && state.pt) state.pt.updateCamera(); }
-  controls.update();
+    camera.position.lerpVectors(state.anim.from.p, state.anim.to.p, e); controls.target.lerpVectors(state.anim.from.t, state.anim.to.t, e); if (k >= 1) state.anim = null; if (state.photo && state.pt) ptCamera(); }
+  const moved0 = controls.update() || !!state.anim;
   const inside = camera.position.y < H - .05 && camera.position.x > ROOF[0] && camera.position.x < ROOF[2] && camera.position.z > ROOF[1] && camera.position.z < ROOF[3];
-  const fov = (inside ? 62 : 42) + (innerWidth < 600 ? 14 : 0); if (Math.abs(camera.fov - fov) > .01) { camera.fov += (fov - camera.fov) * .15; if (Math.abs(camera.fov - fov) < .05) camera.fov = fov; camera.updateProjectionMatrix(); if (state.photo && state.pt) state.pt.updateCamera(); }
-  window.__settled = !state.anim && camera.fov === fov; // camera at rest: read by tools/shot.py
-  if (state.ceiling) { state.ceiling.visible = inside; if (state.lastCeil !== inside) { state.lastCeil = inside; rebuildPT(); } }
-  renderer.toneMappingExposure = (state.night ? 1.1 : 1.0) * (state.photo ? (inside ? 2.3 : 1.25) : 1);
+  const fov = state.photo && state.focal ? focalFov(state.focal, camera.aspect) : (inside ? 62 : 42) + (innerWidth < 600 ? 14 : 0); if (Math.abs(camera.fov - fov) > .01) { camera.fov += (fov - camera.fov) * .15; if (Math.abs(camera.fov - fov) < .05) camera.fov = fov; camera.updateProjectionMatrix(); if (state.photo && state.pt) ptCamera(); }
+  idle = moved0 || camera.fov !== fov ? 0 : idle + 1; if (!MOBILE) setMoving(!state.photo && idle < 8);
+  window.__settled = !state.anim && camera.fov === fov && !lod.on; // camera at rest: read by tools/shot.py
+  if (state.ceiling) { state.ceiling.visible = inside; if (state.lastCeil !== inside) { state.lastCeil = inside; markShadows(); rebuildPT(); } }
+  if (window.__frames < 30) markShadows(); // first frames after load
+  renderer.toneMappingExposure = (state.night ? 1.25 : 1.0) * (state.photo ? (inside ? (state.night ? .75 : 6) : (state.night ? 1.3 : .5)) : 1);
   if (state.photo && state.pt) {
-    if (state.ptDirty) { state.ptDirty = false; state.pt.setScene(scene, camera); }
+    if (state.ptDirty) { state.ptDirty = false; ptSetScene(); }
     state.pt.renderSample(); if (!stillTick()) statusEl.textContent = `Photo · ${Math.floor(state.pt.samples)} samples`;
   } else composer.render();
   const w = innerWidth, h = innerHeight;

@@ -20,8 +20,7 @@ function hang(F, D, ua, ub, h, len, cloth, fromFront) {
 export const storage = {
   wardrobe(it) { const { F, L, D } = framed(it), Ht = it.height, n = it.doors;
     group(it, () => { F.cab({ u1: 0, u2: L, d1: D, h1: 0, h2: Ht, cols: Array.from({ length: n }, () => [1, 1]), fm: mat(it.front, 'lacquerCream') });
-      F.B(0, 0, L, D, Ht, Ht + .03, M.oakFurn);
-      for (let k = 1; k < n; k++) { const b = L * k / n; F.B(b - .0375, D, b - .0275, D + .015, .85, 1.55, M.brass); F.B(b + .0225, D, b + .0325, D + .015, .85, 1.55, M.brass); } }); },
+      F.B(0, 0, L, D, Ht, Ht + .03, M.oakFurn); }); },
   // washer below, dryer above, storage cabinet on top
   laundryTower(it) { const { F, L, D } = framed(it);
     group(it, () => { F.B(0, 0, .02, D, 0, 2.6, M.oakFurn); F.B(L - .02, 0, L, D, 0, 2.6, M.oakFurn); F.B(.02, 0, L - .02, D, 0, .04, M.oakFurn);
@@ -53,7 +52,7 @@ export const storage = {
         [.08, .32].forEach(h => { Fn.B(Dw, 0, W, D - .02, h, h + .025, oak); for (let k = 0; k < 4; k++) Fn.RB(Dw + .08 + k * .24, .03, Dw + .26 + k * .24, D - .05, h + .025, h + .12, .02, [M.carcass, M.paper, M.rattanDark, M.velvetChoco][k]); });
         Fn.RB(.31, .02, .71, D - .03, 2.28, 2.5, .02, M.linenSand); }
       if (sd.east) { [.5, 1.6, 2.4].forEach(u => Fe.RB(u, .02, u + .4, D - .03, 2.28, 2.5, .02, M.linenSand)); Fe.B(.05 + D, D - .01, len - .05, D, 2.2, 2.24, M.led, { cast: false }); }
-      if (it.pendant) { const [px, py] = it.pendant; S(px, py, 2.5, .14, M.opal, { cast: false }); C(px, py, .003, 2.62, H, M.blackMetal, { seg: 6 }); lamp(px, py, 2.3, 0xffe6c8, 3); }
+      if (it.pendant) { const [px, py] = it.pendant; S(px, py, 2.5, .14, M.opal, { cast: false }); C(px, py, .003, 2.62, H, M.blackMetal, { seg: 6 }); lamp(px, py, 2.3, 'closetPendant'); }
       RB(x1 + Dw + .08, y1 + D + .15, x2 - D - .05, y2 - .07, 0, .012, .15, M.rug, { cast: false }); }); },
   // arched leaf sliding on a brass rail in front of an arched opening
   slidingDoor(it) { const { F } = framed({ ...it, from: it.at, to: it.at + it.w }), w = it.w, hs = 2.05, r = .3;
@@ -74,12 +73,12 @@ export const storage = {
     group(it, () => { F.B(0, 0, .04, D, 0, 2.6, oak); F.B(L - .04, 0, L, D, 0, 2.6, oak); F.B(.04, 0, L - .04, D, .72, .76, oak); F.B(.04, 0, L - .04, .03, .76, 1.55, oak);
       F.cab({ u1: .06, u2: .56, d0: .03, d1: D - .05, h1: .06, h2: .72, cols: [[1, 3]], fm: cream }); F.cab({ u1: L - .56, u2: L - .06, d0: .03, d1: D - .05, h1: .06, h2: .72, cols: [[1, 3]], fm: cream });
       F.B(.04, 0, L - .04, .33, 1.55, 1.58, oak); F.B(.04, 0, L - .04, .33, 1.95, 1.98, oak);
-      F.cab({ u1: .04, u2: L - .04, d1: .35, h1: 2.0, h2: 2.6, cols: [[1, 1], [1, 1], [1, 1], [1, 1]], fm: cream });
+      F.cab({ u1: .04, u2: L - .04, d1: .35, h1: 2.0, h2: 2.6, cols: [[1, 1], [1, 1], [1, 1], [1, 1]], fm: cream, pull: 'edge-bottom' });
       F.B(.06, .30, L - .06, .33, 1.535, 1.55, M.led, { cast: false });
       [[1.07, M.book1], [1.27, M.book3], [2.32, M.book2]].forEach(([u, m]) => { for (let k = 0; k < 6; k++) F.B(u + k * .035, .05, u + k * .035 + .03, .28, 1.58, 1.80 + (k % 3) * .03, [m, M.paper, M.book3][k % 3]); });
       vase(...F.P(.42, .18), 1.58, .5, M.stoneware); vase(...F.P(1.92, .18), 1.98, .6, M.stonewareDark);
       const us = it.seats.map(x => x - sp.a0);
       us.forEach(u => { F.B(u - .3, .18, u + .3, .21, 1.0, 1.36, M.blackMetal); F.B(u - .28, .21, u + .28, .211, 1.02, 1.34, M.laptop, { cast: false }); F.B(u - .03, .13, u + .03, .20, .76, 1.0, M.blackMetal);
         F.B(u - .12, .08, u + .12, .25, .76, .77, M.blackMetal); F.B(u - .22, .37, u + .22, .51, .76, .775, M.carcass); });
-      lamp(...F.P(us.reduce((p, c) => p + c, 0) / us.length, .33), 1.45, 0xffe2c0, 3); }); }
+      lamp(...F.P(us.reduce((p, c) => p + c, 0) / us.length, .33), 1.45, 'shelfStrip', L); }); }
 };

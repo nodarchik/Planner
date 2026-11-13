@@ -62,8 +62,12 @@
     <option value="luxe">Style: Dark luxe</option>
     <option value="midcentury">Style: Mid-century</option>
   </select>
-  <div class="seg"><button id="move" aria-pressed="false">Edit plan</button></div>
+  <div class="seg"><button id="move" aria-pressed="false">Edit plan</button><button id="chatBtn" aria-pressed="false">Assistant</button></div>
   <div class="seg"><button id="photo" aria-pressed="false">Photo render</button><button id="still" disabled title="Path-traced 2560 × 1440 PNG of the current view">Save 2K still</button></div>
+  <div class="pcam" id="pcam" hidden>
+    <select id="focal" class="sel" aria-label="Focal length"><option value="0">Lens: Auto</option><option value="18">18 mm</option><option value="24">24 mm</option><option value="35">35 mm</option><option value="50">50 mm</option></select>
+    <select id="fstop" class="sel" aria-label="Aperture (focus on the orbit target)" title="Depth of field in Photo render; focus stays on the orbit target"><option value="0">DOF: Off</option><option value="1.4">f/1.4</option><option value="2.8">f/2.8</option><option value="5.6">f/5.6</option><option value="11">f/11</option></select>
+  </div>
   <span class="status" id="status"></span>
 </div>
 
@@ -95,6 +99,13 @@
   <summary>Plan notes</summary>
   <div class="list" id="planNotes"></div>
 </details>
+<div class="chatpanel" id="chatpanel" hidden>
+  <div class="chathead"><b>Assistant</b><button id="chatnew" title="Forget this conversation (the plan keeps its edits)">New chat</button></div>
+  <div class="chatlog" id="chatlog" aria-live="polite"></div>
+  <div class="chatpw" id="chatpw" hidden><input id="chatpwinput" type="password" placeholder="Chat password" aria-label="Chat password"><button id="chatpwsave">Save</button></div>
+  <div class="chatrow"><textarea id="chatinput" rows="2" placeholder="e.g. make the B2 wardrobe 1.80 wide" aria-label="Request"></textarea><button id="chatsend">Send</button></div>
+  <div class="note">Changes are applied to the plan on this device and can be undone in Edit plan. Use Copy changes to send them to the repository.</div>
+</div>
 <div class="editbar" id="editbar" hidden>
   <select id="addType" class="sel" aria-label="Item to add"></select><button id="addBtn">Add</button>
   <button id="undoBtn" title="Undo (Ctrl+Z)">Undo</button><button id="redoBtn" title="Redo (Ctrl+Shift+Z)">Redo</button>

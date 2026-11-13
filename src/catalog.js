@@ -115,18 +115,18 @@ export const DESIGNS = {
     { name: 'Cane seat', info: '0.38 × 0.38 · seat 0.65', build: () => { legs4(-.17, -.17, .17, .17, .63, .016, M.rattanDark, .02); B(-.15, -.15, .15, .15, .28, .3, M.rattanDark, { clamp: false }); C(0, 0, .19, .62, .66, M.rattan, { seg: 40 }); } },
     { name: 'Hairpin metal', info: 'Ø0.36 · seat 0.65', build: () => { [0, 2.09, 4.19].forEach(a => tube([[Math.cos(a) * .08, .63, Math.sin(a) * .08], [Math.cos(a) * .19, 0, Math.sin(a) * .19]], .009, M.blackMetal, { seg: 4, rs: 8 })); C(0, 0, .18, .62, .66, M.walnut, { seg: 40 }); } } ] },
   sidetable: { label: 'Side table', items: [{ name: 'Travertine drum', info: 'Ø0.45 × 0.50', build: () => { lathe([[0, 0], [.18, 0], [.12, .22], [.12, .46], [.225, .48], [.225, .5], [0, .5]], 0, 0, 0, M.trav); vase(0, 0, .5, .45, M.stonewareDark); } }] },
-  floorlamp: { label: 'Floor lamp', items: [{ name: 'Linen drum lamp', info: 'Ø0.45 × 1.60', build: () => { C(0, 0, .15, 0, .025, M.blackMetal); C(0, 0, .012, .025, 1.25, M.brass, { seg: 10 }); lathe([[.18, 1.25], [.2, 1.25], [.18, 1.55], [.16, 1.55]], 0, 0, 0, M.opal, { seg: 48 }); lamp(0, 0, 1.35, 0xffd3a0, 3); } }] },
+  floorlamp: { label: 'Floor lamp', items: [{ name: 'Linen drum lamp', info: 'Ø0.45 × 1.60', build: () => { C(0, 0, .15, 0, .025, M.blackMetal); C(0, 0, .012, .025, 1.25, M.brass, { seg: 10 }); lathe([[.18, 1.25], [.2, 1.25], [.18, 1.55], [.16, 1.55]], 0, 0, 0, M.opal, { seg: 48 }); lamp(0, 0, 1.35, 'floorLamp'); } }] },
   desk: { label: 'Desk', items: [{ name: 'Oak writing desk', info: '0.90 × 0.60 × 0.75', build: () => { RB(-.45, -.3, .45, .3, .72, .75, .008, M.oakFurn); legs4(-.45, -.3, .45, .3, .72, .02, M.blackMetal, .04);
       cab({ axis: 'x', a1: -.43, a2: .43, back: -.28, front: .28, h1: .64, h2: .72, cols: [[1, 1], [1, 1]], fm: M.lacquerCream });
       B(-.16, -.13, .16, .09, .75, .765, M.steel); { const g = new THREE.BoxGeometry(.32, .21, .007); const m = add(g, M.blackMetal, 0, .87, -.14); m.rotation.x = -.28; }
-      C(.33, -.2, .06, .75, .765, M.brass); tube([[.33, .765, -.2], [.31, 1.08, -.18], [.22, 1.18, -.08]], .008, M.brass, { seg: 16 }); lathe([[0, 0], [.03, 0], [.07, -.06], [.075, -.07], [0, -.06]], .2, -.06, 1.18, M.opal); lamp(.2, -.06, 1.08, 0xffd3a0, 1.6);
+      C(.33, -.2, .06, .75, .765, M.brass); tube([[.33, .765, -.2], [.31, 1.08, -.18], [.22, 1.18, -.08]], .008, M.brass, { seg: 16 }); lathe([[0, 0], [.03, 0], [.07, -.06], [.075, -.07], [0, -.06]], .2, -.06, 1.18, M.opal); lamp(.2, -.06, 1.08, 'tableLamp');
       book(-.33, -.1, .75, .2, .15, .03, M.book1, .2); } },
     { name: 'Long oak desk + monitor', info: '1.40 × 0.70 × 0.75', build: () => { RB(-.7, -.35, .7, .35, .72, .75, .008, M.oakFurn);
       [[-.66, -.31], [.66, -.31], [-.66, .31], [.66, .31]].forEach(([x, y]) => B(x - .02, y - .02, x + .02, y + .02, 0, .72, M.blackMetal));
       cab({ axis: 'x', a1: .2, a2: .66, back: -.33, front: .33, h1: .5, h2: .72, cols: [[1, 2]], fm: M.lacquerCream });
       B(-.35, -.24, .35, -.21, .77, 1.15, M.blackMetal); B(-.34, -.212, .34, -.209, .79, 1.13, M.screen, { cast: false }); B(-.04, -.26, .04, -.2, .75, .79, M.blackMetal);
       B(-.22, -.02, .22, .12, .75, .765, M.plastic); RB(.3, -.05, .42, .1, .75, .77, .01, M.plastic);
-      C(-.55, -.2, .06, .75, .765, M.brass); tube([[-.55, .765, -.2], [-.57, 1.1, -.18], [-.45, 1.2, -.08]], .008, M.brass, { seg: 16 }); lathe([[0, 0], [.03, 0], [.07, -.06], [.075, -.07], [0, -.06]], -.42, -.06, 1.2, M.opal); lamp(-.42, -.06, 1.1, 0xffd3a0, 1.6);
+      C(-.55, -.2, .06, .75, .765, M.brass); tube([[-.55, .765, -.2], [-.57, 1.1, -.18], [-.45, 1.2, -.08]], .008, M.brass, { seg: 16 }); lathe([[0, 0], [.03, 0], [.07, -.06], [.075, -.07], [0, -.06]], -.42, -.06, 1.2, M.opal); lamp(-.42, -.06, 1.1, 'tableLamp');
       book(.5, -.2, .75, .2, .15, .04, M.book2, .1); } }] },
   deskchair: { label: 'Desk chair', items: [{ name: 'Swivel task chair', info: 'Ø0.60', build: () => taskChair(0, 0, -Math.PI / 2) }] }
 };

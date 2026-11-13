@@ -8,6 +8,22 @@
     "site": {"lat": 41.7211, "lon": 44.7699, "tz": 4},
     "sun": {"month": 9, "hour": 16.5},
     "north": 352,
+    "lights": {
+      "scale": 0.018,
+      "note": "lm = lumens per fixture (per metre for strips); scale maps lumens to scene units",
+      "kinds": {
+        "pendant": {"lm": 1000, "k": 3000},
+        "closetPendant": {"lm": 600, "k": 3000},
+        "sconce": {"lm": 400, "k": 3000},
+        "tableLamp": {"lm": 450, "k": 3000},
+        "floorLamp": {"lm": 800, "k": 3000},
+        "downlight": {"lm": 400, "k": 3000},
+        "coveStrip": {"lm": 600, "k": 3000},
+        "mirrorLight": {"lm": 650, "k": 3000},
+        "shelfStrip": {"lm": 300, "k": 3000},
+        "tvGlow": {"lm": 100, "k": 6500}
+      }
+    },
     "style": {"preset": "soft", "wallTint": "#e9ddcc", "ceilingTint": "#f3ebe0", "trimTint": "#eadfcf"},
     "notes": {"why": "Your reference applied to the original plan (studio + office): warm greige walls with picture-frame mouldings and chair rail, light oak chevron floor everywhere, rounded-shoulder arches corridor → hall → studio, fluted rounded corners on the column and shaft, coffered ceilings with rounded corners, fluted lip and LED cove in every room, arched mirror fronts with oak knobs on the hall wardrobe, sculptural stone console under a textured plaster artwork with a brass sconce, bouclé and light-oak palette.", "metrics": "Studio: corner sofa 4 + armchair + dining 4 + 3 bar stools · TV 3.31 m · Office: 2.66 m built-in desk"}
   },
@@ -33,8 +49,8 @@
     {"id": "balcony-e", "inner": 13.87, "outer": 15.89, "from": -0.27, "to": 7.37}
   ],
   "rooms": [
-    {"id": "bed1", "name": "Bedroom 1", "poly": [[0, 0], [3.19, 0], [3.19, 3.05], [4.59, 3.05], [4.59, 3.98], [0, 3.98]], "skirting": true, "labelAt": [1.6, 2.6], "ceiling": {"type": "tray", "rect": [0, 0, 3.19, 3.98], "border": 0.3, "radius": 0.4}, "spots": [[1.0, 1.0], [3.5, 3.4]]},
-    {"id": "closet1", "name": "Walk-in closet", "poly": [[3.29, 0], [4.59, 0], [4.59, 2.95], [3.29, 2.95]], "skirting": true, "spots": [[3.5, 1.0]]},
+    {"id": "bed1", "name": "Bedroom 1", "poly": [[0, 0], [2.89, 0], [2.89, 3.05], [4.59, 3.05], [4.59, 3.98], [0, 3.98]], "skirting": true, "labelAt": [1.6, 2.6], "ceiling": {"type": "tray", "rect": [0, 0, 2.89, 3.98], "border": 0.3, "radius": 0.4}, "spots": [[1.0, 1.0], [3.5, 3.4]]},
+    {"id": "closet1", "name": "Walk-in closet", "poly": [[2.99, 0], [4.59, 0], [4.59, 2.95], [2.99, 2.95]], "skirting": true, "spots": [[3.5, 1.0]]},
     {"id": "bed2", "name": "Bedroom 2", "poly": [[0, 4.08], [5.06, 4.08], [5.06, 7.13], [0, 7.13]], "skirting": true, "labelAt": [3.4, 5.5], "ceiling": {"type": "tray", "border": 0.35, "radius": 0.45}, "spots": [[1.0, 5.5], [3.6, 5.5]]},
     {"id": "bath", "name": "Bathroom", "poly": [[4.69, 0], [4.98, 0], [4.98, 0.48], [6.29, 0.48], [6.29, 0], [7.07, 0], [7.07, 2.77], [4.69, 2.77]], "wallFinish": "travSmall", "labelAt": [5.9, 1.9], "spots": [[5.9, 1.4]]},
     {"id": "corridor", "name": "Corridor", "poly": [[4.69, 2.87], [7.07, 2.87], [7.07, 4.4], [5.16, 4.4], [5.16, 3.98], [4.69, 3.98]], "skirting": true, "ceiling": {"type": "tray", "rect": [4.69, 2.87, 7.07, 4.3], "border": 0.18, "radius": 0.25}, "spots": [[5.9, 3.5]]},
@@ -46,7 +62,7 @@
     {"id": "balconyE", "name": "East balcony", "short": "Balcony", "poly": [[13.87, 0], [15.75, 0], [15.75, 7.13], [13.87, 7.13]], "labelAt": [14.8, 4.6], "outdoor": true, "area": 12.9}
   ],
   "walls": [
-    {"id": "w-north", "from": [-0.25, 0], "to": [13.87, 0], "t": 0.29, "grow": "N", "exterior": true, "finish": {"S": {"panels": [[0, 3.19], [9.35, 13.62]]}}},
+    {"id": "w-north", "from": [-0.25, 0], "to": [13.87, 0], "t": 0.29, "grow": "N", "exterior": true, "finish": {"S": {"panels": [[0, 2.89], [9.35, 13.62]]}}},
     {"id": "w-south", "from": [-0.25, 7.13], "to": [13.87, 7.13], "t": 0.26, "grow": "S", "exterior": true, "openings": [{"id": "door-entrance", "type": "door", "at": 5.23, "w": 0.95, "leaf": {"hinge": "end", "swing": "N", "open": 74.4845, "material": "walnut", "handle": "brass"}}, {"id": "door-wc", "type": "door", "at": 7.96, "w": 0.77, "leaf": {"hinge": "end", "swing": "N", "open": 74.4845}}], "finish": {"N": {"panels": [[0, 2.9], [5.16, 8.86]]}}},
     {"id": "w-wc-west", "from": [7.06, 7.39], "to": [7.06, 9.3], "t": 0.2, "grow": "W", "exterior": true},
     {"id": "w-wc-east", "from": [8.86, 7.39], "to": [8.86, 9.3], "t": 0.2, "grow": "E", "exterior": true},
@@ -60,8 +76,8 @@
     {"id": "w-b2-east", "from": [5.06, 4.08], "to": [5.06, 7.13], "t": 0.1, "grow": "E", "openings": [{"id": "door-b2", "type": "door", "at": 4.89, "w": 0.9, "leaf": {"hinge": "start", "swing": "W", "open": 71.6197}}]},
     {"id": "w-studio-south", "from": [7.17, 4.32], "to": [13.62, 4.32], "t": 0.1, "grow": "S", "openings": [{"id": "arch-hall", "type": "arch", "at": 7.24, "w": 1.55, "top": 2.45, "radius": 0.5}], "finish": {"N": {"panels": [[8.86, 11.0]]}}},
     {"id": "w-office-west", "from": [8.86, 4.42], "to": [8.86, 7.13], "t": 0.1, "grow": "E", "openings": [{"id": "door-office", "type": "door", "at": 4.66, "w": 0.77, "leaf": {"hinge": "start", "swing": "E", "open": 74.4845}}], "finish": {"W": {"panels": [[4.42, 7.13]]}, "E": {"panels": [[4.42, 7.13]]}}},
-    {"id": "w-closet", "from": [3.19, 0], "to": [3.19, 3.05], "t": 0.1, "grow": "E"},
-    {"id": "w-closet-front", "from": [3.29, 2.95], "to": [4.59, 2.95], "t": 0.1, "grow": "S", "openings": [{"id": "arch-closet", "type": "arch", "at": 3.32, "w": 0.68, "top": 2.3, "radius": 0.3}]}
+    {"id": "w-closet", "from": [2.89, 0], "to": [2.89, 3.05], "t": 0.1, "grow": "E"},
+    {"id": "w-closet-front", "from": [2.99, 2.95], "to": [4.59, 2.95], "t": 0.1, "grow": "S", "openings": [{"id": "arch-closet", "type": "arch", "at": 3.32, "w": 0.68, "top": 2.3, "radius": 0.3}]}
   ],
   "blocks": [
     {"id": "blk-column", "name": "Column", "rect": [8.86, 0, 9.35, 0.2], "bullnose": ["SW", "SE"]},
@@ -78,10 +94,10 @@
     {"id": "rug-b2", "type": "rug", "name": "Rug (B2)", "rect": [0.4, 4.55, 2.7, 6.6], "material": "rugDark", "radius": 0.3, "h": [0, 0.014]},
     {"id": "curtain-b2-n", "type": "curtain", "wall": "w-west", "side": "E", "offset": 0.1, "from": 4.4, "to": 4.72},
     {"id": "curtain-b2-s", "type": "curtain", "wall": "w-west", "side": "E", "offset": 0.1, "from": 6.73, "to": 7.05},
-    {"id": "light-bath", "type": "light", "pos": [5.9, 1.4], "h": 2.6, "color": "#ffe2c0", "intensity": 4},
+    {"id": "light-bath", "type": "light", "pos": [5.9, 1.4], "h": 2.6, "lm": 900, "k": 3000},
     {"id": "panel-hall", "type": "wallPanel", "wall": "w-south", "side": "N", "h": [1.5, 1.9], "depth": 0.03, "material": "lacquerCream", "from": 6.6, "to": 7.0},
-    {"id": "light-hall", "type": "light", "pos": [6.9, 5.6], "h": 2.6, "color": "#ffdcb4", "intensity": 5},
-    {"id": "light-corridor", "type": "light", "pos": [5.9, 3.5], "h": 2.6, "color": "#ffdcb4", "intensity": 4},
+    {"id": "light-hall", "type": "light", "pos": [6.9, 5.6], "h": 2.6, "lm": 1000, "k": 3000},
+    {"id": "light-corridor", "type": "light", "pos": [5.9, 3.5], "h": 2.6, "lm": 800, "k": 3000},
     {"id": "lounge-w-1", "name": "Lounge chair (loggia)", "type": "armchair", "variant": 4, "pos": [-1.05, 2.15], "rot": -90},
     {"id": "lounge-w-2", "name": "Lounge chair (loggia)", "type": "armchair", "variant": 4, "pos": [-1.05, 3.35], "rot": -90},
     {"id": "sidetable-w", "name": "Side table (loggia)", "type": "sidetable", "variant": 0, "pos": [-1.25, 2.75]},
@@ -110,7 +126,7 @@
     {"id": "shower-wc", "type": "shower", "variant": "strip", "name": "Shower room · shower", "label": "Guest shower (full depth, 2 doors)", "room": "wc", "along": "W", "width": 0.8},
     {"id": "wc-wc", "type": "wc", "name": "Shower room · WC", "wall": "w-wc-south", "side": "N", "depth": 0.55, "from": 8.18, "to": 8.54},
     {"id": "basin-wc", "type": "basinUnit", "name": "Shower room · basin", "wall": "w-wc-east", "side": "W", "depth": 0.36, "towel": [8.37, 8.67], "from": 7.75, "to": 8.2},
-    {"id": "light-wc", "type": "light", "pos": [7.96, 7.9], "h": 2.5, "color": "#ffe2c0", "intensity": 3},
+    {"id": "light-wc", "type": "light", "pos": [7.96, 7.9], "h": 2.5, "lm": 700, "k": 3000},
     {"id": "wardrobe-b2", "type": "wardrobe", "name": "Wardrobe (B2, south wall)", "label": "Wardrobe (B2)", "wall": "w-south", "side": "N", "depth": 0.6, "height": 2.6, "doors": 4, "coversWall": 0, "from": 2.95, "to": 5.06},
     {"id": "desk-b2", "label": "Work desk (B2)", "type": "desk", "variant": 0, "pos": [3.7, 4.43]},
     {"id": "deskchair-b2", "type": "deskchair", "variant": 0, "pos": [3.7, 5.05]},
@@ -131,10 +147,10 @@
     {"id": "closet-b1", "type": "walkInCloset", "name": "Walk-in closet", "label": "Walk-in closet (B1)", "room": "closet1", "unitDepth": 0.3, "sides": {"east": [{"type": "long", "to": 1.0}, {"type": "double", "to": 1.95}, {"type": "long"}], "north": [{"type": "hang+shoes"}], "west": [{"type": "shelves", "depth": 0.25, "from": 0.6}]}, "pendant": [3.66, 1.6]},
     {"id": "closet-door", "type": "slidingDoor", "name": "Closet door", "wall": "w-closet-front", "side": "S", "at": 3.83, "w": 0.76, "rail": [3.25, 4.58]},
     {"id": "bed-b1", "type": "bed", "name": "Bed (B1)", "label": "Platform bed 160 (B1)", "room": "bed1", "anchor": {"wall": "w-closet", "side": "W", "offset": 1.62, "gap": 0.005}, "size": [1.6, 2.0], "materials": {"accent": "velvetTerra", "duvet": "linenSand", "throw": "velvetSage"}},
-    {"id": "nightstand-b1-n", "type": "nightstand", "pos": [2.95, 0.44]},
-    {"id": "nightstand-b1-s", "type": "nightstand", "pos": [2.95, 2.8]},
+    {"id": "nightstand-b1-n", "type": "nightstand", "pos": [2.65, 0.44]},
+    {"id": "nightstand-b1-s", "type": "nightstand", "pos": [2.65, 2.74]},
     {"id": "art-b1", "type": "wallArt", "name": "Wall art (B1)", "wall": "w-north", "side": "S", "h": [1.28, 2.28], "image": "art1", "depth": 0.035, "from": 1.2, "to": 1.9},
-    {"id": "rug-b1", "type": "rug", "name": "Rug (B1)", "rect": [0.75, 0.45, 2.95, 2.79], "material": "rug", "radius": 0.3, "h": [0, 0.014]},
+    {"id": "rug-b1", "type": "rug", "name": "Rug (B1)", "rect": [0.75, 0.45, 2.65, 2.79], "material": "rug", "radius": 0.3, "h": [0, 0.014]},
     {"id": "beauty-b1", "type": "beautyTable", "name": "Beauty table (B1)", "label": "Beauty table + lit mirror (B1)", "wall": "w-bedrooms", "side": "N", "depth": 0.46, "coversWall": 0.1, "from": 0.6, "to": 1.7},
     {"id": "organiser-b1", "type": "beautyOrganiser", "name": "Beauty organiser (B1)", "label": "Beauty organiser (B1)", "wall": "w-bedrooms", "side": "N", "depth": 0.38, "from": 1.72, "to": 2.12},
     {"id": "stool-b1", "type": "vanityStool", "name": "Vanity stool", "pos": [1.15, 3.22]},
@@ -177,8 +193,8 @@
     "closet": {"cam": [3.66, 1.6, 3.55], "target": [3.66, 1.05, 0.2]},
     "bed2": {"cam": [4.7, 1.6, 5.95], "target": [1.2, 0.8, 5.5]},
     "closet2": {"cam": [3.92, 1.6, 6.05], "target": [4.95, 1.0, 7.05]},
-    "bath": {"cam": [6.25, 1.65, 2.6], "target": [5.0, 0.8, 0.6]},
-    "wc": {"cam": [8.75, 1.6, 7.5], "target": [7.3, 0.8, 8.8]},
+    "bath": {"cam": [6.5, 1.6, 2.65], "target": [5.95, 0.9, 0.3]},
+    "wc": {"cam": [8.8, 2.35, 7.42], "target": [7.75, 0.5, 8.55]},
     "corridor": {"cam": [5.4, 1.55, 4.3], "target": [7.0, 1.1, 3.2]},
     "hall": {"cam": [6.25, 1.5, 6.95], "target": [8.6, 1.2, 1.4]},
     "entrance": {"cam": [6.25, 1.5, 6.95], "target": [8.6, 1.2, 1.4]},

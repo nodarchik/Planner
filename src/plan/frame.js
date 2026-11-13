@@ -3,6 +3,7 @@
 import * as THREE from 'three';
 import { B, C, RB, S, add, lathe, tube } from '../primitives.js';
 import { cab } from '../furniture/storage.js';
+import { placePulls } from '../furniture/pulls.js';
 
 export function frame({ axis, a0, back, dir }) {
   const P = (u, d) => axis === 'x' ? [a0 + u, back + dir * d] : [back + dir * d, a0 + u];
@@ -22,7 +23,8 @@ export function frame({ axis, a0, back, dir }) {
     S: (u, d, h, r, m, o) => { const [x, y] = P(u, d); return S(x, y, h, r, m, o); },
     lathe: (pts, u, d, h, m, o = {}) => { const [x, y] = P(u, d), { su, sd, ...rest } = o; if (su || sd) Object.assign(rest, axis === 'x' ? { sx: su || 1, sz: sd || 1 } : { sx: sd || 1, sz: su || 1 }); return lathe(pts, x, y, h, m, rest); },
     tube: (pts, r, m, o) => tube(pts.map(([u, h, d]) => { const [x, y] = P(u, d); return [x, h, y]; }), r, m, o),
-    cab: o => cab({ axis, a1: a0 + o.u1, a2: a0 + o.u2, back: back + dir * (o.d0 || 0), front: back + dir * o.d1, h1: o.h1, h2: o.h2, cols: o.cols, fm: o.fm, cm: o.cm }),
+    cab: o => cab({ axis, a1: a0 + o.u1, a2: a0 + o.u2, back: back + dir * (o.d0 || 0), front: back + dir * o.d1, h1: o.h1, h2: o.h2, cols: o.cols, fm: o.fm, cm: o.cm, pull: o.pull, skip: o.skip }),
+    pulls: (d, list) => placePulls(list.map(p => ({ ...p, a: a0 + p.u })), { axis, front: back + dir * d, s: dir }), // u = along the wall
     add: (g, m, u, h, d, o) => { const [x, y] = P(u, d); return add(g, m, x, h, y, o); },
     mesh: (g, m, o) => add(geo(g), m, 0, 0, 0, o) // geometry authored in local (u, h, d) coordinates
   };

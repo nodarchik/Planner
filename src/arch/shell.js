@@ -1,6 +1,7 @@
 // Architecture from data: slabs, floors, walls with openings, door leaves, skirting, wall cladding, mouldings, arches, rounded corners, ceilings.
 import * as THREE from 'three';
-import { V3, world } from '../scene.js';
+import { MOBILE, V3, world } from '../scene.js';
+import { lamp } from '../lighting.js';
 import { M } from '../materials.js';
 import { B, C, add } from '../primitives.js';
 import { H, PASSABLE, plan, wallRect, wallAxis, openingsOf, faceCoord, bbox } from '../plan/plan.js';
@@ -90,6 +91,8 @@ export function buildArchitecture() {
   const ceil = new THREE.Group(); world.add(ceil); ceil.userData.ceiling = true;
   for (const c of plan.ceilings) B(...c.rect, H, H + .06, M.ceiling, { parent: ceil, clamp: false, cast: false });
   for (const room of plan.rooms) for (const [x, y] of room.spots || []) { C(x, y, .048, H - .004, H, M.blackMetal, { parent: ceil, cast: false }); C(x, y, .036, H - .006, H - .004, M.led, { parent: ceil, cast: false }); }
+  // spot positions without a plan light also get a downlight (not on phones: fewer lights)
+  if (!MOBILE) for (const room of plan.rooms) for (const [x, y] of room.spots || []) if (!plan.items.some(i => i.type === 'light' && Math.hypot(i.pos[0] - x, i.pos[1] - y) < .5)) lamp(x, y, H - .06, 'downlight');
   const trays = new THREE.Group(); trays.name = 'trays'; ceil.add(trays);
   for (const room of plan.rooms) { const c = room.ceiling; if (!c || c.type !== 'tray') continue; softTray(...(c.rect || bbox(room.poly)), c.border, c.radius, trays); }
   return ceil;

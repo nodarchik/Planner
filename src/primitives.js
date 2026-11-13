@@ -37,7 +37,8 @@ export function B(x1, y1, x2, y2, h1, h2, m, o = {}) {
 }
 export function RB(x1, y1, x2, y2, h1, h2, r, m, o = {}) {
   const w = x2 - x1, d = y2 - y1, h = h2 - h1; r = Math.max(.001, Math.min(r, w / 2 - .001, d / 2 - .001, h / 2 - .001));
-  return add(new RoundedBoxGeometry(w, h, d, o.seg || 4, r), m, (x1 + x2) / 2, (h1 + h2) / 2, (y1 + y2) / 2, o);
+  const me = add(new RoundedBoxGeometry(w, h, d, o.seg || 4, r), m, (x1 + x2) / 2, (h1 + h2) / 2, (y1 + y2) / 2, o);
+  if (o.clamp) { me.userData.clamp = true; clampables.push({ me, h1, h2 }); } return me;
 }
 export function C(x, y, r, h1, h2, m, o = {}) { return add(new THREE.CylinderGeometry(o.rt ?? r, r, h2 - h1, o.seg || 48, 1, !!o.open), m, x, (h1 + h2) / 2, y, o); }
 export function S(x, y, h, r, m, o = {}) { return add(new THREE.SphereGeometry(r, 40, 24), m, x, h, y, o); }

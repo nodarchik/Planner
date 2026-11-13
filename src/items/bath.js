@@ -19,7 +19,7 @@ export const bath = {
       [[.11, .15, .645], [.11, .32, .645], [.17, .23, 1.045]].forEach(([dx, dy, h]) => add(new THREE.CylinderGeometry(.06, .06, .22, 20).rotateZ(Math.PI / 2), M.towel, x1 + dx, h + .06, y1 + dy, { uv: false }));
       vase(x1 + .16, y1 + .24, 1.445, .3, M.stoneware); }); },
   // variant "niche": walk-in tray between walls with one fixed glass screen · variant "strip": full length of one room side behind a glass wall with a door at each end
-  shower(it) { const brass = M.brass, glass = M.glass;
+  shower(it) { const brass = M.brass, glass = M.glassShower;
     if (it.variant === 'strip') { const sp = alongRoom(it.room, it.along), F = frame(sp), L = sp.len, D = it.width, c = L / 2;
       group(it, () => { F.B(0, 0, L, D, 0, .025, M.micro, { cast: false }); F.B(.07, .04, L - .06, .08, .025, .027, M.steelDark, { cast: false });
         F.B(0, D - .005, .54, D + .007, .025, 2.0, glass, { cast: false }); F.B(.56, D + .012, L - .56, D + .024, .025, 2.0, glass, { cast: false }); F.B(L - .54, D - .005, L, D + .007, .025, 2.0, glass, { cast: false });
@@ -38,8 +38,9 @@ export const bath = {
     group(it, () => { F.RB(0, .005, L, D - .02, .45, .82, .015, M.walnut); F.B(0, 0, L, D, .82, .85, M.trav);
       for (let i = 0; i < n; i++) { const u = n === 1 ? L / 2 : .32 + i * (L - .64) / (n - 1);
         F.lathe(BASIN, u, .23, .85, M.ceramic, { sd: .85, su: 1 }); F.tube([[u, 1.1, .005], [u, 1.1, .09], [u, 1.08, .12]], .01, M.brass);
+        F.pulls(D - .02, [{ kind: 'bar', u, h: .74, len: .256 }]);
         F.B(u - .27, .005, u + .27, .04, 1.15, 1.95, M.mirror); F.B(u - .29, .035, u + .29, .045, 1.13, 1.97, M.led, { cast: false }); }
-      F.B(.02, .01, .04, D - .04, .42, .44, M.led, { cast: false }); lamp(...F.P(L / 2 - .005, .27), 1.6, 0xffe2c0, 2.5); }); },
+      F.B(.02, .01, .04, D - .04, .42, .44, M.led, { cast: false }); lamp(...F.P(L / 2 - .005, .27), 1.6, 'mirrorLight'); }); },
   basinUnit(it) { const { F, L, D, sp } = framed(it), u = L / 2 + .005;
     group(it, () => { F.RB(0, 0, L, D, .62, .85, .015, M.walnut); F.lathe(SMALL, u, D / 2, .85, M.ceramic); F.tube([[u, 1.06, 0], [u, 1.06, .07], [u, 1.04, .09]], .009, M.brass);
       F.add(new THREE.CircleGeometry(.22, 64), M.mirror, u, 1.55, .005, { uv: false, rotY: F.face }); F.add(new THREE.TorusGeometry(.225, .012, 12, 64), M.led, u, 1.55, .006, { uv: false, rotY: F.face });

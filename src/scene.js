@@ -1,6 +1,7 @@
 // Shared scene objects and mutable app state. Every other module imports from here; nothing is an implicit global.
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { PhysicalCamera } from 'three-gpu-pathtracer/src/objects/PhysicalCamera.js';
 
 // r160 scenes lack the rotation fields the path tracer reads
 if (!('backgroundRotation' in THREE.Scene.prototype)) { THREE.Scene.prototype.backgroundRotation = new THREE.Euler(); THREE.Scene.prototype.environmentRotation = new THREE.Euler(); }
@@ -18,12 +19,14 @@ export const DPR = Math.min(devicePixelRatio, MOBILE ? 1.3 : 1.75);
 renderer.setPixelRatio(DPR);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.shadowMap.autoUpdate = false; // sun shadows are re-rendered only when markShadows() says the scene or sun changed
+export const markShadows = () => { renderer.shadowMap.needsUpdate = true; };
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.0;
 stage.appendChild(renderer.domElement);
 
 export const scene = new THREE.Scene();
-export const camera = new THREE.PerspectiveCamera(40, 1, 0.05, 200);
+export const camera = new PhysicalCamera(40, 1, 0.05, 200); camera.filmGauge = 36; // full-frame mm; fStop/focusDistance only matter to the path tracer
 export const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.dampingFactor = 0.08;
@@ -45,6 +48,8 @@ export const state = {
   anim: null,
   pt: null,
   photo: false,
+  focal: 0, // Photo lens in mm, 0 = automatic FOV
+  fstop: 0, // Photo aperture, 0 = no depth of field
   ptDirty: false,
   lastCeil: null,
   moveMode: false,

@@ -4,6 +4,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
 import { rebuildPT } from './pathtracer.js';
+import { markShadows } from './scene.js';
 
 const BASE = import.meta.env.BASE_URL;
 const OFF = !!import.meta.env.VITE_NO_ASSETS; // single-file build: no external files, procedural fallbacks only
@@ -45,7 +46,7 @@ export function swapIn(g, id, opts = {}) {
     g.clear(); if (opts.pos) g.position.set(opts.pos[0], 0, opts.pos[1]); obj.position.y = opts.h || 0; g.add(obj); g.updateMatrixWorld(true);
     const bb = new THREE.Box3().setFromObject(obj); g.userData.size = bb.getSize(new THREE.Vector3()); g.userData.minY0 = bb.min.y; g.userData.model = id;
     g.traverse(o => { if (o.isMesh) { const b = new THREE.Box3().setFromObject(o); o.userData.minY = b.min.y; o.userData.maxY = b.max.y; } });
-    window.dispatchEvent(new CustomEvent('modelswap', { detail: g })); }).catch(err => { if (!OFF) console.warn(`model ${id} not loaded; keeping the placeholder`, err); });
+    markShadows(); window.dispatchEvent(new CustomEvent('modelswap', { detail: g })); }).catch(err => { if (!OFF) console.warn(`model ${id} not loaded; keeping the placeholder`, err); });
 }
 // scanned normal + roughness maps for the procedural texture sets (sizes in metres per tile)
 const SCANS = { plaster: 1.0, boucle: .31, linen: .27, velvet: .28, micro: 2.0, wood: 1.83 };

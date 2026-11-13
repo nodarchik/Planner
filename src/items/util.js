@@ -7,4 +7,3 @@ import { frame } from '../plan/frame.js';
 export function framed(it) { const sp = frameSpec(it); return { F: frame(sp), L: sp.len, D: sp.depth, sp }; }
 export const mat = (name, fallback) => M[name || fallback];
 export const group = (it, fn, name) => { beginG(name || it.name || it.type); fn(); endG(); };
-export const hex = c => parseInt(c.slice(1), 16);

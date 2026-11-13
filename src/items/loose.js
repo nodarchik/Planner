@@ -5,12 +5,13 @@ import { MODELS, swapIn } from '../assets.js';
 import { M } from '../materials.js';
 import { RB, beginG, endG, lathe } from '../primitives.js';
 import { lamp } from '../lighting.js';
+import { itemLight } from '../lights.js';
 import { art1Tex, art2Tex } from '../textures.js';
 import { bed, nightstand } from '../furniture/bed.js';
 import { fig, olive, pot, snake } from '../furniture/plants.js';
 import { artAt, curtain, diningDecor, livingRug } from '../furniture/decor.js';
 import { faceCoord, frameSpec } from '../plan/plan.js';
-import { framed, group, hex, mat } from './util.js';
+import { framed, group, mat } from './util.js';
 
 const PLANTS = { fig, olive, snake }, ART = { art1: art1Tex, art2: art2Tex };
 
@@ -33,7 +34,7 @@ export const loose = {
       F.B(.09, dp + .002, L - .09, dp + .003, h1 + .09, h2 - .09, artAt(ART[it.image], it.from + .09, h1 + .09, L - .18, h2 - h1 - .18, flipU)); }); },
   rug(it) { const [h1, h2] = it.h || [0, .012]; group(it, () => RB(...it.rect, h1, h2, it.radius ?? .05, mat(it.material, 'rug'), { cast: false })); },
   organicRug(it) { livingRug(...it.center, it.rx, it.ry); },
-  light(it) { lamp(it.pos[0], it.pos[1], it.h, hex(it.color), it.intensity); },
+  light(it) { lamp(it.pos[0], it.pos[1], it.h, itemLight(it)); },
   wallPanel(it) { const { F, L } = framed(it); F.B(0, 0, L, it.depth, it.h[0], it.h[1], mat(it.material, 'lacquerCream')); },
   // wall fittings (positions come from site measurements, PLAN.md Phase 9): from = centre along the wall for socket / switch
   socket(it) { const { F } = framed({ ...it, to: it.from }), h = it.h ?? .3; F.B(-.04, 0, .04, .008, h - .04, h + .04, M.lacquerCream, { cast: false }); F.C(0, .008, .018, h - .0005, h + .0005, M.ceramic, { cast: false }); },

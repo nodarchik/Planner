@@ -60,6 +60,46 @@
       "why",
       "metrics"
      ]
+    },
+    "lights": {
+     "type": "object",
+     "required": [
+      "scale",
+      "kinds"
+     ],
+     "properties": {
+      "scale": {
+       "type": "number",
+       "exclusiveMinimum": 0,
+       "description": "scene units per candela: maps lumens to this scene's brightness"
+      },
+      "note": {
+       "type": "string"
+      },
+      "kinds": {
+       "type": "object",
+       "additionalProperties": {
+        "type": "object",
+        "required": [
+         "lm"
+        ],
+        "additionalProperties": false,
+        "properties": {
+         "lm": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "description": "lumens per fixture (per metre for strips)"
+         },
+         "k": {
+          "type": "number",
+          "minimum": 1000,
+          "maximum": 12000,
+          "description": "colour temperature, kelvin"
+         }
+        }
+       }
+      }
+     }
     }
    }
   },
@@ -596,6 +636,17 @@
      },
      "width": {
       "type": "number"
+     },
+     "lm": {
+      "type": "number",
+      "exclusiveMinimum": 0,
+      "description": "light: lumens"
+     },
+     "k": {
+      "type": "number",
+      "minimum": 1000,
+      "maximum": 12000,
+      "description": "light: colour temperature, kelvin"
      }
     }
    }

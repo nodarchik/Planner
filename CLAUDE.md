@@ -5,6 +5,7 @@ Interactive, photoreal-leaning 3D model of one real apartment ("Palace 1", Tbili
 ## Current state
 - Vite + vanilla ES modules, three 0.160 + three-gpu-pathtracer. Procedural geometry and textures, plus CC0 Poly Haven assets in `public/assets/` (13 models, scanned normal/roughness maps, sky HDRI; sources in `assets/CREDITS.md`). Every asset has a procedural fallback.
 - **The apartment is data: `src/plan/palace1.json`** (rooms, walls with openings, blocks, items, views). Code in `src/` builds whatever the file says. A layout or furniture request is an edit to that file, not to code.
+- Photo render (path tracer), stills hook, lamps in lumens, cabinet bevels and pulls, shadow and orbit performance work are done (PLAN.md Phases 6–8 status).
 - `PLAN.md` — the refactor + realism plan and its status.
 - `legacy/palace-apartment.html` — the original single-file app (Claude artifact version 22). Reference only; do not edit.
 - `baseline/*.png` — 13 reference screenshots (12 views day + `top_night`) of the current plan with models, scanned maps and sky loaded. Recapture them after any intended visual change.
@@ -14,9 +15,20 @@ Interactive, photoreal-leaning 3D model of one real apartment ("Palace 1", Tbili
 - `npm run validate` — schema + reference checks, then the geometric checks (overlaps, clearances, door swings, routes). Findings are listed; `-- --strict` makes errors fail. `-- --all` lists passed checks too.
 - `npm run build:single` — `dist-single/index.html`, one self-contained file without external assets, for the Claude artifact.
 - `node tools/fetch_assets.mjs` / `node tools/fetch_textures.mjs` — re-download and convert the Poly Haven assets (needs network access to polyhaven.com).
-- `npm run shots` — 13 screenshots of the preview server into `shots/` (~22 min, software GL); `npm run shots:diff` — compare with `baseline/` (fails above 2 % differing pixels; identical builds differ by 0.2–1.5 % from unseeded ambient-occlusion noise, so also look at `shots/diff/*.png`: grain is noise, shapes are real changes).
+- `npm run shots` — 13 screenshots of the preview server into `shots/` (~40 s with `SHOT_GPU=1` on an M4; ~22 min with default software GL); `npm run shots:diff` — compare with `baseline/` (fails above 2 % differing pixels; identical builds differ by 0.1–1.5 % on GPU (software-GL and GPU shots differ by 1–3 %, so keep the baseline from one mode) from unseeded ambient-occlusion noise, so also look at `shots/diff/*.png`: grain is noise, shapes are real changes).
+- `SHOT_GPU=1 npm run shots` (also `tools/editor_test.py`) launches Chromium on the real GPU (ANGLE Metal on macOS) instead of SwiftShader; default stays software GL. `tools/launch.py` is the shared launcher; without CHROME_PATH or /opt/pw-browsers it uses Playwright's own Chromium. If system Python refuses pip, use `.venv` (`source .venv/bin/activate` first).
+- `npm run stills` — `tools/stills.py`: 2560×1440 path-traced stills of the 12 day views into `renders/` (`--samples N` default 96, `--views a,b`, `--night`, `--focal mm`, `--fstop f`; ~7–11 min per still at 96 samples on an M4; needs `SHOT_GPU=1`). `renders/` is gitignored (143 MB for 15 stills); wc, corridor, closet and hall there predate the white-balance fix, hall also the closet change: re-render with `--views wc,corridor,hall,closet`. A timed-out or failed still reloads the page and goes on with the next view.
 - `python3 tools/editor_test.py <url> [dir]` — functional test of the in-page editor.
+- `python3 tools/chat_test.py <url>` — test of the in-app assistant against a mocked `/api/chat` (no Claude API call).
 - Python needs `pip install playwright pillow numpy`; Chromium is taken from `CHROME_PATH` or `/opt/pw-browsers/chromium`.
+
+## Local setup
+- Prerequisites: Node 20+ and `npm install`; Python 3 venv (`python3 -m venv .venv && source .venv/bin/activate && pip install playwright pillow numpy && playwright install chromium`); Vercel CLI (`npm i -g vercel`, then `vercel link` once).
+- `.env.local` (gitignored, copy from `.env.example`): `ANTHROPIC_API_KEY` (needed by the assistant); optional `CHAT_PASSWORD`.
+- `npm run dev` — app only, http://localhost:5173 (no assistant).
+- `npm run dev:full` — app + assistant API with `.env.local` loaded, http://127.0.0.1:3000 (`tools/dev-full.sh`; stops with a clear message if `.env.local` or `vercel` is missing).
+- `npm run check` — lint + validate + build.
+- Screenshots / stills: `npm run build && npm run preview`, then in another shell `SHOT_GPU=1 npm run shots` and `SHOT_GPU=1 npm run stills`.
 
 ## How to make a change
 1. Edit `src/plan/palace1.json` (one value where possible). Examples: closet depth → `items[closet-b1].unitDepth`; wardrobe width → `from`/`to`; vanity basins → `basins`; guest shower side → `along`; move a wall → its `from`/`to` (and the room `poly` points on it).
@@ -31,8 +43,15 @@ The owner can make the same edits in the page (Edit plan) and paste the "Copy ch
 - Beds: `anchor` { wall, side, offset along the wall, gap } or free `pos` + `rot`.
 - `coversWall` (margin in m) makes wall mouldings skip the item. `label` puts the item in the Furniture overlay and table (sizes are measured from what is built).
 - Models: a catalog design marked "(3D model)", a `planter` with `model`, or an item of type `model` (`model` id from `MODELS` in `src/assets.js`, `pos`, `rot`, `h` = height of its base, optional `width`).
+- Lights: `type:"light"` items take `lm` (lumens) and `k` (kelvin); builders' own lamps read `meta.lights.kinds` (lm, K per fixture or per metre); `meta.lights.scale` maps lumens to scene units (one constant). Lamps of rooms without windows are also on in day Photo.
 - `meta.site` (lat, lon, time zone) and `meta.north` (compass bearing of plan north, degrees; 352 was read off a map screenshot and is approximate) drive the sun; `meta.sun` is the default month and hour.
 - Skirting, wall cladding, mouldings, rounded corners and ceiling trays are derived from rooms and walls; nothing is listed by hand.
+
+## Photo render and performance notes
+- Photo (path tracer, `pathtracer.js`): window and rail glass are clear alpha, clearcoat (floor, TV, ...) and the opal lamp material are off in Photo, day sky ×3, 8 bounces; exposure inside 6 / outside 0.5 by day, 0.75 / 1.3 at night; downlights come from room spots, lamps of windowless rooms are on in day Photo at ×0.2 and 5200 K (white-balanced), LED coves are RectAreaLights at night. Lens Auto/18/24/35/50 mm and DOF f/1.4–f/11 (focus on the orbit target). `window.__still({view, samples, w, h, night, focal, fstop})` rejects if a still is running or Photo drops.
+- Sun shadow map is refreshed only on change (`markShadows()`: sun, night, Cut, rebuilds, drags, model swap-in, ceiling toggle); its frustum is fitted to the apartment along the sun (0.9–5.0 mm per texel). Cascaded shadows were skipped (the fit made contact shadows fine, the shadow pass costs ~3 ms).
+- Desktop: while the camera moves, pixel ratio ≤ 1.25 and no AO/bloom; full quality 8 frames after it stops (1080p: 13.9 → 44 fps). Phones: AO off (60 fps in iPhone 14 emulation).
+- Textures stay WebP (KTX2 was tried: UASTC normals 8.3 MB vs 2.4 MB WebP, ETC1S normals blocky).
 
 ## Owner preferences
 - Replies: blunt, short, no filler, no questions, no offers. State what changed and stop.
@@ -45,8 +64,8 @@ Plan coordinates `(x, y)` in metres, x → east, y → south, origin at the NW i
 
 | Room | x | y | Notes |
 |---|---|---|---|
-| Bedroom 1 | 0–4.59 | 0–3.98 | door on east wall y 3.05–3.85; west wall: window y 1.63–2.83, balcony door y 2.84–3.61 |
-| B1 walk-in closet | 3.29–4.59 | 0–2.95 | partition x 3.19–3.29; arched entry in wall y 2.95–3.05 (opening x 3.32–4.0); sliding door |
+| Bedroom 1 | 0–2.89 (lobe to 4.59 at y 3.05–3.98) | 0–3.98 | door on east wall y 3.05–3.85; west wall: window y 1.63–2.83, balcony door y 2.84–3.61 |
+| B1 walk-in closet | 2.99–4.59 | 0–2.95 | partition x 2.89–2.99; arched entry in wall y 2.95–3.05 (opening x 3.32–4.0); sliding door |
 | Bedroom 2 | 0–5.06 | 4.08–7.13 | door on east wall y 4.89–5.79; west wall: balcony door y 4.74–5.48, window y 5.48–6.71 |
 | Bathroom | 4.69–7.07 | 0–2.77 | riser shaft x 4.98–6.29, y 0–0.48; door x 5.47–6.27 in south wall |
 | Corridor | 4.69–7.07 | 2.87–4.40 | open to hall (no arch) |
@@ -58,8 +77,8 @@ Plan coordinates `(x, y)` in metres, x → east, y → south, origin at the NW i
 | East balcony (main) | 13.87–15.89 | 0–7.13 | doors y 1.69–2.48 and 4.71–5.51 |
 
 ## Current furniture plan (Soft classic)
-- **Bedroom 1**: bed 1.60 × 2.00, headboard on the closet partition (x 3.19), faces west to the balcony; nightstands (2.95, 0.44) and (2.95, 2.80); beauty table x 0.6–1.7 on the south wall + 0.40 m organiser x 1.72–2.12 (3 drawers, 2 open shelves, h 1.27).
-- **B1 closet**: east unit x 4.29–4.59, north unit y 0.02–0.32, west shelves x 3.29–3.54; face-out hanging; aisle 0.75.
+- **Bedroom 1**: bed 1.60 × 2.00, headboard on the closet partition (x 2.89), faces west to the balcony; nightstands (2.65, 0.44) and (2.65, 2.74); beauty table x 0.6–1.7 on the south wall + 0.40 m organiser x 1.72–2.12 (3 drawers, 2 open shelves, h 1.27).
+- **B1 closet**: east unit x 4.29–4.59, north unit y 0.02–0.32, west shelves x 2.99–3.24; face-out hanging; aisle 1.05.
 - **Bedroom 2**: bed headboard on south wall (cx 1.55); hinged wardrobe x 2.95–5.06, y 6.53–7.13, h 2.60; desk at (2.9, 4.43) on the north wall.
 - **Bathroom**: tub x 4.69–5.44, y 0.48–2.18; walk-in shower x 6.29–7.07, y 0–1.45; WC x 5.70–6.06 on the shaft; double vanity x 6.62–7.065, y 1.50–2.75.
 - **Corridor**: washer + dryer tower y 2.89–3.60 and wardrobe y 3.60–4.38, both x 6.43–7.07.
@@ -74,6 +93,8 @@ Plan coordinates `(x, y)` in metres, x → east, y → south, origin at the NW i
 - `arch/shell.js` — `buildArchitecture`: slabs, floors, walls, openings, door leaves, skirting, cladding, mouldings, corners, ceilings from the plan · `arch/walls.js` — `wallRun`, glazing, `door`, `skirt` · `arch/soft.js` — `softPanels`, `softArch`, `softBullnose`, `softTray`
 - `items/` — one parametric builder per item type: `loose.js` (bed, nightstand, rug, planter, curtain, wall art, light…), `hall.js`, `kitchen.js`, `storage.js` (wardrobe, laundry tower, walk-in closet, sliding door, bookshelf, built-in desk), `bath.js` (tub, shower, WC, vanity…), `living.js` (TV wall, beauty table, terrace sofa); `index.js` = registry + `buildItem`
 - `catalog.js` — `DESIGNS`: swappable free-furniture designs · `furniture/` — shared shape helpers (`cab` cabinet run, `bed`, chairs, plants, decor)
+- `api/chat.js` (repo root, Vercel function) + `ui/chat.js` — in-app assistant: the browser sends the conversation, the function adds the system prompt and the `apply_changes` tool and calls Claude (`claude-opus-5-5`); edits are applied in the browser as undoable steps and the check findings go back as the tool result. Needs `ANTHROPIC_API_KEY` in the Vercel project; optional `CHAT_PASSWORD`. Not available in `npm run dev` (use `vercel dev`) or the single-file build.
+- `lights.js` — lumen helpers (`kindOf`, `pointCd`, `spotCd`, `stripNits`, `kelvin`), built-in default kinds when a plan has no `meta.lights`, `isWindowless` · `furniture/pulls.js` — cabinet pulls (brass bar / knob / edge pull, merged per cabinet run) · `tools/stills.py` (stills) · `tools/launch.py` (shared Chromium launcher, `SHOT_GPU=1`)
 - `build.js` — `buildAll()` (after structural edits) and `rebuildItem(id)`
 - `assets.js` — model and scanned-map loading (`MODELS`, `instance`, `swapIn`, `upgradeMaterials`); `lighting.js` — `solar()`, `setSun()`, sky
 - `scene.js` — renderer, scene, camera, `world`, `movables`, and `state` (all shared mutable state). `textures.js`, `materials.js` (`M`), `lighting.js`, `post.js`, `pathtracer.js`, `primitives.js` (`B` box, `RB` rounded box, `C`, `S`, `lathe`, `tube`…)

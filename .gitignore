@@ -2,3 +2,10 @@ node_modules/
 dist/
 shots/
 dist-single/
+.env
+.env.*
+!.env.example
+.vercel/
+.venv/
+.DS_Store
+renders/

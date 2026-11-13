@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { V3 } from '../scene.js';
+import { coveLight } from '../lighting.js';
 import { M } from '../materials.js';
 import { add, merged } from '../primitives.js';
 import { H } from '../plan/plan.js';
@@ -52,4 +53,5 @@ export function softTray(x1, y1, x2, y2, border, r, softCeil, drop = .16) { // c
   merged(ribs, M.ceiling, { parent: softCeil, cast: false });
   const c = new THREE.CurvePath(); for (let i = 0; i < inner.length; i++) { const [ax, ay] = inner[i], [bx, by] = inner[(i + 1) % inner.length]; c.add(new THREE.LineCurve3(new V3(ax, H - .012, ay), new V3(bx, H - .012, by))); }
   add(new THREE.TubeGeometry(c, inner.length * 3, .007, 6, true), M.led, 0, 0, 0, { parent: softCeil, cast: false, uv: false });
+  for (let i = 0; i < inner.length; i++) { const [ax, ay] = inner[i], [bx, by] = inner[(i + 1) % inner.length]; if (Math.hypot(bx - ax, by - ay) > .4) coveLight(ax, ay, bx, by, H - .03); }
 }

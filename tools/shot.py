@@ -1,15 +1,16 @@
 """Headless screenshots. Usage: python3 tools/shot.py <url-or-file> view1,view2[:night] [outdir=shots]  -> <outdir>/<view>.png
-Set CHROME_PATH to use a specific Chromium binary (defaults to /opt/pw-browsers/chromium if present).
+Set CHROME_PATH to use a specific Chromium binary; SHOT_GPU=1 uses the real GPU (see launch.py).
 Needs: pip install playwright; a Chromium Playwright can launch. Software GL is slow (~40 s per view)."""
 import asyncio, sys, os
 from playwright.async_api import async_playwright
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from launch import launch
 async def main():
     target, views = sys.argv[1], sys.argv[2].split(',')
     if not target.startswith('http'): target = 'file://' + os.path.abspath(target)
     out = sys.argv[3] if len(sys.argv) > 3 else 'shots'; os.makedirs(out, exist_ok=True)
-    exe = os.environ.get('CHROME_PATH') or ('/opt/pw-browsers/chromium' if os.path.exists('/opt/pw-browsers/chromium') else None)
     async with async_playwright() as p:
-        b = await p.chromium.launch(executable_path=exe, args=["--use-gl=angle", "--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist"])
+        b = await launch(p)
         pg = await b.new_page(viewport={'width': 1200, 'height': 720}); errs = []
         pg.on('console', lambda m: errs.append(m.type + ': ' + m.text) if m.type == 'error' else None); pg.on('pageerror', lambda e: errs.append('PAGE: ' + str(e)))
         await pg.goto(target); await pg.wait_for_selector('#loader[hidden]', state='attached', timeout=240000)
