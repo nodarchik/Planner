@@ -19,7 +19,8 @@ export function applyPatch(base, patch) {
     out[k] = out[k].filter(o => !p.remove.includes(o.id));
     for (const o of out[k]) { Object.assign(o, structuredClone(p.set[o.id] || {})); for (const f of p.unset[o.id] || []) delete o[f]; }
     out[k].push(...structuredClone(p.add)); }
-  for (const k of ['meta', 'views']) if (patch[k]) out[k] = structuredClone(patch[k]);
+  if (patch.views) out.views = structuredClone(patch.views);
+  if (patch.meta) out.meta = { ...structuredClone(base.meta), ...structuredClone(patch.meta) }; // old patches may lack newer meta keys (lights)
   return out;
 }
 export const isEmpty = patch => !Object.keys(patch).length;

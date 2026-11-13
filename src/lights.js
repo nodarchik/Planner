@@ -2,9 +2,11 @@ import * as THREE from 'three';
 import { plan } from './plan/plan.js';
 
 // Lumens are the truth between lamps; meta.lights.scale maps them into this scene's (non-physical) units.
-const L = () => plan.meta.lights || { scale: .05, kinds: {} };
+const DEFAULT = { scale: .018, kinds: { pendant: { lm: 1000, k: 3000 }, closetPendant: { lm: 600, k: 3000 }, sconce: { lm: 400, k: 3000 }, tableLamp: { lm: 450, k: 3000 }, floorLamp: { lm: 800, k: 3000 },
+  downlight: { lm: 400, k: 3000 }, coveStrip: { lm: 600, k: 3000 }, mirrorLight: { lm: 650, k: 3000 }, shelfStrip: { lm: 300, k: 3000 }, tvGlow: { lm: 100, k: 6500 } } };
+const L = () => plan.meta.lights || DEFAULT;
 export const lightScale = () => L().scale;
-export function kindOf(kind) { const k = L().kinds[kind]; if (!k) throw new Error(`plan: unknown light kind "${kind}" (meta.lights.kinds)`); return k; }
+export function kindOf(kind) { const k = L().kinds[kind] || DEFAULT.kinds[kind]; if (!k) throw new Error(`plan: unknown light kind "${kind}" (meta.lights.kinds)`); return k; }
 export const pointCd = lm => lm / (4 * Math.PI) * lightScale();
 export const spotCd = (lm, half) => lm / (2 * Math.PI * (1 - Math.cos(half))) * lightScale();
 export const stripNits = (lm, area) => lm / (Math.PI * area) * lightScale();
