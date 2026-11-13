@@ -12,18 +12,16 @@
       "scale": 0.018,
       "note": "lm = lumens per fixture (per metre for strips); scale maps lumens to scene units",
       "kinds": {
-      "pendant": {"lm": 1000, "k": 3000},
-      "closetPendant": {"lm": 600, "k": 3000},
-      "sconce": {"lm": 400, "k": 3000},
-      "tableLamp": {"lm": 450, "k": 3000},
-      "floorLamp": {"lm": 800, "k": 3000},
-      "downlight": {"lm": 400, "k": 3000},
-      "underCabinet": {"lm": 500, "k": 3000},
-      "coveStrip": {"lm": 600, "k": 3000},
-      "mirrorLight": {"lm": 650, "k": 3000},
-      "shelfStrip": {"lm": 300, "k": 3000},
-      "closetStrip": {"lm": 400, "k": 3000},
-      "tvGlow": {"lm": 100, "k": 6500}
+        "pendant": {"lm": 1000, "k": 3000},
+        "closetPendant": {"lm": 600, "k": 3000},
+        "sconce": {"lm": 400, "k": 3000},
+        "tableLamp": {"lm": 450, "k": 3000},
+        "floorLamp": {"lm": 800, "k": 3000},
+        "downlight": {"lm": 400, "k": 3000},
+        "coveStrip": {"lm": 600, "k": 3000},
+        "mirrorLight": {"lm": 650, "k": 3000},
+        "shelfStrip": {"lm": 300, "k": 3000},
+        "tvGlow": {"lm": 100, "k": 6500}
       }
     },
     "style": {"preset": "soft", "wallTint": "#e9ddcc", "ceilingTint": "#f3ebe0", "trimTint": "#eadfcf"},

@@ -74,7 +74,6 @@ export function fitShadow() {
   Object.assign(c, { left: l, right: r, bottom: b, top: t, near: Math.max(.1, n - 1), far: f + 1 }); c.updateProjectionMatrix();
   sun.shadow.bias = -.0068 / (c.far - c.near); // ~7 mm of depth offset whatever the frustum depth
   markShadows(); }
-window.__sunShadow = () => { const c = sun.shadow.camera, s = sun.shadow.mapSize.x; return { w: c.right - c.left, h: c.top - c.bottom, depth: c.far - c.near, mmX: 1e3 * (c.right - c.left) / s, mmY: 1e3 * (c.top - c.bottom) / s, bias: sun.shadow.bias, normalBias: sun.shadow.normalBias }; };
 export function setSun(month, hour) {
   const s = sunDirection(month, hour), up = s.el > 0; SKY.info = s; SKY.sunUp = up; SUN_DIR.copy(up ? s.dir : new V3(s.dir.x, .001, s.dir.z).normalize());
   sun.position.copy(TARGET).addScaledVector(SUN_DIR, 25); fitShadow(); const k = Math.max(0, Math.min(1, Math.sin(s.el * Math.PI / 180) * 2.6));

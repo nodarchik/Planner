@@ -54,7 +54,7 @@ focalSel.onchange = fstopSel.onchange = () => setLens(+focalSel.value, +fstopSel
 export async function setPhoto(on) {
   document.getElementById('pcam').hidden = !on;
   const btn = document.getElementById('photo');
-  if (!on) { if (still) { const s = still; endStill(); s.reject?.(new Error('Photo turned off during the still')); } ptGlass(false); state.photo = false; syncLights(); markShadows(); btn.setAttribute('aria-pressed', 'false'); stillBtn.disabled = true; statusEl.textContent = ''; return; }
+  if (!on) { if (still) { const s = still; endStill(); s.reject?.(new Error('Photo turned off during the still')); } ptGlass(false); scene.environmentIntensity = 1; state.photo = false; syncLights(); markShadows(); btn.setAttribute('aria-pressed', 'false'); stillBtn.disabled = true; statusEl.textContent = ''; return; }
   btn.setAttribute('aria-pressed', 'true');
   try {
     if (!state.pt) { statusEl.textContent = 'Loading renderer…'; await frame();
