@@ -29,9 +29,9 @@ export function rebuildPT() { if (state.photo) state.ptDirty = true; }
 const STILL = { w: 2560, h: 1440, samples: 96 }, stillBtn = document.getElementById('still');
 let still = null;
 function endStill() { const s = still; still = null; renderer.setPixelRatio(s.pr); renderer.setSize(s.size.x, s.size.y); camera.aspect = s.aspect; camera.updateProjectionMatrix(); state.pt.renderScale = s.scale; ptCamera(); stillBtn.textContent = 'Save 2K still'; }
-function startStill(o = {}) { if (!state.photo || !state.pt || still) return;
-  still = { pr: renderer.getPixelRatio(), size: renderer.getSize(new V2()), aspect: camera.aspect, scale: state.pt.renderScale, w: o.w || STILL.w, h: o.h || STILL.h, samples: o.samples || STILL.samples, resolve: o.resolve };
-  renderer.setPixelRatio(1); renderer.setSize(still.w, still.h, false); camera.aspect = still.w / still.h; camera.updateProjectionMatrix(); state.pt.renderScale = 1; if (state.focal) { camera.fov = focalFov(state.focal, camera.aspect); camera.updateProjectionMatrix(); } ptCamera(); stillBtn.textContent = 'Rendering…'; }
+function startStill(o = {}) { if (!state.photo || !state.pt || still) return false;
+  still = { pr: renderer.getPixelRatio(), size: renderer.getSize(new V2()), aspect: camera.aspect, scale: state.pt.renderScale, w: o.w || STILL.w, h: o.h || STILL.h, samples: o.samples || STILL.samples, resolve: o.resolve, reject: o.reject };
+  renderer.setPixelRatio(1); renderer.setSize(still.w, still.h, false); camera.aspect = still.w / still.h; camera.updateProjectionMatrix(); state.pt.renderScale = 1; if (state.focal) { camera.fov = focalFov(state.focal, camera.aspect); camera.updateProjectionMatrix(); } ptCamera(); stillBtn.textContent = 'Rendering…'; return true; }
 // called by the render loop right after a path-traced sample, while the frame is still in the canvas
 export function stillTick() { if (!still) return false; window.__stillSamples = Math.floor(state.pt.samples); statusEl.textContent = `Still · ${window.__stillSamples} / ${still.samples} samples`; if (state.pt.samples < still.samples) return true;
   const s = still, url = renderer.domElement.toDataURL('image/png'); endStill();
@@ -41,11 +41,12 @@ stillBtn.onclick = () => startStill();
 // scripted still (tools/stills.py): resolves with a PNG data URL, then restores view, mood and Photo state
 window.__still = async ({ view, samples, w, h, night = false, focal, fstop } = {}) => {
   const prev = { view: document.getElementById('view').value, night: state.night, photo: state.photo, focal: state.focal, fstop: state.fstop };
+  if (still) throw new Error('a still is already running');
   setLens(focal || 0, fstop || 0);
   document.getElementById(night ? 'mnight' : 'mday').click(); if (view) setView(view, true);
   if (!state.photo) await setPhoto(true); if (!state.photo) throw new Error('Photo render unavailable');
   for (let i = 0; i < 90 && (!window.__settled || state.ptDirty || i < 8); i++) await frame(); // camera, fov and ceiling settled, scene rebuilt
-  const url = await new Promise(resolve => startStill({ w, h, samples, resolve }));
+  const url = await new Promise((resolve, reject) => { if (!startStill({ w, h, samples, resolve, reject })) reject(new Error('still did not start (Photo off or busy)')); });
   document.getElementById(prev.night ? 'mnight' : 'mday').click(); setView(prev.view, true); setLens(prev.focal, prev.fstop); if (!prev.photo) await setPhoto(false); return url; };
 const focalSel = document.getElementById('focal'), fstopSel = document.getElementById('fstop');
 function setLens(focal, fstop) { state.focal = focal; state.fstop = fstop; focalSel.value = String(focal); fstopSel.value = String(fstop); if (state.photo) ptCamera(); }
@@ -53,7 +54,7 @@ focalSel.onchange = fstopSel.onchange = () => setLens(+focalSel.value, +fstopSel
 export async function setPhoto(on) {
   document.getElementById('pcam').hidden = !on;
   const btn = document.getElementById('photo');
-  if (!on) { if (still) endStill(); ptGlass(false); state.photo = false; syncLights(); markShadows(); btn.setAttribute('aria-pressed', 'false'); stillBtn.disabled = true; statusEl.textContent = ''; return; }
+  if (!on) { if (still) { const s = still; endStill(); s.reject?.(new Error('Photo turned off during the still')); } ptGlass(false); state.photo = false; syncLights(); markShadows(); btn.setAttribute('aria-pressed', 'false'); stillBtn.disabled = true; statusEl.textContent = ''; return; }
   btn.setAttribute('aria-pressed', 'true');
   try {
     if (!state.pt) { statusEl.textContent = 'Loading renderer…'; await frame();

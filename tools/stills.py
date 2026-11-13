@@ -16,14 +16,18 @@ async def main():
         await pg.goto(a.url); await pg.wait_for_selector('#loader[hidden]', state='attached', timeout=240000)
         await pg.wait_for_function('window.__assetsReady !== false', timeout=240000)
         for v in a.views.split(','):
-            t0 = time.time(); await pg.evaluate('window.__stillSamples = 0')
+            t0 = time.time(); timed_out = False; await pg.evaluate('window.__stillSamples = 0')
             task = asyncio.ensure_future(pg.evaluate('o => window.__still(o)', {'view': v, 'samples': a.samples, 'w': w, 'h': h, 'night': a.night, 'focal': a.focal, 'fstop': a.fstop}))
             while not task.done():
                 await asyncio.wait([task], timeout=10)
                 if task.done(): break
                 n = await pg.evaluate('window.__stillSamples || 0'); print(f'{v}: {n}/{a.samples} samples, {time.time() - t0:.0f}s', flush=True)
-                if time.time() - t0 > a.timeout: task.cancel(); print(f'{v}: timeout after {a.timeout}s', flush=True); break
-            if task.cancelled(): continue
+                if time.time() - t0 > a.timeout: task.cancel(); timed_out = True; print(f'{v}: timeout after {a.timeout}s', flush=True); break
+            failed = timed_out or task.exception()
+            if failed:
+                if not timed_out: print(f'{v}: failed: {task.exception()}', flush=True)
+                await pg.close(); pg = await b.new_page(viewport={'width': 1200, 'height': 720}); pg.on('console', lambda m: errs.append(m.type + ': ' + m.text) if m.type == 'error' else None); pg.on('pageerror', lambda e: errs.append('PAGE: ' + str(e)))
+                await pg.goto(a.url); await pg.wait_for_selector('#loader[hidden]', state='attached', timeout=240000); await pg.wait_for_function('window.__assetsReady !== false', timeout=240000); continue  # fresh page: the old still keeps running in the old one
             url = task.result(); path = f'{a.outdir}/{v}.png' if not (a.focal or a.fstop) else f'{a.outdir}/{v}_{a.focal:g}mm_f{a.fstop:g}.png'; open(path, 'wb').write(base64.b64decode(url.split(',', 1)[1]))
             print(f'{v}: saved {path} in {time.time() - t0:.0f}s', flush=True)
         print('\n'.join(errs[:15])); await b.close()
