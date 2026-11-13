@@ -1,5 +1,5 @@
 // Walk mode: first-person camera at eye height with 2D collision against the plan (src/plan/walk.js).
-import { camera, controls, renderer, state } from '../scene.js';
+import { MOBILE, camera, controls, renderer, state } from '../scene.js';
 import { plan } from '../plan/plan.js';
 import { pointInPoly } from '../plan/geom.js';
 import { moveCircle, walkSolids } from '../plan/walk.js';
@@ -8,7 +8,7 @@ import { applyCut } from './toolbar.js';
 import { setMove } from './editor.js';
 
 const $ = id => document.getElementById(id), EYE = 1.6, RADIUS = .25, SPEED = 1.4, RUN = 2.5, SENS = .0022, PITCH = 1.4, HINT = 'Drag rotate · Right-drag pan · Scroll zoom';
-const dom = renderer.domElement, keys = new Set();
+const dom = renderer.domElement, keys = new Set(), joy = [0, 0]; // joy = stick x (right), y (down), each -1..1
 let pos = [0, 0], yaw = 0, pitch = 0, prev = null, rects = [], ver = -1, dirty = false, locked = false;
 
 const solids = () => { if (ver !== state.planVer) { ver = state.planVer; rects = walkSolids(plan); } return rects; };
@@ -29,9 +29,9 @@ export function teleport(name) {
 // advance by dt seconds; true if the view changed
 export function step(dt) {
   dt = Math.min(dt, .1);
-  const f = (keys.has('KeyW') || keys.has('ArrowUp') ? 1 : 0) - (keys.has('KeyS') || keys.has('ArrowDown') ? 1 : 0), s = (keys.has('KeyD') || keys.has('ArrowRight') ? 1 : 0) - (keys.has('KeyA') || keys.has('ArrowLeft') ? 1 : 0);
+  const f = (keys.has('KeyW') || keys.has('ArrowUp') ? 1 : 0) - (keys.has('KeyS') || keys.has('ArrowDown') ? 1 : 0) - joy[1], s = (keys.has('KeyD') || keys.has('ArrowRight') ? 1 : 0) - (keys.has('KeyA') || keys.has('ArrowLeft') ? 1 : 0) + joy[0];
   let moved = dirty; dirty = false;
-  if (f || s) { const n = Math.hypot(f, s), v = (keys.has('ShiftLeft') || keys.has('ShiftRight') ? RUN : SPEED) * dt / n, cy = Math.cos(yaw), sy = Math.sin(yaw);
+  if (f || s) { const n = Math.hypot(f, s), run = keys.has('ShiftLeft') || keys.has('ShiftRight') || Math.hypot(joy[0], joy[1]) > .95, v = (run ? RUN : SPEED) * dt * Math.min(1, n) / n, cy = Math.cos(yaw), sy = Math.sin(yaw);
     const q = moveCircle(pos, [(-sy * f + cy * s) * v, (-cy * f - sy * s) * v], RADIUS, solids()); moved = moved || q[0] !== pos[0] || q[1] !== pos[1]; pos = q; }
   if (moved) place(); return moved;
 }
@@ -39,12 +39,12 @@ export function step(dt) {
 export function enter() {
   if (state.walk) return;
   if (state.photo) setPhoto(false); applyCut(false); setMove(false);
-  prev = { p: camera.position.clone(), t: controls.target.clone() }; state.walk = true; $('walk').setAttribute('aria-pressed', 'true'); $('hint').textContent = 'W A S D / arrows move · Shift runs · click the view, then move the mouse to look · Esc leaves';
-  const t = controls.target; pitch = 0; keys.clear(); state.anim = null; controls.enabled = false;
+  prev = { p: camera.position.clone(), t: controls.target.clone() }; state.walk = true; document.body.classList.add('walking'); $('walk').setAttribute('aria-pressed', 'true'); $('hint').textContent = 'W A S D / arrows move · Shift runs · click the view, then move the mouse to look · Esc leaves'; if (MOBILE) $('hint').textContent = 'Left stick moves · drag to look';
+  const t = controls.target; pitch = 0; keys.clear(); joy[0] = joy[1] = 0; state.anim = null; controls.enabled = false;
   if (free(t.x, t.z)) { pos = [t.x, t.z]; face([camera.position.x, camera.position.z], pos); if (Math.hypot(pos[0] - camera.position.x, pos[1] - camera.position.z) < .3) yaw = 0; dirty = true; place(); } else teleport('entrance');
 }
 export function leave() {
-  if (!state.walk) return; state.walk = false; keys.clear(); controls.enabled = true; $('walk').setAttribute('aria-pressed', 'false'); if (!state.moveMode) $('hint').textContent = HINT;
+  if (!state.walk) return; state.walk = false; document.body.classList.remove('walking'); keys.clear(); joy[0] = joy[1] = 0; controls.enabled = true; $('walk').setAttribute('aria-pressed', 'false'); if (!state.moveMode) $('hint').textContent = HINT;
   if (document.pointerLockElement === dom) document.exitPointerLock();
   state.anim = { from: { p: camera.position.clone(), t: controls.target.clone() }, to: { p: prev.p, t: prev.t }, t0: performance.now() };
 }
@@ -58,8 +58,19 @@ addEventListener('keyup', ev => keys.delete(ev.code)); addEventListener('blur', 
 const look = (dx, dy) => { yaw -= dx * SENS; pitch = Math.max(-PITCH, Math.min(PITCH, pitch - dy * SENS)); dirty = true; };
 dom.addEventListener('pointerdown', ev => { if (state.walk && ev.pointerType === 'mouse' && ev.button === 0 && !locked) { document.activeElement?.blur?.(); try { dom.requestPointerLock()?.catch?.(() => {}); } catch (e) { /* drag-look below */ } } });
 dom.addEventListener('pointermove', ev => { if (state.walk && ev.pointerType === 'mouse' && (locked || ev.buttons & 1)) look(ev.movementX, ev.movementY); });
+let lp = null; // touch finger that looks around: { id, x, y }
+dom.addEventListener('pointerdown', ev => { if (state.walk && ev.pointerType !== 'mouse' && !lp) lp = { id: ev.pointerId, x: ev.clientX, y: ev.clientY }; });
+dom.addEventListener('pointermove', ev => { if (lp && ev.pointerId === lp.id) { look(ev.clientX - lp.x, ev.clientY - lp.y); lp.x = ev.clientX; lp.y = ev.clientY; } });
+for (const t of ['pointerup', 'pointercancel']) dom.addEventListener(t, ev => { if (lp && ev.pointerId === lp.id) lp = null; });
+const stick = $('joy'), knob = $('knob'), SR = 40; // stick radius in px
+const drive = ev => { const b = stick.getBoundingClientRect(); let x = ev.clientX - b.left - b.width / 2, y = ev.clientY - b.top - b.height / 2; const d = Math.hypot(x, y); if (d > SR) { x *= SR / d; y *= SR / d; }
+  joy[0] = x / SR; joy[1] = y / SR; knob.style.transform = `translate(${x}px,${y}px)`; };
+const rest = () => { joy[0] = joy[1] = 0; knob.style.transform = ''; };
+stick.addEventListener('pointerdown', ev => { stick.setPointerCapture(ev.pointerId); drive(ev); });
+stick.addEventListener('pointermove', ev => { if (stick.hasPointerCapture(ev.pointerId)) drive(ev); });
+stick.addEventListener('pointerup', rest); stick.addEventListener('pointercancel', rest);
 document.addEventListener('pointerlockchange', () => { const was = locked; locked = document.pointerLockElement === dom; if (was && !locked) leave(); });
 
 state.teleport = teleport; // setView teleports while walking
-window.__walk = { get on() { return state.walk; }, get pos() { return [...pos]; }, get yaw() { return yaw; }, setPos: (x, y) => { pos = [x, y]; dirty = true; place(); }, look: (y, p = 0) => { yaw = y; pitch = p; dirty = true; place(); },
+window.__walk = { get on() { return state.walk; }, get pos() { return [...pos]; }, get yaw() { return yaw; }, setPos: (x, y) => { pos = [x, y]; dirty = true; place(); }, joy, look: (y, p = 0) => { yaw = y; pitch = p; dirty = true; place(); },
   key: (code, down = true) => (down ? keys.add(code) : keys.delete(code)), step, enter, leave, teleport, free };

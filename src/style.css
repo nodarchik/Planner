@@ -154,3 +154,8 @@ canvas{touch-action:none}
 .chatpanel .note{font-size:10px;color:var(--muted)}
 #chatBtn[aria-pressed="true"]{background:var(--accent);color:#fff}
 @media (max-width:700px), (pointer:coarse){.chatpanel{left:0;right:0;bottom:0;width:auto;max-height:70vh;border-radius:16px 16px 0 0;padding-bottom:calc(12px + env(safe-area-inset-bottom,0px));z-index:9}.chatpanel textarea,.chatpanel input{font-size:16px}.chatpanel button{min-height:40px}}
+
+/* walk mode: on-screen stick on touch screens and phones; panels that would sit under it are hidden */
+.joy{display:none;position:fixed;z-index:5;left:max(24px,env(safe-area-inset-left,0px));bottom:calc(32px + env(safe-area-inset-bottom,0px));width:112px;height:112px;border-radius:50%;background:color-mix(in srgb,var(--panel) 60%,transparent);border:1px solid var(--line);touch-action:none;user-select:none}
+.joy .knob{position:absolute;left:36px;top:36px;width:40px;height:40px;border-radius:50%;background:var(--panel);border:1px solid var(--fg);pointer-events:none}
+@media (max-width:700px), (pointer:coarse){body.walking .joy{display:block}body.walking .spec,body.walking .layouts{display:none}.chatpanel:not([hidden]) ~ .joy,.selpanel:not([hidden]) ~ .joy{display:none}}
