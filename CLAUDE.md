@@ -5,6 +5,7 @@ Interactive, photoreal-leaning 3D model of one real apartment ("Palace 1", Tbili
 ## Current state
 - Vite + vanilla ES modules, three 0.160 + three-gpu-pathtracer. Procedural geometry and textures, plus CC0 Poly Haven assets in `public/assets/` (13 models, scanned normal/roughness maps, sky HDRI; sources in `assets/CREDITS.md`). Every asset has a procedural fallback.
 - **The apartment is data: `src/plan/palace1.json`** (rooms, walls with openings, blocks, items, views). Code in `src/` builds whatever the file says. A layout or furniture request is an edit to that file, not to code.
+- Photo render (path tracer), stills hook, lamps in lumens, cabinet bevels and pulls, shadow and orbit performance work are done (PLAN.md Phases 6–8 status).
 - `PLAN.md` — the refactor + realism plan and its status.
 - `legacy/palace-apartment.html` — the original single-file app (Claude artifact version 22). Reference only; do not edit.
 - `baseline/*.png` — 13 reference screenshots (12 views day + `top_night`) of the current plan with models, scanned maps and sky loaded. Recapture them after any intended visual change.
@@ -16,6 +17,7 @@ Interactive, photoreal-leaning 3D model of one real apartment ("Palace 1", Tbili
 - `node tools/fetch_assets.mjs` / `node tools/fetch_textures.mjs` — re-download and convert the Poly Haven assets (needs network access to polyhaven.com).
 - `npm run shots` — 13 screenshots of the preview server into `shots/` (~40 s with `SHOT_GPU=1` on an M4; ~22 min with default software GL); `npm run shots:diff` — compare with `baseline/` (fails above 2 % differing pixels; identical builds differ by 0.1–1.5 % on GPU (software-GL and GPU shots differ by 1–3 %, so keep the baseline from one mode) from unseeded ambient-occlusion noise, so also look at `shots/diff/*.png`: grain is noise, shapes are real changes).
 - `SHOT_GPU=1 npm run shots` (also `tools/editor_test.py`) launches Chromium on the real GPU (ANGLE Metal on macOS) instead of SwiftShader; default stays software GL. `tools/launch.py` is the shared launcher; without CHROME_PATH or /opt/pw-browsers it uses Playwright's own Chromium. If system Python refuses pip, use `.venv` (`source .venv/bin/activate` first).
+- `npm run stills` — `tools/stills.py`: 2560×1440 path-traced stills of the 12 day views into `renders/` (`--samples N` default 96, `--views a,b`, `--night`, `--focal mm`, `--fstop f`; ~7–11 min per still at 96 samples on an M4; needs `SHOT_GPU=1`). `renders/` is gitignored (143 MB for 15 stills); wc, corridor, closet and hall there predate the white-balance fix, hall also the closet change: re-render with `--views wc,corridor,hall,closet`. A timed-out or failed still reloads the page and goes on with the next view.
 - `python3 tools/editor_test.py <url> [dir]` — functional test of the in-page editor.
 - `python3 tools/chat_test.py <url>` — test of the in-app assistant against a mocked `/api/chat` (no Claude API call).
 - Python needs `pip install playwright pillow numpy`; Chromium is taken from `CHROME_PATH` or `/opt/pw-browsers/chromium`.
@@ -44,6 +46,12 @@ The owner can make the same edits in the page (Edit plan) and paste the "Copy ch
 - Lights: `type:"light"` items take `lm` (lumens) and `k` (kelvin); builders' own lamps read `meta.lights.kinds` (lm, K per fixture or per metre); `meta.lights.scale` maps lumens to scene units (one constant). Lamps of rooms without windows are also on in day Photo.
 - `meta.site` (lat, lon, time zone) and `meta.north` (compass bearing of plan north, degrees; 352 was read off a map screenshot and is approximate) drive the sun; `meta.sun` is the default month and hour.
 - Skirting, wall cladding, mouldings, rounded corners and ceiling trays are derived from rooms and walls; nothing is listed by hand.
+
+## Photo render and performance notes
+- Photo (path tracer, `pathtracer.js`): window and rail glass are clear alpha, clearcoat (floor, TV, ...) and the opal lamp material are off in Photo, day sky ×3, 8 bounces; exposure inside 6 / outside 0.5 by day, 0.75 / 1.3 at night; downlights come from room spots, lamps of windowless rooms are on in day Photo at ×0.2 and 5200 K (white-balanced), LED coves are RectAreaLights at night. Lens Auto/18/24/35/50 mm and DOF f/1.4–f/11 (focus on the orbit target). `window.__still({view, samples, w, h, night, focal, fstop})` rejects if a still is running or Photo drops.
+- Sun shadow map is refreshed only on change (`markShadows()`: sun, night, Cut, rebuilds, drags, model swap-in, ceiling toggle); its frustum is fitted to the apartment along the sun (0.9–5.0 mm per texel). Cascaded shadows were skipped (the fit made contact shadows fine, the shadow pass costs ~3 ms).
+- Desktop: while the camera moves, pixel ratio ≤ 1.25 and no AO/bloom; full quality 8 frames after it stops (1080p: 13.9 → 44 fps). Phones: AO off (60 fps in iPhone 14 emulation).
+- Textures stay WebP (KTX2 was tried: UASTC normals 8.3 MB vs 2.4 MB WebP, ETC1S normals blocky).
 
 ## Owner preferences
 - Replies: blunt, short, no filler, no questions, no offers. State what changed and stop.
@@ -86,6 +94,7 @@ Plan coordinates `(x, y)` in metres, x → east, y → south, origin at the NW i
 - `items/` — one parametric builder per item type: `loose.js` (bed, nightstand, rug, planter, curtain, wall art, light…), `hall.js`, `kitchen.js`, `storage.js` (wardrobe, laundry tower, walk-in closet, sliding door, bookshelf, built-in desk), `bath.js` (tub, shower, WC, vanity…), `living.js` (TV wall, beauty table, terrace sofa); `index.js` = registry + `buildItem`
 - `catalog.js` — `DESIGNS`: swappable free-furniture designs · `furniture/` — shared shape helpers (`cab` cabinet run, `bed`, chairs, plants, decor)
 - `api/chat.js` (repo root, Vercel function) + `ui/chat.js` — in-app assistant: the browser sends the conversation, the function adds the system prompt and the `apply_changes` tool and calls Claude (`claude-opus-5-5`); edits are applied in the browser as undoable steps and the check findings go back as the tool result. Needs `ANTHROPIC_API_KEY` in the Vercel project; optional `CHAT_PASSWORD`. Not available in `npm run dev` (use `vercel dev`) or the single-file build.
+- `lights.js` — lumen helpers (`kindOf`, `pointCd`, `spotCd`, `stripNits`, `kelvin`), built-in default kinds when a plan has no `meta.lights`, `isWindowless` · `furniture/pulls.js` — cabinet pulls (brass bar / knob / edge pull, merged per cabinet run) · `tools/stills.py` (stills) · `tools/launch.py` (shared Chromium launcher, `SHOT_GPU=1`)
 - `build.js` — `buildAll()` (after structural edits) and `rebuildItem(id)`
 - `assets.js` — model and scanned-map loading (`MODELS`, `instance`, `swapIn`, `upgradeMaterials`); `lighting.js` — `solar()`, `setSun()`, sky
 - `scene.js` — renderer, scene, camera, `world`, `movables`, and `state` (all shared mutable state). `textures.js`, `materials.js` (`M`), `lighting.js`, `post.js`, `pathtracer.js`, `primitives.js` (`B` box, `RB` rounded box, `C`, `S`, `lathe`, `tube`…)

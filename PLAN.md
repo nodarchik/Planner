@@ -12,9 +12,9 @@ Goal: the same apartment, (1) changeable by editing data instead of code, (2) ed
 | 3 Plan as data | done | `src/plan/palace1.json`; matched baseline within noise before random details became per-item |
 | 4 Checks | done | Plan notes panel + `npm run validate`; current plan: 3 errors, 8 warnings (real findings, not fixed) |
 | 5 Editor | done | 20 functional checks in `tools/editor_test.py`; openings move by typed value, not by drag; not tried on a phone |
-| 6 Models + materials | partial | 13 Poly Haven models, scanned normal/roughness maps. Missing: sanitaryware, appliances, sofa, bed (no fitting CC0 source), KTX2, bevels, handle models, phone frame rate |
-| 7 Lighting + detail | partial | Sun by month/time from site + `meta.north`, scanned sky backdrop, door switches, 2K still button (untested). Missing: 12 stills, cascaded shadows, lumen night lights, DOF, sockets/AC/radiators |
-| 8 Deploy | partial | Vercel project `palace1`, all deployments behind Vercel login; `npm run build:single` for the artifact. Missing: production on `main`, shared edit storage |
+| 6 Models + materials | done except owner files | 13 Poly Haven models, scanned normal/roughness maps, 2 mm cabinet bevels, brass pulls (`src/furniture/pulls.js`). Skipped: KTX2 (UASTC normals 8.3 MB vs 2.4 MB WebP, ETC1S blocky, plus a transcoder: the download would grow), so WebP stays. Missing: sanitaryware, appliances, sofa, bed models (no fitting CC0 source, need manufacturer files) |
+| 7 Lighting + detail | done except details | Sun from site + `meta.north`, sky, lamps in lumens, Photo render (lens, DOF, 8 bounces, exposure per mood), 15 path-traced stills in `renders/` (96 samples, 143 MB, gitignored; wc, corridor, closet are from before the day white-balance fix, hall also from before the closet change: re-render with `SHOT_GPU=1 python3 tools/stills.py http://localhost:4173/ renders --samples 96 --views wc,corridor,hall,closet`; bed1 stills show dark patches on the bed frame, cause not found), shadow refresh on change + fitted frustum. Skipped: cascaded shadows (not needed after the fit), OIDN denoise (stills are 96 samples, grain is visible at 100 %). Missing: sockets, AC units, radiators |
+| 8 Deploy | partial | Vercel project `palace1`, all deployments behind Vercel login; `npm run build:single`; in-app assistant verified with real requests through `vercel dev`; `npm run dev:full` local setup. Missing: production on `main`, shared edit storage |
 | 9 Measured reality | not started | needs site measurements |
 
 
@@ -147,7 +147,7 @@ Acceptance: side-by-side with baseline shows models in all rooms; mobile still i
 5. Detail pass from data (`rooms[].fittings`): sockets, switches, door handles and hinges, AC indoor units, radiators, curtains with folds (cloth mesh), window frames/handles, thresholds, ceiling spots, books/clutter sets per room type.
 6. Outside: balcony railing detail, neighbouring-building backdrop or the HDRI skyline.
 
-Acceptance: 12 path-traced stills at 2K committed to `renders/`; owner review.
+Acceptance: 12 path-traced stills at 2K in `renders/` (not committed: too large); owner review.
 
 ## Phase 8 — Deploy and share (½ day)
 
@@ -160,6 +160,12 @@ Acceptance: production URL loads on phone and desktop; an edit saved on one devi
 ## Phase 9 — Measured reality (ongoing, needs the owner)
 
 Inputs required from site: ceiling height per room, beam and riser positions, sill and head heights of every window, real wall thicknesses, door leaf sizes and swing directions, radiator and AC positions, socket positions, building orientation. Enter into `palace1.json`; checks from Phase 4 re-run automatically. Replace generic items with the exact products chosen (dimensions from the manufacturer).
+
+Needs the owner:
+- Site measurements (Phase 9, list above).
+- Manufacturer 3D files for sanitaryware, appliances, sofa and bed.
+- Shared edit storage (phone and desktop seeing the same edits): decision and a Vercel KV/Blob store.
+- Compass bearing for `meta.north` (352 is an estimate from a map screenshot).
 
 ---
 
