@@ -56,8 +56,8 @@ Plan coordinates `(x, y)` in metres, x → east, y → south, origin at the NW i
 
 | Room | x | y | Notes |
 |---|---|---|---|
-| Bedroom 1 | 0–4.59 | 0–3.98 | door on east wall y 3.05–3.85; west wall: window y 1.63–2.83, balcony door y 2.84–3.61 |
-| B1 walk-in closet | 3.29–4.59 | 0–2.95 | partition x 3.19–3.29; arched entry in wall y 2.95–3.05 (opening x 3.32–4.0); sliding door |
+| Bedroom 1 | 0–2.89 (lobe to 4.59 at y 3.05–3.98) | 0–3.98 | door on east wall y 3.05–3.85; west wall: window y 1.63–2.83, balcony door y 2.84–3.61 |
+| B1 walk-in closet | 2.99–4.59 | 0–2.95 | partition x 2.89–2.99; arched entry in wall y 2.95–3.05 (opening x 3.32–4.0); sliding door |
 | Bedroom 2 | 0–5.06 | 4.08–7.13 | door on east wall y 4.89–5.79; west wall: balcony door y 4.74–5.48, window y 5.48–6.71 |
 | Bathroom | 4.69–7.07 | 0–2.77 | riser shaft x 4.98–6.29, y 0–0.48; door x 5.47–6.27 in south wall |
 | Corridor | 4.69–7.07 | 2.87–4.40 | open to hall (no arch) |
@@ -69,8 +69,8 @@ Plan coordinates `(x, y)` in metres, x → east, y → south, origin at the NW i
 | East balcony (main) | 13.87–15.89 | 0–7.13 | doors y 1.69–2.48 and 4.71–5.51 |
 
 ## Current furniture plan (Soft classic)
-- **Bedroom 1**: bed 1.60 × 2.00, headboard on the closet partition (x 3.19), faces west to the balcony; nightstands (2.95, 0.44) and (2.95, 2.80); beauty table x 0.6–1.7 on the south wall + 0.40 m organiser x 1.72–2.12 (3 drawers, 2 open shelves, h 1.27).
-- **B1 closet**: east unit x 4.29–4.59, north unit y 0.02–0.32, west shelves x 3.29–3.54; face-out hanging; aisle 0.75.
+- **Bedroom 1**: bed 1.60 × 2.00, headboard on the closet partition (x 2.89), faces west to the balcony; nightstands (2.65, 0.44) and (2.65, 2.74); beauty table x 0.6–1.7 on the south wall + 0.40 m organiser x 1.72–2.12 (3 drawers, 2 open shelves, h 1.27).
+- **B1 closet**: east unit x 4.29–4.59, north unit y 0.02–0.32, west shelves x 2.99–3.24; face-out hanging; aisle 0.75.
 - **Bedroom 2**: bed headboard on south wall (cx 1.55); hinged wardrobe x 2.95–5.06, y 6.53–7.13, h 2.60; desk at (2.9, 4.43) on the north wall.
 - **Bathroom**: tub x 4.69–5.44, y 0.48–2.18; walk-in shower x 6.29–7.07, y 0–1.45; WC x 5.70–6.06 on the shaft; double vanity x 6.62–7.065, y 1.50–2.75.
 - **Corridor**: washer + dryer tower y 2.89–3.60 and wardrobe y 3.60–4.38, both x 6.43–7.07.
