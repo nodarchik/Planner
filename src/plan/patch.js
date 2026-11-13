@@ -11,6 +11,7 @@ export function diffPlan(base, cur) {
     for (const id of b.keys()) if (!c.has(id)) p.remove.push(id);
     if (Object.keys(p.set).length || Object.keys(p.unset).length || p.add.length || p.remove.length) patch[k] = p; }
   for (const k of ['meta', 'views', ...WHOLE]) if (!same(base[k], cur[k])) patch[k] = cur[k];
+  if (patch.meta) { const gone = Object.keys(base.meta).filter(k => !(k in cur.meta)); if (gone.length) patch.metaUnset = gone; } // removed meta keys would be merged back from the published meta
   return patch;
 }
 export function applyPatch(base, patch) {
@@ -22,6 +23,7 @@ export function applyPatch(base, patch) {
   for (const k of WHOLE) if (patch[k]) out[k] = structuredClone(patch[k]);
   if (patch.views) out.views = structuredClone(patch.views);
   if (patch.meta) out.meta = { ...structuredClone(base.meta), ...structuredClone(patch.meta) }; // old patches may lack newer meta keys (lights)
+  for (const k of patch.metaUnset || []) delete out.meta[k];
   return out;
 }
 export const isEmpty = patch => !Object.keys(patch).length;
