@@ -16,6 +16,17 @@ async def main():
                            {"op": "add", "list": "meta", "id": "", "path": "chatTest", "value_json": "{\"a\": 1}"}]}},
                        {"type": "tool_use", "id": "u2", "name": "set_view_state", "input": {"night": True, "sun_hour": 9.5}}]
             await route.fulfill(json={"content": content, "stop_reason": "tool_use"}); return
+        if len(calls) == 5:   # third request: model-made view, bad hour, unknown view, meta key removal, proto path
+            content = [{"type": "tool_use", "id": "v1", "name": "apply_changes", "input": {"summary": "view + unset", "changes": [
+                           {"op": "add", "list": "views", "id": "extra", "path": "", "value_json": "{\"cam\": [3, 5, 10], \"target\": [3, 0, 3]}"},
+                           {"op": "unset", "list": "meta", "id": "", "path": "lights", "value_json": ""}]}},
+                       {"type": "tool_use", "id": "v2", "name": "set_view_state", "input": {"view": "extra"}},
+                       {"type": "tool_use", "id": "v3", "name": "set_view_state", "input": {"sun_hour": 30}},
+                       {"type": "tool_use", "id": "v4", "name": "set_view_state", "input": {"view": "nope"}},
+                       {"type": "tool_use", "id": "v5", "name": "apply_changes", "input": {"summary": "bad", "changes": [{"op": "set", "list": "meta", "id": "", "path": "__proto__.x", "value_json": "1"}]}}]
+            await route.fulfill(json={"content": content, "stop_reason": "tool_use"}); return
+        if len(calls) == 6:
+            await route.fulfill(json={"content": [{"type": "text", "text": "Third done."}], "stop_reason": "end_turn"}); return
         if len(calls) == 4:
             await route.fulfill(json={"content": [{"type": "text", "text": "Floor and note done."}], "stop_reason": "end_turn"}); return
         if len(calls) == 1:   # a valid edit plus an invalid one in a second call → Claude would see one result and one error
@@ -50,10 +61,24 @@ async def main():
         r2 = calls[3]['messages'][-1]['content']; check('both tools reported ok', [r['tool_use_id'] for r in r2] == ['u1', 'u2'] and not any(r.get('is_error') for r in r2), r2)
         check('night on', await pg.evaluate("document.getElementById('mnight').getAttribute('aria-pressed')") == 'true')
         check('hour set', await pg.evaluate("document.getElementById('sunTime').value") == '9.5')
+        await pg.fill('#chatinput', 'third'); await pg.click('#chatsend')
+        await pg.wait_for_function("[...document.querySelectorAll('#chatlog .msg.bot')].some(m => m.textContent.includes('Third done'))", timeout=120000)
+        r3 = {r['tool_use_id']: r for r in calls[5]['messages'][-1]['content']}
+        check('model-made view reachable', not r3['v2'].get('is_error') and await pg.evaluate("document.getElementById('view').value") in ('extra', ''), r3['v2'])
+        check('bad hour rejected', r3['v3'].get('is_error') is True and 'sun_hour' in r3['v3']['content'])
+        check('unknown view rejected', r3['v4'].get('is_error') is True)
+        check('proto path rejected', r3['v5'].get('is_error') is True)
         await pg.reload(); await pg.wait_for_selector('#loader[hidden]', state='attached', timeout=240000)
+        check('meta removal survives reload', await pg.evaluate("'lights' in __editor.plan.meta") is False)
         check('floor edit survives reload', await pg.evaluate("__editor.plan.floors[0].rect[2]") == 4.5)
         await pg.evaluate("document.getElementById('resetPlan').click()")
         check('reset restores published floor', await pg.evaluate("__editor.plan.floors[0].rect[2]") == 4.59)
+        check('no page errors before recovery step', not errs, errs[:5])
+        await pg.evaluate("""(() => { const v = structuredClone(__editor.plan.views); delete v.overview;
+            localStorage.setItem('palace1-plan-patch-v1', JSON.stringify({ views: v, meta: { ...__editor.plan.meta, site: null } })); })()""")
+        await pg.reload(); await pg.wait_for_selector('#loader[hidden]', state='attached', timeout=240000)
+        check('bad saved edits discarded with notice', await pg.evaluate("!!document.getElementById('discardnote') && !!__editor.plan.views.overview && !!__editor.plan.meta.site && localStorage.getItem('palace1-plan-patch-v1') === null"))
+        errs.clear()
         check('no page errors', not errs, errs[:5])
         await b.close()
     sys.exit(1 if fails else 0)
