@@ -33,14 +33,14 @@ function dress(it) { // per-item look and resize factors [x, height, y] stored i
 export function buildAll() {
   if (baseEmissives < 0) baseEmissives = emissives.length; else emissives.length = baseEmissives;
   nightLights.forEach(l => l.parent && l.parent.remove(l)); coveLights.forEach(l => l.parent && l.parent.remove(l)); coveLights.length = 0; world.clear(); clampables.length = 0; movables.length = 0; nightLights.length = 0;
-  refreshGeom();
+  refreshGeom(); state.planVer++;
   state.ceiling = buildArchitecture(); state.lastCeil = null; buildItems(); plan.items.forEach(dress);
   finish(world); clearOverlays(); setupOverlays(); furnitureLabels(); renderPlanNotes(); fitShadow(); rebuildPT();
 }
 export function refreshOverlays() { clearOverlays(); setupOverlays(); furnitureLabels(); }
 export function removeItemObjects(id) { for (const o of itemObjects.get(id) || []) o.parent && o.parent.remove(o); itemObjects.delete(id); itemGroups.delete(id); prune(); markShadows(); }
 export function rebuildItem(id, quiet) {
-  removeItemObjects(id); const it = plan.items.find(i => i.id === id); if (!it) return [];
+  state.planVer++; removeItemObjects(id); const it = plan.items.find(i => i.id === id); if (!it) return [];
   const groups = buildItem(it); dress(it); finish(world); markShadows(); if (state.photo) ptMats(true); // new materials: clearcoat etc. off in Photo
   if (!quiet) { clearOverlays(); setupOverlays(); furnitureLabels(); renderPlanNotes(); rebuildPT(); }
   return groups;

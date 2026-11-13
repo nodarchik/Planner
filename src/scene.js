@@ -53,5 +53,8 @@ export const state = {
   ptDirty: false,
   lastCeil: null,
   moveMode: false,
+  walk: false,
+  teleport: null,
+  planVer: 0, // bumped on every rebuild; walk collision data follows it
   sel: null,
 };
