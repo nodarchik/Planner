@@ -15,6 +15,21 @@ export const fmt = v => v.toFixed(2);
 // openings of a wall as absolute ranges along it: [{a, b, type, ...}]
 export const openingsOf = w => (w.openings || []).map(o => ({ ...KIND[o.type], ...o, a: o.at, b: +(o.at + o.w).toFixed(4) }));
 
+export function pointInPoly(poly, x, y) { let c = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) { const [xi, yi] = poly[i], [xj, yj] = poly[j]; if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) c = !c; }
+  return c; }
+
+// rects [x1, y1, x2, y2] nobody can pass: wall pieces (doors, balcony doors, arches cut out) + blocks (+ the outer edges of the balconies when `edges`)
+export function solids(plan, edges = true) {
+  const out = [];
+  for (const w of plan.walls) { const [x1, y1, x2, y2] = wallRect(w), ax = wallAxis(w), s = ax === 'x' ? x1 : y1, e = ax === 'x' ? x2 : y2; let c = s;
+    for (const o of openingsOf(w).filter(o => PASSABLE.has(o.type)).sort((p, q) => p.a - q.a)) { if (o.a > c) out.push(ax === 'x' ? [c, y1, o.a, y2] : [x1, c, x2, o.a]); c = o.b; }
+    if (e > c) out.push(ax === 'x' ? [c, y1, e, y2] : [x1, c, x2, e]); }
+  for (const b of plan.blocks) out.push(b.rect);
+  if (edges) for (const b of plan.balconies || []) { const lo = Math.min(b.inner, b.outer), hi = Math.max(b.inner, b.outer), t = .1;
+    out.push(b.outer > b.inner ? [b.outer, b.from, b.outer + t, b.to] : [b.outer - t, b.from, b.outer, b.to], [lo, b.from - t, hi, b.from], [lo, b.to, hi, b.to + t]); }
+  return out; }
+
 export function planGeom(plan) {
   const byId = new Map();
   for (const w of plan.walls) byId.set(w.id, { rect: wallRect(w), axis: wallAxis(w), wall: w });

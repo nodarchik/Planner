@@ -1,6 +1,6 @@
 // Automatic plan checks. Pure: runChecks(plan) → [{ severity: 'error' | 'warn' | 'ok', item, check, value, required, note }]
 // Runs in the page (Plan notes panel) and in `npm run validate`.
-import { planGeom, wallRect, wallAxis, openingsOf, PASSABLE, fmt } from './geom.js';
+import { planGeom, wallRect, wallAxis, openingsOf, PASSABLE, solids, fmt } from './geom.js';
 import { footprints } from './footprints.js';
 
 const CELL = .05, CLOSET_MAX = .30;
@@ -14,13 +14,7 @@ export function runChecks(plan) {
   const add = (severity, item, check, value, required, note = '') => out.push({ severity, item, check, value, required, note });
   const grade = (v, need) => (v >= need - .005 ? 'ok' : 'warn');
   const walls = plan.walls.map(w => ({ id: w.id, rect: wallRect(w), axis: wallAxis(w), ops: openingsOf(w), wall: w }));
-  const blocks = plan.blocks.map(b => ({ id: b.id, rect: b.rect }));
-  // solid pieces of each wall (openings that can be walked through are removed)
-  const wallSolids = [];
-  for (const w of walls) { const [x1, y1, x2, y2] = w.rect, s = w.axis === 'x' ? x1 : y1, e = w.axis === 'x' ? x2 : y2; let c = s;
-    for (const o of w.ops.filter(o => PASSABLE.has(o.type)).sort((p, q) => p.a - q.a)) { if (o.a > c) wallSolids.push(w.axis === 'x' ? [c, y1, o.a, y2] : [x1, c, x2, o.a]); c = o.b; }
-    if (e > c) wallSolids.push(w.axis === 'x' ? [c, y1, e, y2] : [x1, c, x2, e]); }
-  const fixed = [...wallSolids, ...blocks.map(b => b.rect)];
+  const fixed = solids(plan, false); // walls (passable openings removed) and blocks
 
   // 1. owner rule: walk-in closet units no deeper than 0.30
   for (const f of fps) if (f.closet) {
