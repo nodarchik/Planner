@@ -10,7 +10,7 @@ import { applyLook } from './ui/style.js';
 import { applyCut } from './ui/toolbar.js';
 import { clearOverlays, furnitureLabels, setupOverlays } from './ui/dims.js';
 import { renderPlanNotes } from './ui/panels.js';
-import { rebuildPT } from './pathtracer.js';
+import { ptMats, rebuildPT } from './pathtracer.js';
 
 let baseEmissives = -1;
 const inScene = o => { for (; o; o = o.parent) if (o === scene) return true; return false; };
@@ -41,7 +41,7 @@ export function refreshOverlays() { clearOverlays(); setupOverlays(); furnitureL
 export function removeItemObjects(id) { for (const o of itemObjects.get(id) || []) o.parent && o.parent.remove(o); itemObjects.delete(id); itemGroups.delete(id); prune(); markShadows(); }
 export function rebuildItem(id, quiet) {
   removeItemObjects(id); const it = plan.items.find(i => i.id === id); if (!it) return [];
-  const groups = buildItem(it); dress(it); finish(world); markShadows();
+  const groups = buildItem(it); dress(it); finish(world); markShadows(); if (state.photo) ptMats(true); // new materials: clearcoat etc. off in Photo
   if (!quiet) { clearOverlays(); setupOverlays(); furnitureLabels(); renderPlanNotes(); rebuildPT(); }
   return groups;
 }
