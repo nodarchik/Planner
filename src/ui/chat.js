@@ -24,8 +24,8 @@ function say(cls, text) { const d = document.createElement('div'); d.className =
 
 // one batch from Claude → plan edits. Throws on the first invalid edit; tryEdit then restores the plan.
 function applyBatch(changes) {
-  const rm = changes.filter(c => c.op === 'remove' && NO_ID.includes(c.list)).sort((a, b) => b.id - a.id); // indexes refer to the list before the batch
-  changes = [...changes.filter(c => !rm.includes(c)), ...rm];
+  const rm = changes.filter(c => c.op === 'remove' && NO_ID.includes(c.list)).filter((c, i, a) => a.findIndex(d => d.list === c.list && d.id === c.id) === i).sort((a, b) => b.id - a.id); // indexes refer to the list before the batch
+  changes = [...changes.filter(c => !(c.op === 'remove' && NO_ID.includes(c.list))), ...rm];
   for (const c of changes) { const parts = c.path ? c.path.split('.').map(p => (/^\d+$/.test(p) ? +p : p)) : [], val = () => JSON.parse(c.value_json), noId = NO_ID.includes(c.list);
     const index = () => { const i = plan[c.list].findIndex((x, n) => (noId ? String(n) : x.id) === c.id); if (i < 0) throw new Error(`no ${c.list} entry "${c.id}"`); return i; };
     const find = () => c.list === 'meta' ? plan.meta : c.list === 'views' ? (plan.views[c.id] || (() => { throw new Error(`no view "${c.id}"`); })()) : plan[c.list][index()];
