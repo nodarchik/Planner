@@ -15,7 +15,8 @@ Goal: the same apartment, (1) changeable by editing data instead of code, (2) ed
 | 6 Models + materials | done except owner files | 13 Poly Haven models, scanned normal/roughness maps, 2 mm cabinet bevels, brass pulls (`src/furniture/pulls.js`). Skipped: KTX2 (UASTC normals 8.3 MB vs 2.4 MB WebP, ETC1S blocky, plus a transcoder: the download would grow), so WebP stays. Missing: sanitaryware, appliances, sofa, bed models (no fitting CC0 source, need manufacturer files) |
 | 7 Lighting + detail | done except details | Sun from site + `meta.north`, sky, lamps in lumens, Photo render (lens, DOF, 8 bounces, exposure per mood), 15 path-traced stills in `renders/` (96 samples, 143 MB, gitignored; wc, corridor, closet are from before the day white-balance fix, hall also from before the closet change: re-render with `SHOT_GPU=1 python3 tools/stills.py http://localhost:4173/ renders --samples 96 --views wc,corridor,hall,closet`; bed1 stills show dark patches on the bed frame, cause not found), shadow refresh on change + fitted frustum. Skipped: cascaded shadows (not needed after the fit), OIDN denoise (stills are 96 samples, grain is visible at 100 %). Missing: sockets, AC units, radiators |
 | 8 Deploy | partial | Vercel project `palace1`, all deployments behind Vercel login; `npm run build:single`; in-app assistant verified with real requests through `vercel dev`; `npm run dev:full` local setup. Missing: production on `main`, shared edit storage |
-| 9 Measured reality | not started | needs site measurements |
+| 9 Walk mode | done | Walk button: eye height 1.60, 1.4 m/s (Shift 2.5), body radius 0.25, collision from plan data (`src/plan/walk.js`), touch stick; `tools/walk_test.py`. Not included: open door leaves and decor meshes block nothing, no stairs, no gamepad/VR |
+| 10 Measured reality | not started | needs site measurements |
 
 
 Rules for every phase:
@@ -157,12 +158,18 @@ Acceptance: 12 path-traced stills at 2K in `renders/` (not committed: too large)
 
 Acceptance: production URL loads on phone and desktop; an edit saved on one device appears on the other (if shared state is enabled).
 
-## Phase 9 — Measured reality (ongoing, needs the owner)
+## Phase 9 — Walk inside the apartment (done)
+
+First-person camera at eye height 1.60 m with 2D collision built from the plan (no physics engine): walls with passable openings cut out, blocks, solid furniture footprints, outer balcony edges (`solids()` in `geom.js`, `walkSolids` / `moveCircle` in `src/plan/walk.js`). UI in `src/ui/walk.js`: pointer-lock look and WASD on desktop, on-screen stick and drag-look on touch. Walk forces Photo, Cut and Edit plan off (and they turn walk off); a view change teleports; plan edits rebuild the collision data.
+
+Acceptance: `python3 tools/walk_test.py <url>` passes (walls, windows, doors, balcony edge, furniture, teleport, Esc, mode exclusion, phone stick).
+
+## Phase 10 — Measured reality (ongoing, needs the owner)
 
 Inputs required from site: ceiling height per room, beam and riser positions, sill and head heights of every window, real wall thicknesses, door leaf sizes and swing directions, radiator and AC positions, socket positions, building orientation. Enter into `palace1.json`; checks from Phase 4 re-run automatically. Replace generic items with the exact products chosen (dimensions from the manufacturer).
 
 Needs the owner:
-- Site measurements (Phase 9, list above).
+- Site measurements (Phase 10, list above).
 - Manufacturer 3D files for sanitaryware, appliances, sofa and bed.
 - Shared edit storage (phone and desktop seeing the same edits): decision and a Vercel KV/Blob store.
 - Compass bearing for `meta.north` (352 is an estimate from a map screenshot).
@@ -182,7 +189,8 @@ Needs the owner:
 | 6 Models + materials | 2 (3 preferred) | 3–4 d |
 | 7 Lighting + detail | 6 | 2–3 d |
 | 8 Deploy | 0 (any time) | ½ d |
-| 9 Measured reality | 3 | ongoing |
+| 9 Walk mode | 3 | 1 d |
+| 10 Measured reality | 3 | ongoing |
 
 Phases 0–3 are mandatory before anything else. 8 can be done right after 0 to get a live URL early.
 

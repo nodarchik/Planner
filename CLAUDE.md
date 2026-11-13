@@ -6,6 +6,7 @@ Interactive, photoreal-leaning 3D model of one real apartment ("Palace 1", Tbili
 - Vite + vanilla ES modules, three 0.160 + three-gpu-pathtracer. Procedural geometry and textures, plus CC0 Poly Haven assets in `public/assets/` (13 models, scanned normal/roughness maps, sky HDRI; sources in `assets/CREDITS.md`). Every asset has a procedural fallback.
 - **The apartment is data: `src/plan/palace1.json`** (rooms, walls with openings, blocks, items, views). Code in `src/` builds whatever the file says. A layout or furniture request is an edit to that file, not to code.
 - Photo render (path tracer), stills hook, lamps in lumens, cabinet bevels and pulls, shadow and orbit performance work are done (PLAN.md Phases 6–8 status).
+- **Walk mode** (Phase 9, done): `Walk` button, eye height 1.60, 1.4 m/s (Shift 2.5), radius 0.25, collision from plan data; Esc or the button leaves, view change teleports, Photo/Cut/Edit plan and walk switch each other off.
 - `PLAN.md` — the refactor + realism plan and its status.
 - `legacy/palace-apartment.html` — the original single-file app (Claude artifact version 22). Reference only; do not edit.
 - `baseline/*.png` — 13 reference screenshots (12 views day + `top_night`) of the current plan with models, scanned maps and sky loaded. Recapture them after any intended visual change.
@@ -19,6 +20,7 @@ Interactive, photoreal-leaning 3D model of one real apartment ("Palace 1", Tbili
 - `SHOT_GPU=1 npm run shots` (also `tools/editor_test.py`) launches Chromium on the real GPU (ANGLE Metal on macOS) instead of SwiftShader; default stays software GL. `tools/launch.py` is the shared launcher; without CHROME_PATH or /opt/pw-browsers it uses Playwright's own Chromium. If system Python refuses pip, use `.venv` (`source .venv/bin/activate` first).
 - `npm run stills` — `tools/stills.py`: 2560×1440 path-traced stills of the 12 day views into `renders/` (`--samples N` default 96, `--views a,b`, `--night`, `--focal mm`, `--fstop f`; ~7–11 min per still at 96 samples on an M4; needs `SHOT_GPU=1`). `renders/` is gitignored (143 MB for 15 stills); wc, corridor, closet and hall there predate the white-balance fix, hall also the closet change: re-render with `--views wc,corridor,hall,closet`. A timed-out or failed still reloads the page and goes on with the next view.
 - `python3 tools/editor_test.py <url> [dir]` — functional test of the in-page editor.
+- `python3 tools/walk_test.py <url> [dir]` (`npm run walk:test` against :4173) — test of walk mode: collisions, doors, balcony edge, teleport, Esc, mode exclusion, phone stick (needs `SHOT_GPU=1` for speed).
 - `python3 tools/chat_test.py <url>` — test of the in-app assistant against a mocked `/api/chat` (no Claude API call).
 - Python needs `pip install playwright pillow numpy`; Chromium is taken from `CHROME_PATH` or `/opt/pw-browsers/chromium`.
 
@@ -89,7 +91,7 @@ Plan coordinates `(x, y)` in metres, x → east, y → south, origin at the NW i
 - **East balcony**: sofa x 13.92–14.72, y 0.15–1.75; dining for 4 at (14.85, 3.6); herb garden y 6.72–7.05; 2 lounge chairs at y 6.0.
 
 ## Code map (`src/`)
-- `plan/` — `palace1.json` (the apartment), `schema.json`, `plan.js` (working copy `plan`, `PUBLISHED`, wall/face/frame lookups), `geom.js` (pure geometry), `frame.js` (local frame for wall-attached builders: `u` along the wall, `d` out from it; works on all four wall directions), `footprints.js` + `checks.js` (automatic checks), `patch.js` (diff / patch / change summary)
+- `plan/` — `palace1.json` (the apartment), `schema.json`, `plan.js` (working copy `plan`, `PUBLISHED`, wall/face/frame lookups), `geom.js` (pure geometry), `frame.js` (local frame for wall-attached builders: `u` along the wall, `d` out from it; works on all four wall directions), `footprints.js` + `checks.js` (automatic checks), `patch.js` (diff / patch / change summary), `walk.js` (walk collision: `walkSolids`, `moveCircle`; `geom.js` `solids()` / `pointInPoly`)
 - `arch/shell.js` — `buildArchitecture`: slabs, floors, walls, openings, door leaves, skirting, cladding, mouldings, corners, ceilings from the plan · `arch/walls.js` — `wallRun`, glazing, `door`, `skirt` · `arch/soft.js` — `softPanels`, `softArch`, `softBullnose`, `softTray`
 - `items/` — one parametric builder per item type: `loose.js` (bed, nightstand, rug, planter, curtain, wall art, light…), `hall.js`, `kitchen.js`, `storage.js` (wardrobe, laundry tower, walk-in closet, sliding door, bookshelf, built-in desk), `bath.js` (tub, shower, WC, vanity…), `living.js` (TV wall, beauty table, terrace sofa); `index.js` = registry + `buildItem`
 - `catalog.js` — `DESIGNS`: swappable free-furniture designs · `furniture/` — shared shape helpers (`cab` cabinet run, `bed`, chairs, plants, decor)
@@ -98,7 +100,7 @@ Plan coordinates `(x, y)` in metres, x → east, y → south, origin at the NW i
 - `build.js` — `buildAll()` (after structural edits) and `rebuildItem(id)`
 - `assets.js` — model and scanned-map loading (`MODELS`, `instance`, `swapIn`, `upgradeMaterials`); `lighting.js` — `solar()`, `setSun()`, sky
 - `scene.js` — renderer, scene, camera, `world`, `movables`, and `state` (all shared mutable state). `textures.js`, `materials.js` (`M`), `lighting.js`, `post.js`, `pathtracer.js`, `primitives.js` (`B` box, `RB` rounded box, `C`, `S`, `lathe`, `tube`…)
-- `ui/` — `editor.js` (select, fields, drag with snapping, add/duplicate/delete, wall move, undo/redo, export/import, change summary, per-device persistence), `style.js` (finishes, presets), `dims.js` (labels computed from the plan), `panels.js` (Plan notes + checks), `toolbar.js`, `views.js`
+- `ui/` — `walk.js` (walk mode: look, keys, stick, teleport, `window.__walk` test hook), `editor.js` (select, fields, drag with snapping, add/duplicate/delete, wall move, undo/redo, export/import, change summary, per-device persistence), `style.js` (finishes, presets), `dims.js` (labels computed from the plan), `panels.js` (Plan notes + checks), `toolbar.js`, `views.js`
 - Random details (leaves, drapes, garments, books) are seeded per item id, so editing one item never changes another.
 
 ## Working rules

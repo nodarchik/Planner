@@ -72,5 +72,5 @@ stick.addEventListener('pointerup', rest); stick.addEventListener('pointercancel
 document.addEventListener('pointerlockchange', () => { const was = locked; locked = document.pointerLockElement === dom; if (was && !locked) leave(); });
 
 state.teleport = teleport; // setView teleports while walking
-window.__walk = { get on() { return state.walk; }, get pos() { return [...pos]; }, get yaw() { return yaw; }, setPos: (x, y) => { pos = [x, y]; dirty = true; place(); }, joy, look: (y, p = 0) => { yaw = y; pitch = p; dirty = true; place(); },
+window.__walk = { get on() { return state.walk; }, get pos() { return [...pos]; }, get yaw() { return yaw; }, get cam() { return camera.position.toArray(); }, setPos: (x, y) => { pos = [x, y]; dirty = true; place(); }, joy, look: (y, p = 0) => { yaw = y; pitch = p; dirty = true; place(); },
   key: (code, down = true) => (down ? keys.add(code) : keys.delete(code)), step, enter, leave, teleport, free };
