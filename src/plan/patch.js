@@ -39,6 +39,7 @@ export function describe(base, cur) {
       lines.push(`${id}: ${parts.join(', ')}`); }
     for (const o of p.add) lines.push(`+ ${o.id} added: ${JSON.stringify(o)}`);
     for (const id of p.remove) lines.push(`− ${id} removed`); }
-  if (patch.meta) lines.push('meta changed'); if (patch.views) lines.push('views changed');
+  for (const k of ['balconies', 'slabs', 'floors', 'ceilings']) if (!same(base[k], cur[k])) lines.push(`${k}: ${JSON.stringify(base[k])} → ${JSON.stringify(cur[k])}`); // lists without ids: whole list
+  if (patch.meta) lines.push('meta changed: ' + [...new Set([...Object.keys(base.meta), ...Object.keys(cur.meta)])].filter(k => !same(base.meta[k], cur.meta[k])).join(', ')); if (patch.views) lines.push('views changed');
   return lines;
 }
