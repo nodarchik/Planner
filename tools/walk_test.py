@@ -52,6 +52,8 @@ async def main():
         await pg.select_option('#view', 'office'); await ev('__walk.step(1/60)'); x, y = await ev('__walk.pos')
         check('view change teleports to the view position', abs(x - 9.3) < .5 and abs(y - 4.75) < .5 and await ev('__walk.on'), (x, y))
         await pg.select_option('#view', 'top'); await ev('__walk.step(1/60)'); check('top view stays on free floor', await ev('__walk.free(...__walk.pos)'), await ev('__walk.pos'))
+        await pg.select_option('#view', 'loggiaE'); await ev('__walk.step(1/60)'); x, y = await ev('__walk.pos'); check('east balcony view lands on the balcony', x > 13.87 and await ev('__walk.free(...__walk.pos)'), (x, y))
+        await ev('__walk.setPos(14.32, 0.95)'); await ev('__walk.step(1/60)'); x, y = await ev('__walk.pos'); check('inside the terrace sofa: moved to free floor', await ev('__walk.free(...__walk.pos)') and abs(x - 14.32) + abs(y - .95) < 3, (x, y))
         # Esc restores the orbit camera
         await pg.keyboard.press('Escape'); check('Esc leaves', not await ev('__walk.on')); await pg.wait_for_timeout(1500); await settle(pg); cam = await ev('__walk.cam')
         check('orbit camera restored', max(abs(a - c) for a, c in zip(cam, orbit)) < .05, (cam, orbit))

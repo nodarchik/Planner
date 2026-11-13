@@ -14,9 +14,13 @@ function push(p, r, [x1, y1, x2, y2]) {
   return true;
 }
 
+// true if the circle (centre p, radius r) cuts into any rect
+export const overlaps = (p, r, rects) => rects.some(([x1, y1, x2, y2]) => Math.hypot(p[0] - Math.max(x1, Math.min(p[0], x2)), p[1] - Math.max(y1, Math.min(p[1], y2))) < r - 1e-6);
+
 // move a circle of radius r from pos by delta against rects; slides along surfaces, steps are cut to 5 cm so nothing is skipped
 export function moveCircle(pos, delta, r, rects) {
   const p = [pos[0], pos[1]], n = Math.max(1, Math.ceil(Math.hypot(delta[0], delta[1]) / .05));
-  for (let i = 0; i < n; i++) { p[0] += delta[0] / n; p[1] += delta[1] / n; for (let k = 0; k < 3; k++) { let hit = false; for (const s of rects) hit = push(p, r, s) || hit; if (!hit) break; } }
+  for (let i = 0; i < n; i++) { const b = [p[0], p[1]]; p[0] += delta[0] / n; p[1] += delta[1] / n; for (let k = 0; k < 3; k++) { let hit = false; for (const s of rects) hit = push(p, r, s) || hit; if (!hit) break; }
+    if (overlaps(p, r, rects)) { p[0] = b[0]; p[1] = b[1]; } } // squeezed between solids: stay put
   return p;
 }
