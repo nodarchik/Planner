@@ -43,14 +43,15 @@ export function enter() {
   const t = controls.target; pitch = 0; keys.clear(); joy[0] = joy[1] = 0; state.anim = null; controls.enabled = false;
   if (free(t.x, t.z)) { pos = [t.x, t.z]; face([camera.position.x, camera.position.z], pos); if (Math.hypot(pos[0] - camera.position.x, pos[1] - camera.position.z) < .3) yaw = 0; dirty = true; place(); } else teleport('entrance');
 }
-export function leave() {
+export function leave(instant) {
   if (!state.walk) return; state.walk = false; document.body.classList.remove('walking'); keys.clear(); joy[0] = joy[1] = 0; controls.enabled = true; $('walk').setAttribute('aria-pressed', 'false'); if (!state.moveMode) $('hint').textContent = HINT;
   if (document.pointerLockElement === dom) document.exitPointerLock();
+  if (instant) { camera.position.copy(prev.p); controls.target.copy(prev.t); controls.update(); return; }
   state.anim = { from: { p: camera.position.clone(), t: controls.target.clone() }, to: { p: prev.p, t: prev.t }, t0: performance.now() };
 }
 
 $('walk').onclick = () => (state.walk ? leave() : enter());
-for (const id of ['move', 'photo', 'wcut']) $(id).addEventListener('click', leave);
+state.leaveWalk = () => leave(true);
 $('view').addEventListener('change', e => { if (state.walk) e.target.blur(); });
 addEventListener('keydown', ev => { if (!state.walk || /INPUT|SELECT|TEXTAREA/.test(document.activeElement?.tagName || '')) return;
   if (ev.key === 'Escape') { leave(); return; } if (ev.code.startsWith('Key') || ev.code.startsWith('Arrow') || ev.code.startsWith('Shift')) { keys.add(ev.code); if (ev.code.startsWith('Arrow')) ev.preventDefault(); } });
@@ -73,4 +74,4 @@ document.addEventListener('pointerlockchange', () => { const was = locked; locke
 
 state.teleport = teleport; // setView teleports while walking
 window.__walk = { get on() { return state.walk; }, get pos() { return [...pos]; }, get yaw() { return yaw; }, get cam() { return camera.position.toArray(); }, setPos: (x, y) => { pos = [x, y]; dirty = true; place(); }, joy, look: (y, p = 0) => { yaw = y; pitch = p; dirty = true; place(); },
-  key: (code, down = true) => (down ? keys.add(code) : keys.delete(code)), step, enter, leave, teleport, free };
+  key: (code, down = true) => (down ? keys.add(code) : keys.delete(code)), step, enter, leave, teleport, free, modes: { setPhoto, applyCut, setMove } };

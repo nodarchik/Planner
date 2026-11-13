@@ -20,6 +20,7 @@ export function setMood(n) {
   rebuildPT();
 }
 export function applyCut(on) {
+  if (on) state.leaveWalk?.();
   state.cutOn = on;
   document.getElementById('wfull').setAttribute('aria-pressed', !on); document.getElementById('wcut').setAttribute('aria-pressed', on);
   for (const { me, h1, h2 } of clampables) { if (!on) { me.visible = true; me.scale.y = 1; me.position.y = (h1 + h2) / 2; continue; }

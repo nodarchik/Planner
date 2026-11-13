@@ -55,6 +55,7 @@ export const state = {
   moveMode: false,
   walk: false,
   teleport: null,
+  leaveWalk: null, // set by ui/walk.js: Photo, Cut and Edit plan switching on call it
   planVer: 0, // bumped on every rebuild; walk collision data follows it
   sel: null,
 };

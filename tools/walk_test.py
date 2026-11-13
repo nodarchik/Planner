@@ -61,6 +61,11 @@ async def main():
             if sel == '#move': await pg.click('#move')
             if sel == '#wcut': await pg.click('#wfull')
             if sel == '#photo': await pg.wait_for_function("document.getElementById('status').textContent.includes('samples') || document.getElementById('status').textContent.includes('unavailable')", timeout=180000); await pg.click('#photo')
+        M = '__walk.modes'  # the same mode functions called from code (assistant, scripts)
+        for name, on, off in [('setMove', f'{M}.setMove(true)', f'{M}.setMove(false)'), ('applyCut', f'{M}.applyCut(true)', f'{M}.applyCut(false)'), ('setPhoto', f'await {M}.setPhoto(true)', f'await {M}.setPhoto(false)'), ('__still', 'await __still({ samples: 1, w: 64, h: 64 })', None)]:
+            await pg.click('#walk'); await ev('__walk.step(1/60)')
+            await ev('(async () => { ' + on + '; })()'); check(name + ' from code switches walk off', not await ev('__walk.on'))
+            if off: await ev('(async () => { ' + off + '; })()')
         await pg.click('#walk'); await ev('__walk.step(1/60)'); check('Cut stays off in walk', await pg.get_attribute('#wcut', 'aria-pressed') == 'false'); await pg.click('#walk')
         await ctx.close()
         # phone: stick and touch look
