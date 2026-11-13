@@ -89,7 +89,7 @@ export const nightLights = [];
 // lamp(x, y, h, kind | { lm, k }, n = 1): kind from meta.lights.kinds, n multiplies the lumens (fixtures or metres of strip)
 export function lamp(x, y, h, spec, n = 1) {
   const { lm, k } = typeof spec === 'string' ? kindOf(spec) : spec, l = new THREE.PointLight(kelvin(k || 2700), pointCd(lm * n), 0, 2);
-  l.position.set(x, h, y); l.visible = false; l.userData.lm = lm * n; (state.CUR === world ? scene : state.CUR).add(l); nightLights.push(l); return l;
+  l.position.set(x, h, y); l.visible = false; l.userData.lm = lm * n; l.userData.k = k || 2700; (state.CUR === world ? scene : state.CUR).add(l); nightLights.push(l); return l;
 }
 // LED cove as an area light (Photo night only; the raster view keeps the emissive tube): a straight strip from (x1, y1) to (x2, y2) at height h facing down
 export const coveLights = []; let rectInit = false;
@@ -102,7 +102,7 @@ export function coveLight(x1, y1, x2, y2, h) {
 // lamps are on at night, and by day in Photo renders for rooms without daylight
 const wp = new V3();
 // Photo by day is exposed for window light (x6), so these lamps are scaled down to match what the night exposure shows
-const DAY_LAMP = .2;
+const DAY_LAMP = .2, DAY_WB_K = 5200; // day Photo: windowless-room lamps are white-balanced (they are the only light there)
 export function syncLights() { for (const l of nightLights) { l.getWorldPosition(wp); l.visible = state.night || (state.photo && isWindowless(wp.x, wp.z));
-  l.intensity = pointCd(l.userData.lm) * (state.night || !state.photo ? 1 : DAY_LAMP); }
+  l.intensity = pointCd(l.userData.lm) * (state.night || !state.photo ? 1 : DAY_LAMP); l.color.copy(kelvin(state.photo && !state.night ? DAY_WB_K : l.userData.k)); }
   for (const l of coveLights) l.visible = state.night && state.photo; }
