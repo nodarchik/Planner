@@ -78,7 +78,7 @@ Plan coordinates `(x, y)` in metres, x → east, y → south, origin at the NW i
 
 ## Current furniture plan (Soft classic)
 - **Bedroom 1**: bed 1.60 × 2.00, headboard on the closet partition (x 2.89), faces west to the balcony; nightstands (2.65, 0.44) and (2.65, 2.74); beauty table x 0.6–1.7 on the south wall + 0.40 m organiser x 1.72–2.12 (3 drawers, 2 open shelves, h 1.27).
-- **B1 closet**: east unit x 4.29–4.59, north unit y 0.02–0.32, west shelves x 2.99–3.24; face-out hanging; aisle 0.75.
+- **B1 closet**: east unit x 4.29–4.59, north unit y 0.02–0.32, west shelves x 2.99–3.24; face-out hanging; aisle 1.05.
 - **Bedroom 2**: bed headboard on south wall (cx 1.55); hinged wardrobe x 2.95–5.06, y 6.53–7.13, h 2.60; desk at (2.9, 4.43) on the north wall.
 - **Bathroom**: tub x 4.69–5.44, y 0.48–2.18; walk-in shower x 6.29–7.07, y 0–1.45; WC x 5.70–6.06 on the shaft; double vanity x 6.62–7.065, y 1.50–2.75.
 - **Corridor**: washer + dryer tower y 2.89–3.60 and wardrobe y 3.60–4.38, both x 6.43–7.07.
