@@ -48,6 +48,23 @@ const TOOLS = [{
   }
 }];
 
+TOOLS.push({
+  name: 'set_view_state',
+  description: 'Change what is not part of the plan file: the same controls as the toolbar. Give only the fields you want to change. Not saved in the plan and not undoable.',
+  input_schema: {
+    type: 'object', additionalProperties: false,
+    properties: {
+      night: { type: 'boolean', description: 'Night (true) or day (false).' },
+      photo: { type: 'boolean', description: 'Photo render (path tracer) on or off.' },
+      cut: { type: 'boolean', description: 'Cut (walls cut at 1.2 m) on or off.' },
+      style: { type: 'string', description: 'Interior style preset: warm, soft, nordic, japandi, luxe or midcentury.' },
+      sun_month: { type: 'integer', minimum: 1, maximum: 12, description: 'Month for the sun.' },
+      sun_hour: { type: 'number', minimum: 5, maximum: 21, description: 'Hour of day for the sun, e.g. 14.5.' },
+      view: { type: 'string', description: 'Name of a camera view (a key of plan.views) to jump to.' }
+    }
+  }
+});
+
 const bad = (res, code, error) => res.status(code).json({ error });
 
 export default async function handler(req, res) {

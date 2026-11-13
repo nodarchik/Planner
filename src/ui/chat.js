@@ -7,6 +7,7 @@ import { DESIGNS } from '../catalog.js';
 import { MODELS } from '../assets.js';
 import { BUILDERS } from '../items/index.js';
 import { tryEdit } from './editor.js';
+import { setPhoto } from '../pathtracer.js';
 
 const $ = id => document.getElementById(id), panel = $('chatpanel'), log = $('chatlog'), input = $('chatinput'), sendBtn = $('chatsend');
 const NO_ID = ['slabs', 'floors', 'ceilings']; // lists whose entries are addressed by index
@@ -32,7 +33,21 @@ function applyBatch(changes) {
     else if (c.op === 'remove') { if (c.list === 'views') { find(); delete plan.views[c.id]; continue; } plan[c.list].splice(index(), 1); }
     else setPath(find(), c.op === 'unset' ? undefined : val()); }
 }
+// view state: drive the same toolbar controls a click would
+function applyViewState(v) {
+  const fire = (id, value) => { const e = $(id); e.value = value; e.dispatchEvent(new Event(id === 'sunTime' ? 'input' : 'change')); }, done = [];
+  if ('night' in v) { $(v.night ? 'mnight' : 'mday').click(); done.push('night ' + v.night); }
+  if ('cut' in v) { $(v.cut ? 'wcut' : 'wfull').click(); done.push('cut ' + v.cut); }
+  if ('style' in v) { if (![...$('style').options].some(o => o.value === v.style)) throw new Error(`unknown style "${v.style}"`); fire('style', v.style); done.push('style ' + v.style); }
+  if ('sun_month' in v) { fire('sunMonth', v.sun_month); done.push('sun month ' + v.sun_month); }
+  if ('sun_hour' in v) { fire('sunTime', v.sun_hour); done.push('sun hour ' + v.sun_hour); }
+  if ('view' in v) { if (!plan.views[v.view]) throw new Error(`no view "${v.view}"`); fire('view', v.view); done.push('view ' + v.view); }
+  if ('photo' in v) { setPhoto(v.photo); done.push('photo ' + v.photo); }
+  return done;
+}
 function runTool(block) {
+  if (block.name === 'set_view_state') { try { const done = applyViewState(block.input || {}); say('note', done.length ? 'View: ' + done.join(', ') : 'No change.'); return { type: 'tool_result', tool_use_id: block.id, content: JSON.stringify({ applied: done }) }; }
+    catch (e) { say('note error', 'Rejected: ' + e.message); return { type: 'tool_result', tool_use_id: block.id, is_error: true, content: e.message }; } }
   if (block.name !== 'apply_changes') return { type: 'tool_result', tool_use_id: block.id, is_error: true, content: 'unknown tool' };
   const before = JSON.parse(JSON.stringify(plan)), err = tryEdit(() => applyBatch(block.input.changes || []));
   if (err) { say('note error', 'Rejected: ' + err); return { type: 'tool_result', tool_use_id: block.id, is_error: true, content: 'Batch rejected, plan unchanged: ' + err }; }
