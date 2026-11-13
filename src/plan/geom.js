@@ -28,6 +28,10 @@ export function solids(plan, edges = true) {
   for (const b of plan.blocks) out.push(b.rect);
   if (edges) for (const b of plan.balconies || []) { const lo = Math.min(b.inner, b.outer), hi = Math.max(b.inner, b.outer), t = .1;
     out.push(b.outer > b.inner ? [b.outer, b.from, b.outer + t, b.to] : [b.outer - t, b.from, b.outer, b.to], [lo, b.from - t, hi, b.from], [lo, b.to, hi, b.to + t]); }
+  if (edges) for (const w of plan.walls) { const [x1, y1, x2, y2] = wallRect(w), ax = wallAxis(w); // stop rect outside a passable opening that leads out of every room
+    for (const o of openingsOf(w).filter(o => PASSABLE.has(o.type))) { const m = (o.a + o.b) / 2;
+      for (const [px, py, r] of ax === 'x' ? [[m, y1 - .3, [o.a, y1 - .1, o.b, y1]], [m, y2 + .3, [o.a, y2, o.b, y2 + .1]]] : [[x1 - .3, m, [x1 - .1, o.a, x1, o.b]], [x2 + .3, m, [x2, o.a, x2 + .1, o.b]]])
+        if (!plan.rooms.some(rm => pointInPoly(rm.poly, px, py))) out.push(r); } }
   return out; }
 
 export function planGeom(plan) {

@@ -33,6 +33,7 @@ async def main():
         # walls and windows stop the body at its radius
         await ev('__walk.setPos(1.2, 2.2)'); x, y = await go(-1.0, 2.2); check('window stops at radius', abs(x - 0.25) < .03, (x, y))
         await ev('__walk.setPos(7.5, 6.2)'); x, y = await go(7.5, 8.0); check('wall stops at radius', abs(y - (7.13 - .25)) < .03, (x, y))
+        await ev('__walk.setPos(5.7, 6.4)'); x, y = await go(5.7, 10.0); check('entrance door leads nowhere: stops at the wall', 7.0 < y < 7.5, (x, y))
         # hall -> corridor -> bedroom 1 through the doors
         await ev('__walk.setPos(5.7, 6.4)')
         for w in [(5.4, 4.9), (5.4, 3.45), (4.9, 3.45), (3.9, 3.45), (2.0, 3.45)]: x, y = await go(*w)
