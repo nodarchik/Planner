@@ -99,4 +99,4 @@ addEventListener('keydown', ev => {
   const b = keys.find(e => ['shift', 'ctrl', 'alt', 'meta'].every(m => e.mods.includes(m) === ev[m + 'Key']) && (ev.code === e.key || ev.key.toLowerCase() === e.key.toLowerCase())); if (!b || b.action === 'none') return;
   ev.preventDefault(); runKey(b, ev.repeat); });
 
-window.__bindings = { get table() { return table; }, get safe() { return safe; } }; // test hook
+window.__bindings = { get table() { return table; }, get safe() { return safe; }, get cam() { return camera.position.toArray(); }, get target() { return controls.target.toArray(); }, get native() { return { mouse: { ...controls.mouseButtons }, touch: { ...controls.touches }, zoom: controls.enableZoom }; } }; // test hook

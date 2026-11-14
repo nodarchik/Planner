@@ -149,7 +149,7 @@ $('importFile').onchange = async ev => { const f = ev.target.files[0]; if (!f) r
   const before = snapshot(); try { undoStack.push(before); restore(JSON.stringify(next)); } catch (e) { undoStack.pop(); restore(before); throw e; } } catch (e) { alert('Import failed: ' + e.message); } ev.target.value = ''; };
 $('copyChanges').onclick = copyChanges;
 
-window.__editor = { plan, select, edit, undo, redo, moveWall, describe: () => describe(PUBLISHED, plan) }; // for tools/ scripts and the console
+window.__editor = { plan, select, edit, tryEdit, undo, redo, moveWall, describe: () => describe(PUBLISHED, plan) }; // for tools/ scripts and the console
 
 /* ---------- edit mode, dragging with snapping, keyboard ---------- */
 export function setMove(on) { if (on) state.leaveWalk?.(); state.moveMode = on; $('move').setAttribute('aria-pressed', on); bar.hidden = !on; updateBar();
