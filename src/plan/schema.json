@@ -148,6 +148,11 @@
      },
      "top": {
       "type": "number"
+     },
+     "color": {
+      "type": "string",
+      "pattern": "^#[0-9a-fA-F]{6}$",
+      "description": "tint of the floor material, #rrggbb (default: meta.style.floorTint, else none)"
      }
     }
    }
@@ -167,6 +172,11 @@
       },
       "minItems": 4,
       "maxItems": 4
+     },
+     "color": {
+      "type": "string",
+      "pattern": "^#[0-9a-fA-F]{6}$",
+      "description": "tint of this ceiling slab, #rrggbb"
      }
     }
    }
@@ -287,6 +297,16 @@
         "type": "number"
        }
       }
+     },
+     "wallColor": {
+      "type": "string",
+      "pattern": "^#[0-9a-fA-F]{6}$",
+      "description": "wall colour of this room, #rrggbb (thin cladding on its wall faces)"
+     },
+     "trimColor": {
+      "type": "string",
+      "pattern": "^#[0-9a-fA-F]{6}$",
+      "description": "skirting colour of this room, #rrggbb"
      }
     }
    }
@@ -410,6 +430,11 @@
           },
           "handle": {
            "type": "string"
+          },
+          "color": {
+           "type": "string",
+           "pattern": "^#[0-9a-fA-F]{6}$",
+           "description": "door leaf colour, #rrggbb"
           }
          }
         }
@@ -468,6 +493,11 @@
         }
        }
       }
+     },
+     "color": {
+      "type": "string",
+      "pattern": "^#[0-9a-fA-F]{6}$",
+      "description": "colour of this whole wall (both faces), #rrggbb"
      }
     }
    }
@@ -506,6 +536,11 @@
         "SE"
        ]
       }
+     },
+     "color": {
+      "type": "string",
+      "pattern": "^#[0-9a-fA-F]{6}$",
+      "description": "colour of this block, #rrggbb"
      }
     }
    }
@@ -647,6 +682,66 @@
       "minimum": 1000,
       "maximum": 12000,
       "description": "light: colour temperature, kelvin"
+     },
+     "solid": {
+      "type": "boolean",
+      "description": "parts: false = no floor footprint for checks and walking"
+     },
+     "parts": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+       "type": "object",
+       "required": [
+        "shape",
+        "pos",
+        "size",
+        "material"
+       ],
+       "properties": {
+        "shape": {
+         "enum": [
+          "box",
+          "rbox",
+          "cyl",
+          "sphere"
+         ]
+        },
+        "pos": {
+         "type": "array",
+         "items": {
+          "type": "number"
+         },
+         "minItems": 3,
+         "maxItems": 3
+        },
+        "size": {
+         "type": "array",
+         "items": {
+          "type": "number"
+         },
+         "minItems": 1,
+         "maxItems": 3
+        },
+        "rot": {
+         "type": "array",
+         "items": {
+          "type": "number"
+         },
+         "minItems": 3,
+         "maxItems": 3
+        },
+        "material": {
+         "type": "string"
+        },
+        "color": {
+         "type": "string"
+        },
+        "radius": {
+         "type": "number"
+        }
+       }
+      }
      }
     }
    }

@@ -8,8 +8,10 @@ async def main():
     def check(name, ok, extra=''):
         print(('ok   ' if ok else 'FAIL ') + name + (' — ' + str(extra) if extra != '' else ''))
         if not ok: fails.append(name)
+    queue = []   # scripted responses for the second half of the test (after the first 6 calls)
     async def mock(route):
         body = json.loads(route.request.post_data); calls.append(body)
+        if len(calls) > 6 and queue: await route.fulfill(json=queue.pop(0)); return
         if len(calls) == 3:   # second request: floor by index, meta add, view state
             content = [{"type": "tool_use", "id": "u1", "name": "apply_changes", "input": {"summary": "floor + meta", "changes": [
                            {"op": "set", "list": "floors", "id": "0", "path": "rect", "value_json": "[0, 0, 4.5, 7.13]"},
@@ -74,6 +76,148 @@ async def main():
         await pg.evaluate("document.getElementById('resetPlan').click()")
         check('reset restores published floor', await pg.evaluate("__editor.plan.floors[0].rect[2]") == 4.59)
         check('no page errors before recovery step', not errs, errs[:5])
+        errs.clear()
+        # ---- parts item, view extras, history, style preset, ceiling and cut (scripted turns) ----
+        n_turn = [0]
+        async def turn(*blocks):
+            n_turn[0] += 1; n = n_turn[0]; tag = f'turn-end-{n}'; start = len(calls)
+            queue.append({"content": [{"type": "tool_use", "id": f'x{n}_{i}', "name": b[0], "input": b[1]} for i, b in enumerate(blocks)], "stop_reason": "tool_use"})
+            queue.append({"content": [{"type": "text", "text": tag}], "stop_reason": "end_turn"})
+            if await pg.evaluate("document.getElementById('chatpanel').hidden"): await pg.click('#chatBtn')
+            await pg.fill('#chatinput', 'scripted ' + tag); await pg.click('#chatsend')
+            await pg.wait_for_function(f"[...document.querySelectorAll('#chatlog .msg.bot')].some(m => m.textContent.includes('{tag}'))", timeout=120000)
+            return calls[start + 1]['messages'][-1]['content']
+        ac = lambda *ch: ('apply_changes', {"summary": "t", "changes": list(ch)})
+        vs = lambda **kw: ('set_view_state', kw)
+        add = lambda o: {"op": "add", "list": "items", "id": o["id"], "path": "", "value_json": json.dumps(o)}
+        setp = lambda i, path, v: {"op": "set", "list": "items", "id": i, "path": path, "value_json": json.dumps(v)}
+        pos0 = "__editor.plan.items.find(i => i.id === 'tp1').pos[0]"
+        first = calls[0]['messages'][0]['content']
+        check('context lists parts shapes, materials, look keys, presets, opts', all(t in first for t in ['Shapes of a "parts" item', 'rbox (3)', 'oakFurn', 'item.look', 'fin Bouclé', 'Style presets', 'opts W', 'Part keys found on the built items']))
+        pf = lambda x, y: pg.evaluate(f"__walk.free({x}, {y})")
+        check('test spot is free', await pf(10.3, 2.6))
+        top = {"id": "tp1", "type": "parts", "pos": [10.3, 2.6], "rot": 30, "label": "Test table", "parts": [
+            {"shape": "rbox", "pos": [0, 0, .72], "size": [.9, .5, .04], "material": "oakFurn", "radius": .01}, {"shape": "cyl", "pos": [-.35, -.18, 0], "size": [.03, .72], "material": "brass"},
+            {"shape": "sphere", "pos": [0, 0, .76], "size": [.1], "material": "ceramic", "color": "#c0504d"}, {"shape": "box", "pos": [.25, 0, .76], "size": [.1, .1, .2], "material": "walnut", "rot": [0, 0, 45]}]}
+        r = await turn(ac(add(top)), ac(add({**top, "id": "tp2", "parts": [{**top["parts"][0], "shape": "cone"}]})), ac(add({**top, "id": "tp3", "parts": [{**top["parts"][0], "material": "nope"}]})))
+        check('parts item built', not r[0].get('is_error') and await pg.evaluate("__editor.plan.items.some(i => i.id === 'tp1')"), r[0]['content'][:150])
+        check('unknown shape lists the valid ones', r[1].get('is_error') is True and 'cone' in r[1]['content'] and 'rbox' in r[1]['content'], r[1]['content'][:200])
+        check('unknown material lists the valid ones', r[2].get('is_error') is True and 'nope' in r[2]['content'] and 'oakFurn' in r[2]['content'])
+        check('rejected parts items leave no trace', await pg.evaluate("__editor.plan.items.filter(i => i.id === 'tp2' || i.id === 'tp3').length") == 0)
+        check('parts item blocks walking', not await pf(10.3, 2.6) and await pf(11.6, 2.6))
+        r = await turn(ac(setp('tp1', 'solid', False)), ac(setp('tp1', 'look', {"oakFurn": {"fin": "Walnut", "color": "#7a5236"}})))
+        check('solid false and look accepted, no footprint', not any(x.get('is_error') for x in r) and await pf(10.3, 2.6), [x['content'][:100] for x in r])
+        # view extras
+        r = await turn(vs(focal=35, fstop=2.8, dims=True, furniture=True, labels=False), vs(focal=30), vs(dims="yes"), vs(camera={"cam": [1, 2], "target": [0, 0, 0]}))
+        check('focal, fstop and overlays set', not r[0].get('is_error') and await pg.evaluate("[focal.value, fstop.value, tdim.getAttribute('aria-pressed'), tfur.getAttribute('aria-pressed'), tlab.getAttribute('aria-pressed')].join()") == '35,2.8,true,true,false', r[0]['content'])
+        check('bad focal, bool and camera rejected', all(r[k].get('is_error') for k in [1, 2, 3]), [r[k]['content'] for k in [1, 2, 3]])
+        r = await turn(vs(dims=True, labels=False))
+        check('overlays are set to the asked state, not toggled', not r[0].get('is_error') and await pg.evaluate("[tdim.getAttribute('aria-pressed'), tlab.getAttribute('aria-pressed')].join()") == 'true,false')
+        await turn(vs(focal=0, fstop=0, dims=False, furniture=False, labels=True))
+        r = await turn(vs(walk_to={"x": 100, "y": 100, "yaw": 0}), vs(walk_to={"x": 11.6, "y": 2.6, "yaw": 90}), vs(camera={"cam": [3, 8, 12], "target": [3, 0, 3]}))
+        check('walk_to outside every room rejected', r[0].get('is_error') is True and 'inside a wall' in r[0]['content'], r[0]['content'])
+        check('walk_to a free point turns walk on, yaw 90 faces east', not r[1].get('is_error') and await pg.evaluate("__walk.on") and await pg.evaluate("__walk.pos.map(v => v.toFixed(1)).join()") == '11.6,2.6' and abs(await pg.evaluate("Math.sin(-__walk.yaw)") - 1) < 1e-6, r[1]['content'])
+        check('camera refused while walking', r[2].get('is_error') is True and 'walk' in r[2]['content'], r[2]['content'])
+        r = await turn(vs(walk=False, camera={"cam": [3, 8, 12], "target": [3, 0, 3]}))
+        check('walk off, then camera set', not r[0].get('is_error') and not await pg.evaluate("__walk.on") and await pg.evaluate("__walk.cam.map(v => Math.round(v)).join()") == '3,8,12', r[0]['content'])
+        await turn(ac(setp('tp1', 'solid', True)))
+        r = await turn(vs(walk_to={"x": 10.3, "y": 2.6, "yaw": 0}))
+        check('walk_to into a solid is rejected', r[0].get('is_error') is True and 'inside' in r[0]['content'], r[0]['content'])
+        await turn(vs(walk=False))
+        # history
+        await turn(ac(setp('tp1', 'pos', [10.5, 2.6])), ac(setp('tp1', 'pos', [10.7, 2.6])))
+        check('two edits made', await pg.evaluate(pos0) == 10.7)
+        r = await turn(('history', {"action": "undo", "steps": 2}), ('history', {"action": "undo", "steps": 0}), ('history', {"action": "wipe"}))
+        check('undo 2 steps', await pg.evaluate(pos0) == 10.3 and json.loads(r[0]['content'])['steps_done'] == 2, r[0]['content'][:200])
+        check('bad history input rejected', r[1].get('is_error') is True and r[2].get('is_error') is True)
+        r = await turn(('history', {"action": "redo"}), ('history', {"action": "redo", "steps": 50}))
+        check('redo, then redo again finds one step left', await pg.evaluate(pos0) == 10.7 and json.loads(r[1]['content'])['steps_done'] == 1 and not r[1].get('is_error'), r[1]['content'][:200])
+        r = await turn(('history', {"action": "redo"}))
+        check('empty redo is a note, not an error', not r[0].get('is_error') and 'Nothing to redo' in r[0]['content'], r[0]['content'])
+        r = await turn(('history', {"action": "reset"}))
+        check('reset restores the published plan without a dialog', await pg.evaluate("__editor.describe().length") == 0 and json.loads(r[0]['content'])['steps_done'] == 1, r[0]['content'][:160])
+        await turn(('history', {"action": "undo"}))
+        check('reset is undoable', await pg.evaluate("__editor.plan.items.some(i => i.id === 'tp1')"))
+        await turn(('history', {"action": "reset"}))
+        # style preset
+        await turn(vs(style="nordic"))
+        check('preset written to meta.style.preset and shown', await pg.evaluate("[__editor.plan.meta.style.preset, document.getElementById('style').value].join()") == 'nordic,nordic' and any(l.startswith('meta changed: style') for l in await pg.evaluate("__editor.describe()")))
+        await pg.reload(); await pg.wait_for_selector('#loader[hidden]', state='attached', timeout=240000)
+        check('preset survives reload', await pg.evaluate("[__editor.plan.meta.style.preset, document.getElementById('style').value].join()") == 'nordic,nordic')
+        await pg.evaluate("document.getElementById('resetPlan').click()")
+        check('reset brings the published preset back', await pg.evaluate("[__editor.plan.meta.style.preset, document.getElementById('style').value].join()") == 'soft,soft')
+        await turn(vs(style="nordic")); await turn(('history', {"action": "undo"}))
+        check('undo restores the preset', await pg.evaluate("[__editor.plan.meta.style.preset, document.getElementById('style').value].join()") == 'soft,soft')
+        r = await turn(vs(style="neon"))
+        check('unknown style rejected', r[0].get('is_error') is True)
+        await pg.evaluate("document.getElementById('style').value = 'luxe'; document.getElementById('style').dispatchEvent(new Event('change'))")
+        check('the editor select still leaves the plan alone', await pg.evaluate("__editor.plan.meta.style.preset") == 'soft')
+        # ceiling, cut, notes
+        w0 = await pg.evaluate("__wallTop()")
+        r = await turn(ac({"op": "set", "list": "meta", "id": "", "path": "ceiling", "value_json": "3.2"}))
+        w1 = await pg.evaluate("__wallTop()")
+        check('ceiling 3.2 rebuilds taller walls', not r[0].get('is_error') and abs((w1 - w0) - .4) < .06, (w0, w1))
+        r = await turn(ac({"op": "set", "list": "meta", "id": "", "path": "cut", "value_json": "0.9"}), vs(cut=True))
+        await pg.wait_for_timeout(500); w2 = await pg.evaluate("__wallTop()")
+        check('cut 0.9 cuts the walls at 0.9', abs(w2 - .9) < .05, w2)
+        r = await turn(ac({"op": "unset", "list": "meta", "id": "", "path": "notes", "value_json": ""}), vs(cut=False))
+        check('removing meta.notes is kept', not r[0].get('is_error') and await pg.evaluate("'notes' in __editor.plan.meta") is False, r[0]['content'][:160])
+        # ---- layout: walls, rooms, openings, rollback; surface colours ----
+        planjs = lambda: pg.evaluate("JSON.stringify(__editor.plan)")
+        addl = lambda lst, o, i=None: {"op": "add", "list": lst, "id": i or o["id"], "path": "", "value_json": json.dumps(o)}
+        wall = {"id": "tw1", "from": [1.0, 5.0], "to": [3.0, 5.0], "t": 0.1, "grow": "S", "openings": [{"id": "td1", "type": "door", "at": 1.2, "w": 0.8, "leaf": {"hinge": "start", "swing": "N", "open": 80}}]}
+        room = {"id": "trm", "name": "Test room", "poly": [[1.0, 5.1], [3.0, 5.1], [3.0, 6.1], [1.0, 6.1]], "skirting": True}
+        r = await turn(ac(addl('walls', wall), addl('rooms', room)))
+        check('wall and room added', not r[0].get('is_error') and await pg.evaluate("__editor.plan.walls.some(w => w.id === 'tw1') && __editor.plan.rooms.some(x => x.id === 'trm')"), r[0]['content'][:200])
+        r = await turn(ac({"op": "set", "list": "walls", "id": "tw1", "path": "to", "value_json": "[3.5, 5.0]"}, {"op": "set", "list": "rooms", "id": "trm", "path": "poly", "value_json": "[[1.0, 5.1], [3.5, 5.1], [3.5, 6.1], [1.0, 6.1]]"}))
+        check('wall moved together with its room polygon', not r[0].get('is_error') and await pg.evaluate("__editor.plan.walls.find(w => w.id === 'tw1').to[0] === 3.5 && __editor.plan.rooms.find(x => x.id === 'trm').poly[1][0] === 3.5"))
+        r = await turn(ac({"op": "set", "list": "walls", "id": "tw1", "path": "openings.1", "value_json": json.dumps({"id": "tw-win", "type": "window", "at": 2.4, "w": 0.8})}))
+        check('window opening added', not r[0].get('is_error') and await pg.evaluate("__editor.plan.walls.find(w => w.id === 'tw1').openings.length") == 2, r[0]['content'][:200])
+        r = await turn(ac({"op": "unset", "list": "walls", "id": "tw1", "path": "openings.0", "value_json": ""}))
+        check('opening removed (array shrinks, no hole)', not r[0].get('is_error') and await pg.evaluate("JSON.stringify(__editor.plan.walls.find(w => w.id === 'tw1').openings.map(o => o.id))") == '["tw-win"]')
+        arch = {"id": "tw2", "from": [4.0, 5.0], "to": [5.0, 5.0], "t": 0.1, "grow": "S", "openings": [{"id": "ta", "type": "arch", "at": 4.2, "w": 0.6, "top": 2.2, "radius": 0.3}]}
+        r = await turn(ac(addl('walls', arch)))
+        check('arch opening in its own wall', not r[0].get('is_error') and await pg.evaluate("__editor.plan.walls.some(w => w.id === 'tw2')"), r[0]['content'][:200])
+        before = await planjs()
+        r = await turn(ac(addl('walls', {**wall, "id": "tw3"}), addl('walls', {**arch, "id": "tw4", "openings": [arch["openings"][0], {"type": "door", "at": 4.7, "w": 0.2}]})))
+        check('failed batch rolls back cleanly (nothing half-applied)', r[0].get('is_error') is True and await planjs() == before, r[0]['content'][:200])
+        r = await turn(ac({"op": "remove", "list": "walls", "id": "tw1", "path": "", "value_json": ""}, {"op": "remove", "list": "walls", "id": "tw2", "path": "", "value_json": ""}, {"op": "remove", "list": "rooms", "id": "trm", "path": "", "value_json": ""}))
+        check('walls and room removed', not r[0].get('is_error') and await pg.evaluate("__editor.plan.walls.every(w => !w.id.startsWith('tw')) && __editor.plan.rooms.every(x => x.id !== 'trm')"))
+        # colours
+        r = await turn(ac(
+                          {"op": "set", "list": "floors", "id": "0", "path": "color", "value_json": '"#8a8a8a"'}, {"op": "set", "list": "meta", "id": "", "path": "style.floorTint", "value_json": '"#c8c8c8"'},
+                          {"op": "set", "list": "meta", "id": "", "path": "style.frameTint", "value_json": '"#aa4444"'}, {"op": "set", "list": "meta", "id": "", "path": "style.wallTint", "value_json": '"#cfd8dc"'},
+                          {"op": "set", "list": "meta", "id": "", "path": "style.ceilingTint", "value_json": '"#fff0f0"'}, {"op": "set", "list": "meta", "id": "", "path": "style.trimTint", "value_json": '"#334455"'},
+                          {"op": "set", "list": "rooms", "id": "bed1", "path": "wallColor", "value_json": '"#a0c0a0"'}, {"op": "set", "list": "rooms", "id": "bed1", "path": "trimColor", "value_json": '"#202020"'},
+                          {"op": "set", "list": "walls", "id": "w-north", "path": "color", "value_json": '"#bbaa99"'}, {"op": "set", "list": "ceilings", "id": "0", "path": "color", "value_json": '"#eeeeff"'},
+                          {"op": "set", "list": "walls", "id": "w-south", "path": "openings.0.leaf.color", "value_json": '"#445566"'}))
+        check('every surface colour field accepted and built', not r[0].get('is_error'), r[0]['content'][:250])
+        r = await turn(ac({"op": "set", "list": "floors", "id": "0", "path": "color", "value_json": '"red"'}), ac({"op": "set", "list": "floors", "id": "0", "path": "material", "value_json": '"nopeFloor"'}))
+        check('bad colour and unknown floor material rejected with a clear message', r[0].get('is_error') is True and '#e9ddcc' in r[0]['content'] and r[1].get('is_error') is True and 'oakFloor' in r[1]['content'], (r[0]['content'][:120], r[1]['content'][:120]))
+        await pg.evaluate("document.getElementById('resetPlan').click()")
+        # ---- review fixes ----
+        w5 = {"id": "tw5", "from": [1.0, 5.0], "to": [4.0, 5.0], "t": 0.1, "grow": "S", "openings": [{"id": "a", "type": "window", "at": 1.1, "w": 0.5}, {"id": "b", "type": "window", "at": 2.0, "w": 0.5}, {"id": "c", "type": "window", "at": 3.0, "w": 0.5}]}
+        await turn(ac(addl('walls', w5)))
+        r = await turn(ac({"op": "unset", "list": "walls", "id": "tw5", "path": "openings.0", "value_json": ""}, {"op": "unset", "list": "walls", "id": "tw5", "path": "openings.1", "value_json": ""}))
+        check('two array unsets in one batch refer to the list before the batch', not r[0].get('is_error') and await pg.evaluate("JSON.stringify(__editor.plan.walls.find(w => w.id === 'tw5').openings.map(o => o.id))") == '["c"]', r[0]['content'][:160])
+        bad = lambda i, **kw: add({**top, "id": i, "parts": [{**top["parts"][0], **kw}]})
+        before = await planjs()
+        r = await turn(ac(bad('b1', material='constructor')), ac(bad('b2', material='toString')), ac(bad('b3', size=[.5, 0, .04])), ac(bad('b4', radius=-1)), ac(bad('b5', color='red')),
+                       ac(add({**top, "id": "b6", "parts": [top["parts"][0]] * 201})), ac({"op": "set", "list": "floors", "id": "0", "path": "material", "value_json": '"constructor"'}))
+        check('prototype keys, zero sizes, bad radius, bad colour and 201 parts are clean errors that roll back', all(x.get('is_error') for x in r) and 'valid:' in r[0]['content'] and await planjs() == before, [x['content'][:90] for x in r])
+        r = await turn(vs(focal=18, walk_to={"x": 100, "y": 100}), vs(focal=24, style="neon"), vs(focal=24, view="nope"))
+        check('set_view_state validates everything before applying anything', all(x.get('is_error') for x in r) and await pg.evaluate("document.getElementById('focal').value") == '0', [x['content'][:80] for x in r])
+        await turn(ac({"op": "remove", "list": "walls", "id": "tw5", "path": "", "value_json": ""}))
+        await turn(ac(add(top)))
+        for i in range(3): await turn(ac(setp('tp1', 'pos', [10.3 + .1 * (i + 1), 2.6])))
+        r = await turn(('history', {"action": "undo", "steps": 100}))
+        res = json.loads(r[0]['content'])
+        check('undo with steps 100 stops at the start of the stack, one rebuild', res['steps_done'] > 3 and res['undo_left'] == 0 and not r[0].get('is_error'), r[0]['content'][:200])
+        r = await turn(('history', {"action": "redo", "steps": None}))
+        check('null steps means one step', json.loads(r[0]['content'])['steps_done'] == 1)
+        await pg.evaluate("document.getElementById('resetPlan').click()")
+        check('no page errors in scripted turns', not errs, errs[:5])
+        await pg.evaluate("document.getElementById('resetPlan').click()")
         await pg.evaluate("""(() => { const v = structuredClone(__editor.plan.views); delete v.overview;
             localStorage.setItem('palace1-plan-patch-v1', JSON.stringify({ views: v, meta: { ...__editor.plan.meta, site: null } })); })()""")
         await pg.reload(); await pg.wait_for_selector('#loader[hidden]', state='attached', timeout=240000)
