@@ -14,6 +14,7 @@ import { setView } from './views.js';
 import { camera, controls, state } from '../scene.js';
 import { enter as walkEnter, leave as walkLeave, walkError, walkTo } from './walk.js';
 import { setPhoto } from '../pathtracer.js';
+import { bindingsInfo } from './bindings.js';
 
 const $ = id => document.getElementById(id), panel = $('chatpanel'), log = $('chatlog'), input = $('chatinput'), sendBtn = $('chatsend');
 const NO_ID = ['slabs', 'floors', 'ceilings']; // lists whose entries are addressed by index
@@ -23,6 +24,7 @@ let history = [], synced = null, busy = false;
 const keysByType = () => { const by = {}; for (const it of plan.items) for (const g of itemGroups.get(it.id) || []) for (const k of lookKeys(g)) (by[it.type] ||= new Set()).add(k); return by; };
 const context = () => ['Furniture catalog (type → variant index: design; opts = extra fields in the item "opts" object, W = overall width in m):',
   ...Object.entries(DESIGNS).map(([t, d]) => `- ${t}: ` + d.items.map((v, i) => `${i}: ${v.name} (${v.info})${v.opts ? ' opts ' + v.opts.join(',') : ''}`).join('; ')),
+  bindingsInfo(),
   'Built-in item types: ' + Object.keys(BUILDERS).join(', '),
   'Shapes of a "parts" item (size length): ' + Object.entries(SHAPES).map(([k, n]) => `${k} (${n})`).join(', '),
   'Material keys for parts[].material (a part with "color" clones the material and tints it): ' + Object.keys(M).join(', '),
