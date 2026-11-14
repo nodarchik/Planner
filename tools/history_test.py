@@ -13,6 +13,7 @@ def strict(ms):   # what the Claude API and api/chat.js would accept; returns an
     turn0 = max(i for i, m in enumerate(ms) if m['role'] == 'user' and (isinstance(m['content'], str) or any(b.get('type') == 'text' for b in m['content'])))
     if any(think(m) for m in ms[:turn0]): return 'thinking block outside the current turn'
     if any(m['role'] == 'assistant' and any(b.get('type') == 'tool_use' for b in m['content']) and not think(m) for m in ms[turn0 + 1:]): return 'thinking block dropped inside the running turn'
+    if any(m['role'] == 'user' and isinstance(m['content'], list) and any(b.get('type') == 'tool_result' for b in m['content']) and any(b.get('type') == 'text' for b in m['content']) for m in ms): return 'text merged into a tool_result message'
     if any((not m['content']) or (isinstance(m['content'], list) and any(b.get('type') == 'text' and not b['text'].strip() for b in m['content'])) for m in ms): return 'empty content'
     for i, m in enumerate(ms):
         if i and m['role'] == ms[i - 1]['role']: return f'roles repeat at {i}'
@@ -64,6 +65,8 @@ async def main():
         if res and any('FAILMID' in str(m['content']) for m in ms[-3:-2]): await route.fulfill(status=500, json={'error': 'boom'}); return
         bnd = [{'input': 'wheel', 'action': 'pan'}]
         combo = [{'type': 'tool_use', 'id': f'v{len(calls)}', 'name': 'set_view_state', 'input': {'fast': True}}, {'type': 'tool_use', 'id': f'b{len(calls)}', 'name': 'apply_changes', 'input': {'summary': 'x', 'changes': [{'op': 'set', 'list': 'meta', 'id': '', 'path': 'bindings', 'value_json': json.dumps(bnd)}]}}]
+        turn_text = next((json.dumps(m['content']) for m in reversed(ms) if m['role'] == 'user' and (isinstance(m['content'], str) or any(b.get('type') == 'text' for b in m['content']))), '')
+        if 'LOOP go' in turn_text: await route.fulfill(json={'content': [THINK, edit], 'stop_reason': 'tool_use'}); return
         if not res and 'COMBO' in text: await route.fulfill(json={'content': [THINK, {'type': 'text', 'text': 'Combo.'}] + combo, 'stop_reason': 'tool_use'}); return
         if not res and 'EDIT' in text: await route.fulfill(json={'content': [THINK, {'type': 'text', 'text': 'Editing.'}, edit], 'stop_reason': 'tool_use'}); return
         await route.fulfill(json={'content': [{'type': 'text', 'text': 'Done: ' + text.split('Request: ')[-1][:40]}], 'stop_reason': 'end_turn'})
@@ -126,7 +129,11 @@ async def main():
         seed = turn_msgs(2) + [{'role': 'user', 'content': 'long job'}, {'role': 'assistant', 'content': [{'type': 'tool_use', 'id': 'z', 'name': 'apply_changes', 'input': {'summary': 'x', 'changes': []}}]}, {'role': 'user', 'content': [{'type': 'tool_result', 'tool_use_id': 'z', 'content': '{}'}]}]
         store.update(rev=store['rev'] + 1, data={'messages': seed, 'log': [['user', 'long job'], ['note', 'Stopped after 30 steps; tell it to continue.']]})
         c = await page(); n = len(calls); await ask(c, 'continue', 'Done: continue')
-        check('conversation ending in tool results: next request merges and alternates', not bad and strict(calls[n]) is None and calls[n][-1]['role'] == 'user' and calls[n][-1]['content'][-1]['type'] == 'text')
+        check('stored conversation ending in tool results is closed with an assistant message', not bad and strict(calls[n]) is None and calls[n][-1]['role'] == 'user' and isinstance(calls[n][-1]['content'], str) and calls[n][-2]['role'] == 'assistant' and 'Stopped after 30 steps' in json.dumps(calls[n][-2]))
+        # a real 30-step stop: the turn is closed with an assistant message, stored, and the next request is valid
+        lp = await page(); n = len(calls); await ask(lp, 'LOOP go', 'Stopped after 30 steps'); await lp.wait_for_timeout(800)
+        sm = store['data']['messages']; check('30-step stop: stored conversation ends with an assistant text message', sm[-1]['role'] == 'assistant' and 'Stopped after 30 steps' in json.dumps(sm[-1]) and strict(sm + [{'role': 'user', 'content': 'x'}]) is None and not bad, bad)
+        n = len(calls); await ask(lp, 'after loop', 'Done: after loop'); check('request after a 30-step stop is a normal new turn (strict mock)', not bad and strict(calls[n]) is None and isinstance(calls[n][-1]['content'], str), bad)
         # a stored conversation that ends with an unanswered tool_use is repaired on load
         store.update(rev=store['rev'] + 1, data={'messages': turn_msgs(2) + [{'role': 'user', 'content': 'q'}, {'role': 'assistant', 'content': [{'type': 'tool_use', 'id': 'dead', 'name': 'apply_changes', 'input': {}}]}], 'log': []})
         c2 = await page(); n = len(calls); await ask(c2, 'repair me', 'Done: repair me'); check('unanswered tool_use in stored data is dropped before sending', not bad and strict(calls[n]) is None and 'dead' not in json.dumps(calls[n]))

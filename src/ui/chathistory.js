@@ -1,5 +1,6 @@
 // Assistant chat history: kept in localStorage and, where the server has storage, in api/history.js (one rev-checked copy shared by all devices).
 const KEY = 'palace1-chat-history-v1', REVKEY = 'palace1-chat-rev', PWKEY = 'palace1-chat-password', UNSENT = 'palace1-chat-unsent', MAX_PUT = 1.9e6, URL = '/api/history', OFF = !!import.meta.env.VITE_NO_ASSETS;
+export const STOP_TEXT = '(Stopped after 30 steps. Say "continue" to go on.)';
 export const MAX_MSGS = 120, MAX_BYTES = 1e6, KEEP_MSGS = 80, KEEP_BYTES = 6e5, MAX_LOG = 300, MAX_TEXT = 3000, CLASSES = ['user', 'bot', 'note', 'note error'];
 const ls = { get: k => { try { return localStorage.getItem(k); } catch (e) { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} }, del: k => { try { localStorage.removeItem(k); } catch (e) {} } };
 let rev = +ls.get(REVKEY) || 0, latest = null, inflight = false, queued = false, noPrompt = false, badge = null;
@@ -29,6 +30,7 @@ export function repair(h) {
     if (ids.length) { const n = clean(h[i + 1]); if (!n || n.role !== 'user' || results(n).length !== ids.length || !ids.every(id => results(n).includes(id))) break; }
     out.push(m); }
   if (out.length && plain(out[out.length - 1])) out.pop(); // a request without its answer is dropped
+  if (out.length && out[out.length - 1].role === 'user') out.push({ role: 'assistant', content: [{ type: 'text', text: STOP_TEXT }] }); // a stored turn always ends with an assistant message
   return out; }
 const size = h => JSON.stringify(h).length;
 // drop the oldest whole turns (cut at a plain user message) once the conversation nears the server limits; returns the same list if nothing to cut
@@ -61,6 +63,7 @@ export async function save(data) {
       for (let n = 0; n < 3; n++) { let { status, j } = await call('PUT', { rev, data: sent });
         if (status === 401 && !noPrompt) { const pw = prompt('Chat password (the same as the assistant):'); if (pw) { ls.set(PWKEY, pw); ({ status, j } = await call('PUT', { rev, data: sent })); } if (status === 401) { ls.del(PWKEY); noPrompt = true; } }
         if (status === 200 && j) { setRev(j.rev); setLocalOnly(false); if (!queued) ls.del(UNSENT); break; }
+        if (status === 409 && j && JSON.stringify(j.data) === JSON.stringify(sent)) { setRev(j.rev); setLocalOnly(false); if (!queued) ls.del(UNSENT); break; } // our own PUT whose reply was lost
         if (status === 409 && j) { setRev(j.rev); note("Chat was changed on another device; this device's version was kept"); continue; }
         if (status === 413) setLocalOnly(true);
         break; } } while (queued); }
@@ -69,8 +72,9 @@ export async function save(data) {
 export async function fresh() {
   if (OFF || inflight || ls.get(UNSENT)) return null;
   const { status, j } = await call('GET', null, 2000); if (status !== 200 || !j || j.rev === rev) return null;
-  setRev(j.rev); writeLocal(j.data); return { data: cleanData(j.data) }; }
+  const local = readLocal(); if (j.rev === 0 && local) { setRev(0); save(cleanData(local)); return null; } // empty server: push the local chat, like load()
+  return { data: cleanData(j.data), commit: () => { setRev(j.rev); writeLocal(j.data); } }; } // the caller commits only when it really adopts the copy
 // tab visible again: adopt a newer server copy unless a turn is running
 export function watch(isBusy, adopt) {
   if (OFF) return;
-  document.addEventListener('visibilitychange', async () => { if (document.hidden || isBusy()) return; const f = await fresh(); if (f && !isBusy()) adopt(f.data); }); }
+  document.addEventListener('visibilitychange', async () => { if (document.hidden || isBusy()) return; const f = await fresh(); if (f && !isBusy()) { f.commit(); adopt(f.data); } }); }

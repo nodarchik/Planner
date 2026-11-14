@@ -15,7 +15,7 @@ import { camera, controls, state } from '../scene.js';
 import { enter as walkEnter, leave as walkLeave, walkError, walkTo } from './walk.js';
 import { setPhoto } from '../pathtracer.js';
 import { CHAT_MODELS, DEFAULT_MODEL } from '../chat-models.js';
-import { load, save, fresh, watch, trim, repair, cleanLog, MAX_LOG } from './chathistory.js';
+import { load, save, fresh, watch, trim, repair, MAX_LOG, STOP_TEXT } from './chathistory.js';
 import { bindingsInfo } from './bindings.js';
 import { setFast } from '../fast.js';
 
@@ -115,15 +115,16 @@ async function post(messages) {
   if (!r.ok) throw new Error(data.error || `HTTP ${r.status}`); return data;
 }
 async function send() { const text = input.value.trim(); if (!text || busy) return; await ready; if (busy) return; busy = true; sendBtn.disabled = $('chatmodel').disabled = true; input.value = '';
-  const other = await fresh(); if (other) { restore(other.data); say('note', 'Chat updated from another device.', false); } // another device changed the chat since this one loaded
+  const pre = [add('user', text), add('note', 'Thinking…')]; // shown at once; the check below can take up to 2 s
+  const other = await fresh(); pre.forEach(n => n.remove()); if (other) { other.commit(); restore(other.data); say('note', 'Chat updated from another device.', false); } // another device changed the chat since this one loaded
   say('user', text);
   const cut = trim(history); if (cut !== history) { history = cut; synced = null; } // oldest turns dropped near the server limits
   let content = text;
   if (!history.length) content = `${context()}\n\nCurrent plan (palace1.json):\n${JSON.stringify(plan)}\n\nRequest: ${text}`;
   else if (!synced) content = `${context()}\n\nCurrent plan (palace1.json), the state right now; any plan or edit list earlier in this conversation is outdated:\n${JSON.stringify(plan)}\n\nRequest: ${text}`;
   else { const manual = describe(JSON.parse(synced), plan); if (manual.length) content = `Edits made by hand in the editor since your last turn:\n${manual.join('\n')}\n\nRequest: ${text}`; }
-  const base = history.slice(), tail = base[base.length - 1]; // base = the conversation to fall back to if this request fails
-  if (tail && tail.role === 'user' && Array.isArray(tail.content)) history = [...base.slice(0, -1), { ...tail, content: [...tail.content, { type: 'text', text: content }] }]; else history = [...base, { role: 'user', content }]; // after a 30-step stop the last message is a user one
+  const base = history.slice(); // base = the conversation to fall back to if this request fails
+  history = [...base, { role: 'user', content }];
   const wait = say('note', 'Thinking…', false);
   try {
     let last = ''; for (let turn = 0; turn < 30; turn++) { const r = await post(history); last = r.stop_reason; history.push({ role: 'assistant', content: r.content }); // content goes back unchanged (thinking blocks included)
@@ -132,7 +133,7 @@ async function send() { const text = input.value.trim(); if (!text || busy) retu
       if (r.stop_reason === 'max_tokens') { say('note error', 'The answer was cut off; say "continue" to get the rest.'); break; }
       if (r.stop_reason !== 'tool_use') break;
       history.push({ role: 'user', content: r.content.filter(b => b.type === 'tool_use').map(runTool) }); } // all results of one turn in a single message
-    if (last === 'tool_use') say('note', 'Stopped after 30 steps; tell it to continue.');
+    if (last === 'tool_use') { say('note', STOP_TEXT); history.push({ role: 'assistant', content: [{ type: 'text', text: STOP_TEXT }] }); } // close the turn: the stored conversation ends with an assistant message
     history = repair(history); // never keep an unanswered tool_use
     if (history.length > base.length) synced = JSON.stringify(plan);
   } catch (e) { say('note error', e.message); if (history.length > base.length + 1) say('note', 'This request was left out of the conversation; the plan keeps the edits already applied.'); history = base; }
