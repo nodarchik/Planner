@@ -141,7 +141,7 @@ $('copyChanges').onclick = copyChanges;
 window.__editor = { plan, select, edit, undo, redo, moveWall, describe: () => describe(PUBLISHED, plan) }; // for tools/ scripts and the console
 
 /* ---------- edit mode, dragging with snapping, keyboard ---------- */
-export function setMove(on) { state.moveMode = on; $('move').setAttribute('aria-pressed', on); bar.hidden = !on; updateBar();
+export function setMove(on) { if (on) state.leaveWalk?.(); state.moveMode = on; $('move').setAttribute('aria-pressed', on); bar.hidden = !on; updateBar();
   hintEl.textContent = on ? 'Click an item or wall to edit its values · drag to move (snaps to walls, items, 5 cm; Shift = free) · drag empty space to orbit' : 'Drag rotate · Right-drag pan · Scroll zoom';
   if (!on) select(null); renderer.domElement.style.cursor = ''; }
 $('move').onclick = () => setMove(!state.moveMode);

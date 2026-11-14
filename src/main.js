@@ -8,6 +8,7 @@ import { composer, lod, setMoving } from './post.js';
 import { labels } from './ui/dims.js';
 import { applySun, loadSky } from './ui/toolbar.js';
 import { setView } from './ui/views.js';
+import { step as walkStep } from './ui/walk.js';
 import { discardEdits, hasEdits, loadEdits } from './ui/editor.js';
 import { loadStyle } from './ui/style.js';
 import './ui/chat.js';
@@ -33,14 +34,15 @@ window.__sceneTriangles = () => { let n = 0; scene.traverse(o => { if (o.isMesh 
 
 /* ================= loop ================= */
 const v = new V3();
-let idle = 99; // frames since the camera last moved
+let idle = 99, last = 0; // frames since the camera last moved; time of the last frame
 function tick(now) {
   requestAnimationFrame(tick); window.__frames = (window.__frames || 0) + 1;
   if (state.anim) { const k = Math.min(1, (now - state.anim.t0) / 900), e = k < .5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2;
     camera.position.lerpVectors(state.anim.from.p, state.anim.to.p, e); controls.target.lerpVectors(state.anim.from.t, state.anim.to.t, e); if (k >= 1) state.anim = null; if (state.photo && state.pt) ptCamera(); }
-  const moved0 = controls.update() || !!state.anim;
+  const dt = (now - last) / 1000; last = now;
+  const moved0 = state.walk ? walkStep(dt) : controls.update() || !!state.anim;
   const inside = camera.position.y < H - .05 && camera.position.x > ROOF[0] && camera.position.x < ROOF[2] && camera.position.z > ROOF[1] && camera.position.z < ROOF[3];
-  const fov = state.photo && state.focal ? focalFov(state.focal, camera.aspect) : (inside ? 62 : 42) + (innerWidth < 600 ? 14 : 0); if (Math.abs(camera.fov - fov) > .01) { camera.fov += (fov - camera.fov) * .15; if (Math.abs(camera.fov - fov) < .05) camera.fov = fov; camera.updateProjectionMatrix(); if (state.photo && state.pt) ptCamera(); }
+  const fov = state.photo && state.focal ? focalFov(state.focal, camera.aspect) : (inside || state.walk ? 62 : 42) + (innerWidth < 600 ? 14 : 0); if (Math.abs(camera.fov - fov) > .01) { camera.fov += (fov - camera.fov) * .15; if (Math.abs(camera.fov - fov) < .05) camera.fov = fov; camera.updateProjectionMatrix(); if (state.photo && state.pt) ptCamera(); }
   idle = moved0 || camera.fov !== fov ? 0 : idle + 1; if (!MOBILE) setMoving(!state.photo && idle < 8);
   window.__settled = !state.anim && camera.fov === fov && !lod.on; // camera at rest: read by tools/shot.py
   if (state.ceiling) { state.ceiling.visible = inside; if (state.lastCeil !== inside) { state.lastCeil = inside; markShadows(); rebuildPT(); } }

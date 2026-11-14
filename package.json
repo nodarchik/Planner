@@ -14,6 +14,7 @@
     "stills": "python3 tools/stills.py http://localhost:4173/ renders",
     "shots:diff": "python3 tools/diff.py baseline shots",
     "validate": "node tools/validate.mjs",
+    "walk:test": "python3 tools/walk_test.py http://localhost:4173/",
     "build:single": "vite build --mode single"
   },
   "dependencies": {

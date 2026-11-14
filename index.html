@@ -62,7 +62,7 @@
     <option value="luxe">Style: Dark luxe</option>
     <option value="midcentury">Style: Mid-century</option>
   </select>
-  <div class="seg"><button id="move" aria-pressed="false">Edit plan</button><button id="chatBtn" aria-pressed="false">Assistant</button></div>
+  <div class="seg"><button id="walk" aria-pressed="false" title="First-person view at eye height">Walk</button><button id="move" aria-pressed="false">Edit plan</button><button id="chatBtn" aria-pressed="false">Assistant</button></div>
   <div class="seg"><button id="photo" aria-pressed="false">Photo render</button><button id="still" disabled title="Path-traced 2560 × 1440 PNG of the current view">Save 2K still</button></div>
   <div class="pcam" id="pcam" hidden>
     <select id="focal" class="sel" aria-label="Focal length"><option value="0">Lens: Auto</option><option value="18">18 mm</option><option value="24">24 mm</option><option value="35">35 mm</option><option value="50">50 mm</option></select>
@@ -137,6 +137,7 @@
   <div class="row"><button id="lookReset">Original look</button><button id="selDone">Done</button></div>
   <div class="note">Type a value to change it · drag to move · arrow keys nudge 1 cm (Shift = 10 cm) · R rotates · Del deletes · Esc deselects · Ctrl+Z undo</div>
 </div>
+<div class="joy" id="joy" aria-label="Move"><div class="knob" id="knob"></div></div>
 
 <script type="module" src="/src/main.js"></script>
 </body>

@@ -52,6 +52,7 @@ const focalSel = document.getElementById('focal'), fstopSel = document.getElemen
 function setLens(focal, fstop) { state.focal = focal; state.fstop = fstop; focalSel.value = String(focal); fstopSel.value = String(fstop); if (state.photo) ptCamera(); }
 focalSel.onchange = fstopSel.onchange = () => setLens(+focalSel.value, +fstopSel.value);
 export async function setPhoto(on) {
+  if (on) state.leaveWalk?.();
   document.getElementById('pcam').hidden = !on;
   const btn = document.getElementById('photo');
   if (!on) { if (still) { const s = still; endStill(); s.reject?.(new Error('Photo turned off during the still')); } ptGlass(false); scene.environmentIntensity = 1; state.photo = false; syncLights(); markShadows(); btn.setAttribute('aria-pressed', 'false'); stillBtn.disabled = true; statusEl.textContent = ''; return; }
