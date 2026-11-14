@@ -9,7 +9,7 @@ import { BUILDERS, itemGroups } from '../items/index.js';
 import { SHAPES } from '../items/parts.js';
 import { M } from '../materials.js';
 import { lookKeys, styleInfo } from './style.js';
-import { tryEdit } from './editor.js';
+import { history as editHistory, tryEdit } from './editor.js';
 import { setView } from './views.js';
 import { camera, controls, state } from '../scene.js';
 import { enter as walkEnter, leave as walkLeave, walkTo } from './walk.js';
@@ -77,6 +77,10 @@ function applyViewState(v) {
 function runTool(block) {
   if (block.name === 'set_view_state') { try { const done = applyViewState(block.input || {}); say('note', done.length ? 'View: ' + done.join(', ') : 'No change.'); return { type: 'tool_result', tool_use_id: block.id, content: JSON.stringify({ applied: done }) }; }
     catch (e) { say('note error', 'Rejected: ' + e.message); return { type: 'tool_result', tool_use_id: block.id, is_error: true, content: e.message }; } }
+  if (block.name === 'history') { const { action, steps = 1 } = block.input || {}, fail = m => { say('note error', 'Rejected: ' + m); return { type: 'tool_result', tool_use_id: block.id, is_error: true, content: m }; };
+    if (!['undo', 'redo', 'reset'].includes(action)) return fail('action must be undo, redo or reset'); if (!Number.isInteger(steps) || steps < 1 || steps > 100) return fail('steps must be an integer 1 to 100');
+    const r = editHistory(action, steps), msg = r.steps ? `${action}: ${r.steps} step${r.steps > 1 ? 's' : ''}\n${r.lines.join('\n') || 'no net change'}` : `Nothing to ${action === 'reset' ? 'reset: the plan equals the published one' : action}.`;
+    say('note', msg); return { type: 'tool_result', tool_use_id: block.id, content: JSON.stringify({ steps_done: r.steps, changes: r.lines, undo_left: r.left.undo, redo_left: r.left.redo, note: r.steps ? undefined : msg }) }; }
   if (block.name !== 'apply_changes') return { type: 'tool_result', tool_use_id: block.id, is_error: true, content: 'unknown tool' };
   const before = JSON.parse(JSON.stringify(plan)), err = tryEdit(() => applyBatch(block.input.changes || []));
   if (err) { say('note error', 'Rejected: ' + err); return { type: 'tool_result', tool_use_id: block.id, is_error: true, content: 'Batch rejected, plan unchanged: ' + err }; }

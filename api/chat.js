@@ -79,6 +79,18 @@ TOOLS.push({
   }
 });
 
+TOOLS.push({
+  name: 'history',
+  description: 'Undo or redo the last edit steps, or reset the whole plan to the published one (the same as the editor buttons; the undo list also holds the owner\'s hand edits). The result lists what changed, or says nothing was left. Reset is itself undoable.',
+  input_schema: {
+    type: 'object', additionalProperties: false, required: ['action'],
+    properties: {
+      action: { type: 'string', enum: ['undo', 'redo', 'reset'] },
+      steps: { type: 'integer', minimum: 1, maximum: 100, description: 'How many undo or redo steps (default 1); ignored for reset.' }
+    }
+  }
+});
+
 const bad = (res, code, error) => res.status(code).json({ error });
 
 export default async function handler(req, res) {

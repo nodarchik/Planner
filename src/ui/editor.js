@@ -33,6 +33,14 @@ export function tryEdit(fn) { const before = snapshot(); try { edit(fn); return 
 function restore(json) { setPlan(JSON.parse(json)); persist(); buildAll(); reselect(); }
 function undo() { if (!undoStack.length) return; redoStack.push(snapshot()); restore(undoStack.pop()); }
 function redo() { if (!redoStack.length) return; undoStack.push(snapshot()); restore(redoStack.pop()); }
+// reset every edit back to the published plan (one undo step); false when there is nothing to reset
+export function resetPlan() { if (isEmpty(diffPlan(PUBLISHED, plan))) return false; undoStack.push(snapshot()); redoStack.length = 0; sel = null; restore(JSON.stringify(PUBLISHED)); return true; }
+// undo / redo up to `steps` times, or reset; returns how many steps ran and what changed
+export function history(action, steps = 1) {
+  const before = JSON.parse(snapshot()); let n = 0;
+  if (action === 'reset') n = +resetPlan(); else { const st = action === 'undo' ? undoStack : redoStack, fn = action === 'undo' ? undo : redo; while (n < steps && st.length) { fn(); n++; } }
+  return { steps: n, lines: describe(before, plan), left: { undo: undoStack.length, redo: redoStack.length } };
+}
 
 /* ---------- selection ---------- */
 let sel = null; const boxes = []; // sel = { kind: 'item' | 'wall', id }
@@ -131,7 +139,7 @@ async function copyChanges() { const lines = describe(PUBLISHED, plan), text = l
 $('rotL').onclick = ev => rotate(ev.shiftKey ? -15 : -90); $('rotR').onclick = ev => rotate(ev.shiftKey ? 15 : 90);
 $('dupBtn').onclick = duplicate; $('delBtn').onclick = remove; $('selDone').onclick = () => select(null); $('addBtn').onclick = addItem;
 $('undoBtn').onclick = undo; $('redoBtn').onclick = redo;
-$('resetPlan').onclick = () => { if (isEmpty(diffPlan(PUBLISHED, plan))) return; undoStack.push(snapshot()); redoStack.length = 0; sel = null; restore(JSON.stringify(PUBLISHED)); };
+$('resetPlan').onclick = () => { resetPlan(); };
 $('exportPlan').onclick = () => download('palace1.json', JSON.stringify(plan, null, 1));
 $('importPlan').onclick = () => $('importFile').click();
 $('importFile').onchange = async ev => { const f = ev.target.files[0]; if (!f) return; try { const next = JSON.parse(await f.text()); if (!next.items || !next.walls || !next.rooms) throw new Error('not a plan file');
