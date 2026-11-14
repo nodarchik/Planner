@@ -2,7 +2,7 @@
 import { M } from './materials.js';
 
 export const HEX = /^#[0-9a-f]{6}$/i;
-export const isMat = k => typeof k === 'string' && Object.hasOwn(M, k) && !!M[k].isMaterial;
+export const isMat = k => typeof k === 'string' && Object.prototype.hasOwnProperty.call(M, k) && !!M[k].isMaterial;
 const clones = new Map();
 export function mat(key) { if (!isMat(key)) throw new Error(`unknown material "${key}" (valid: ${Object.keys(M).join(', ')})`); return M[key]; }
 // material `key`, or a clone tinted with a #rrggbb colour
