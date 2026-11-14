@@ -40,7 +40,7 @@ function applyBatch(changes) {
     const index = () => { const i = plan[c.list].findIndex((x, n) => (noId ? String(n) : x.id) === c.id); if (i < 0) throw new Error(`no ${c.list} entry "${c.id}"`); return i; };
     const find = () => c.list === 'meta' ? plan.meta : c.list === 'views' ? (plan.views[c.id] || (() => { throw new Error(`no view "${c.id}"`); })()) : plan[c.list][index()];
     const setPath = (host, v) => { if (!parts.length) throw new Error('set / unset need a path'); if (parts.some(p => ['__proto__', 'constructor', 'prototype'].includes(p))) throw new Error(`path "${c.path}" is not allowed`); for (const p of parts.slice(0, -1)) { host = host[p]; if (host === null || typeof host !== 'object') throw new Error(`path "${c.path}" does not exist on ${c.id || 'meta'}`); }
-      const last = parts[parts.length - 1]; if (v === undefined) delete host[last]; else host[last] = v; };
+      const last = parts[parts.length - 1]; if (v === undefined) { if (Array.isArray(host) && typeof last === 'number') host.splice(last, 1); else delete host[last]; } else host[last] = v; };
     if (c.list === 'meta' && c.op !== 'set' && c.op !== 'unset') { setPath(plan.meta, c.op === 'add' ? val() : undefined); continue; }
     if (c.op === 'add') { const o = val(); if (c.list === 'views') { plan.views[c.id] = o; continue; } if (!noId) { if (!o.id) o.id = c.id; if (plan[c.list].some(x => x.id === o.id)) throw new Error(`id "${o.id}" already exists`); } if (c.list === 'items' && !o.type) throw new Error('an item needs a type'); plan[c.list].push(o); }
     else if (c.op === 'remove') { if (c.list === 'views') { find(); delete plan.views[c.id]; continue; } plan[c.list].splice(index(), 1); }
