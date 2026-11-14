@@ -11,7 +11,9 @@ const kept = new Map(); // material -> original values
 
 const mats = () => { const s = new Set(); scene.traverse(o => { if (o.material) [].concat(o.material).forEach(m => s.add(m)); }); return s; };
 const FIELDS = ['clearcoat', 'sheen', 'transmission', 'transparent', 'opacity', 'depthWrite', 'metalness', 'envMapIntensity', 'normalMap', 'roughnessMap'];
+const prog = m => [m.clearcoat > 0, m.sheen > 0, m.transmission > 0, m.transparent, !!m.normalMap, !!m.roughnessMap].join(); // what changes the shader program
 function flatten(m) {
+  const before = prog(m);
   let r = kept.get(m); if (!r) { r = {}; for (const f of FIELDS) if (f in m) r[f] = m[f]; kept.set(m, r); }
   else { if (m.normalMap) r.normalMap = m.normalMap; if (m.roughnessMap) r.roughnessMap = m.roughnessMap; } // a scanned map that arrived while Fast is on
   if (m.clearcoat !== undefined) m.clearcoat = 0;
@@ -19,9 +21,10 @@ function flatten(m) {
   if (m.transmission > 0) { if (m.transmission >= 1) { m.transparent = true; m.opacity = Math.min(m.opacity, .2); m.depthWrite = false; } m.transmission = 0; } // glass: plain transparent
   if (m.metalness > 0) m.metalness = 0; // metals are black without reflections
   for (const f of ['envMapIntensity', 'normalMap', 'roughnessMap']) if (f in m) m[f] = f[0] === 'e' ? 0 : null;
-  m.needsUpdate = true;
+  if (prog(m) !== before) m.needsUpdate = true;
 }
 export function fastInherit(src, dst) { const r = kept.get(src); if (r) kept.set(dst, { ...r }); }
+export const fastOne = m => { if (state.fast) flatten(m); }; // a material made while Fast is on (finish change)
 export function fastSync() { if (state.fast) for (const m of mats()) flatten(m); }
 // called at the end of syncLights: lamps and sun off, flat light on (dimmer at night)
 export function fastLights() {
@@ -32,6 +35,7 @@ export function fastLights() {
 export function setFast(on) {
   if (on === state.fast) return;
   if (on && state.photo) document.getElementById('photo').click();
+  if (!on) fastSync(); // record scanned maps that arrived since the last sync before restoring
   state.fast = on; renderer.shadowMap.enabled = !on;
   if (on) fastSync();
   else { for (const [m, r] of kept) { Object.assign(m, r); m.needsUpdate = true; } kept.clear(); hemi.visible = shape.visible = false; hemi.intensity = shape.intensity = 0;

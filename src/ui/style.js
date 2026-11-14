@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { state } from '../scene.js';
 import { M, P, T } from '../materials.js';
+import { fastOne } from '../fast.js';
 import { plan } from '../plan/plan.js';
 import { rebuildPT } from '../pathtracer.js';
 import { itemGroups } from '../items/index.js';
@@ -76,7 +77,7 @@ function applyPreset(name) {
   rebuildPT();
 }
 const itemOfGroup = g => plan.items.find(i => i.id === g.userData.item);
-function paint(g, key, fin, color) { const m = makeFinish(fin, color); g.traverse(o => { if (o.isMesh && o.userData.mkey === key) o.material = m; }); g.userData.custom[key] = { fin, color }; }
+function paint(g, key, fin, color) { const m = makeFinish(fin, color); fastOne(m); g.traverse(o => { if (o.isMesh && o.userData.mkey === key) o.material = m; }); g.userData.custom[key] = { fin, color }; }
 // change the finish / colour of one part of an item; saved in the plan as item.look
 export function applyPart(g, key, fin, color, save = true) {
   const it = itemOfGroup(g); (it ? itemGroups.get(it.id) || [g] : [g]).forEach(gg => paint(gg, key, fin, color));
