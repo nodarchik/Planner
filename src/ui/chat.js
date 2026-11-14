@@ -15,7 +15,7 @@ import { camera, controls, state } from '../scene.js';
 import { enter as walkEnter, leave as walkLeave, walkError, walkTo } from './walk.js';
 import { setPhoto } from '../pathtracer.js';
 import { CHAT_MODELS, DEFAULT_MODEL } from '../chat-models.js';
-import { load, save, watch, trim, repair, cleanLog, MAX_LOG } from './chathistory.js';
+import { load, save, fresh, watch, trim, repair, cleanLog, MAX_LOG } from './chathistory.js';
 
 const $ = id => document.getElementById(id), panel = $('chatpanel'), log = $('chatlog'), input = $('chatinput'), sendBtn = $('chatsend');
 const NO_ID = ['slabs', 'floors', 'ceilings']; // lists whose entries are addressed by index
@@ -109,7 +109,9 @@ async function post(messages) {
   if (r.status === 401) { try { localStorage.removeItem(PWKEY); } catch (e) {} $('chatpw').hidden = false; throw new Error('Enter the chat password below, then send again.'); }
   if (!r.ok) throw new Error(data.error || `HTTP ${r.status}`); return data;
 }
-async function send() { const text = input.value.trim(); if (!text || busy) return; busy = true; sendBtn.disabled = $('chatmodel').disabled = true; input.value = ''; await ready; say('user', text);
+async function send() { const text = input.value.trim(); if (!text || busy) return; await ready; if (busy) return; busy = true; sendBtn.disabled = $('chatmodel').disabled = true; input.value = '';
+  const other = await fresh(); if (other) { restore(other.data); say('note', 'Chat updated from another device.', false); } // another device changed the chat since this one loaded
+  say('user', text);
   const cut = trim(history); if (cut !== history) { history = cut; synced = null; } // oldest turns dropped near the server limits
   let content = text;
   if (!history.length) content = `${context()}\n\nCurrent plan (palace1.json):\n${JSON.stringify(plan)}\n\nRequest: ${text}`;
