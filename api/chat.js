@@ -63,6 +63,7 @@ TOOLS.push({
     properties: {
       night: { type: 'boolean', description: 'Night (true) or day (false).' },
       photo: { type: 'boolean', description: 'Photo render (path tracer) on or off.' },
+      fast: { type: 'boolean', description: 'Fast mode on or off: no reflections, shadows, ambient occlusion, bloom or lamps, for speed. Photo turns it off.' },
       cut: { type: 'boolean', description: 'Cut (walls cut at 1.2 m) on or off.' },
       style: { type: 'string', description: 'Interior style preset: warm, soft, nordic, japandi, luxe or midcentury.' },
       sun_month: { type: 'integer', minimum: 1, maximum: 12, description: 'Month for the sun.' },
