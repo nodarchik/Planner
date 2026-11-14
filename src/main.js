@@ -1,4 +1,5 @@
-import { CUT, H, MOBILE, V3, camera, controls, frame, loader, markShadows, renderer, scene, state, statusEl } from './scene.js';
+import { Box3 } from 'three';
+import { CUT, H, MOBILE, V3, camera, controls, frame, loader, markShadows, renderer, scene, state, statusEl, world } from './scene.js';
 import { buildTextures } from './textures.js';
 import { buildMaterials, textured } from './materials.js';
 import { upgradeMaterials, whenIdle } from './assets.js';
@@ -30,6 +31,7 @@ async function build() {
   upgradeMaterials(textured); loadSky(); whenIdle(refreshOverlays); // scanned detail maps and models arrive after the first frame
 }
 
+window.__wallTop = () => { const b = new Box3(); let t = 0; world.updateMatrixWorld(true); world.children.forEach(o => { if (o.userData.wall) o.traverse(m => { if (m.isMesh && m.visible && m.userData.clamp) t = Math.max(t, b.setFromObject(m).max.y); }); }); return t; }; // test hook: top of the visible wall pieces the cut clamps
 window.__sceneTriangles = () => { let n = 0; scene.traverse(o => { if (o.isMesh && o.geometry) n += (o.geometry.index ? o.geometry.index.count : o.geometry.attributes.position.count) / 3; }); return Math.round(n); }; // budget check
 
 /* ================= loop ================= */
