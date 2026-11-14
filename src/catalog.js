@@ -47,7 +47,7 @@ export const DESIGNS = {
         add(pillowGeo(w - .02, .24, .78, .6), M.boucle, x1 + .17 + w * i + w / 2, .38, y1 + .41);
         pillow(x1 + .17 + w * i + w / 2, y2 - .17, .58, w - .04, .26, .5, M.boucle, 1.35, Math.PI); }
       pillow(x1 + .55, -.05, .62, .4, .14, .4, M.velvetSage, 1.2, Math.PI); } },
-    { name: 'Corner chaise (L)', info: '2.20 × 2.10 · chaise on the left', opts: ['W'], build: (o) => { const x1 = -1.1, x2 = 1.1, y1 = -.45, y2 = .45, cy1 = -1.65, cx2 = -.2;
+    { name: 'Corner chaise (L)', info: '2.20 × 2.10 · chaise on the left', build: (o) => { const x1 = -1.1, x2 = 1.1, y1 = -.45, y2 = .45, cy1 = -1.65, cx2 = -.2;
       B(x1 + .07, y1 + .07, x2 - .07, y2 - .07, 0, .08, M.carcass); B(x1 + .07, cy1 + .07, cx2 - .07, y1 + .07, 0, .08, M.carcass);
       RB(x1, y1, x2, y2, .08, .36, .04, M.boucle); RB(x1, cy1, cx2, y1 + .02, .08, .36, .04, M.boucle);
       RB(x2 - .18, y1, x2, y2, .08, .62, .06, M.boucle, { seg: 5 });

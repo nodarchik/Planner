@@ -46,8 +46,9 @@ export function enter() {
   if (free(t.x, t.z)) { pos = [t.x, t.z]; face([camera.position.x, camera.position.z], pos); if (Math.hypot(pos[0] - camera.position.x, pos[1] - camera.position.z) < .3) yaw = 0; dirty = true; place(); } else teleport('entrance');
 }
 // stand at plan point (x, y) looking yaw degrees (0 = north, clockwise from above, like item rot); enters walk mode; throws if the point is not free
+export const walkError = (x, y) => (free(x, y) ? null : `walk_to (${x}, ${y}) is inside a wall or a piece of furniture, or outside every room`);
 export function walkTo(x, y, yawDeg = 0) {
-  if (!free(x, y)) throw new Error(`walk_to (${x}, ${y}) is inside a wall or a piece of furniture, or outside every room`);
+  const err = walkError(x, y); if (err) throw new Error(err);
   if (!state.walk) enter(); pos = [x, y]; yaw = -yawDeg * Math.PI / 180; pitch = 0; dirty = true; place();
 }
 export function leave(instant) {

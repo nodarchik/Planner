@@ -195,6 +195,27 @@ async def main():
         r = await turn(ac({"op": "set", "list": "floors", "id": "0", "path": "color", "value_json": '"red"'}), ac({"op": "set", "list": "floors", "id": "0", "path": "material", "value_json": '"nopeFloor"'}))
         check('bad colour and unknown floor material rejected with a clear message', r[0].get('is_error') is True and '#e9ddcc' in r[0]['content'] and r[1].get('is_error') is True and 'oakFloor' in r[1]['content'], (r[0]['content'][:120], r[1]['content'][:120]))
         await pg.evaluate("document.getElementById('resetPlan').click()")
+        # ---- review fixes ----
+        w5 = {"id": "tw5", "from": [1.0, 5.0], "to": [4.0, 5.0], "t": 0.1, "grow": "S", "openings": [{"id": "a", "type": "window", "at": 1.1, "w": 0.5}, {"id": "b", "type": "window", "at": 2.0, "w": 0.5}, {"id": "c", "type": "window", "at": 3.0, "w": 0.5}]}
+        await turn(ac(addl('walls', w5)))
+        r = await turn(ac({"op": "unset", "list": "walls", "id": "tw5", "path": "openings.0", "value_json": ""}, {"op": "unset", "list": "walls", "id": "tw5", "path": "openings.1", "value_json": ""}))
+        check('two array unsets in one batch refer to the list before the batch', not r[0].get('is_error') and await pg.evaluate("JSON.stringify(__editor.plan.walls.find(w => w.id === 'tw5').openings.map(o => o.id))") == '["c"]', r[0]['content'][:160])
+        bad = lambda i, **kw: add({**top, "id": i, "parts": [{**top["parts"][0], **kw}]})
+        before = await planjs()
+        r = await turn(ac(bad('b1', material='constructor')), ac(bad('b2', material='toString')), ac(bad('b3', size=[.5, 0, .04])), ac(bad('b4', radius=-1)), ac(bad('b5', color='red')),
+                       ac(add({**top, "id": "b6", "parts": [top["parts"][0]] * 201})), ac({"op": "set", "list": "floors", "id": "0", "path": "material", "value_json": '"constructor"'}))
+        check('prototype keys, zero sizes, bad radius, bad colour and 201 parts are clean errors that roll back', all(x.get('is_error') for x in r) and 'valid:' in r[0]['content'] and await planjs() == before, [x['content'][:90] for x in r])
+        r = await turn(vs(focal=18, walk_to={"x": 100, "y": 100}), vs(focal=24, style="neon"), vs(focal=24, view="nope"))
+        check('set_view_state validates everything before applying anything', all(x.get('is_error') for x in r) and await pg.evaluate("document.getElementById('focal').value") == '0', [x['content'][:80] for x in r])
+        await turn(ac({"op": "remove", "list": "walls", "id": "tw5", "path": "", "value_json": ""}))
+        await turn(ac(add(top)))
+        for i in range(3): await turn(ac(setp('tp1', 'pos', [10.3 + .1 * (i + 1), 2.6])))
+        r = await turn(('history', {"action": "undo", "steps": 100}))
+        res = json.loads(r[0]['content'])
+        check('undo with steps 100 stops at the start of the stack, one rebuild', res['steps_done'] > 3 and res['undo_left'] == 0 and not r[0].get('is_error'), r[0]['content'][:200])
+        r = await turn(('history', {"action": "redo", "steps": None}))
+        check('null steps means one step', json.loads(r[0]['content'])['steps_done'] == 1)
+        await pg.evaluate("document.getElementById('resetPlan').click()")
         check('no page errors in scripted turns', not errs, errs[:5])
         await pg.evaluate("document.getElementById('resetPlan').click()")
         await pg.evaluate("""(() => { const v = structuredClone(__editor.plan.views); delete v.overview;

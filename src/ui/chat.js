@@ -12,7 +12,7 @@ import { lookKeys, setPreset, styleInfo } from './style.js';
 import { history as editHistory, tryEdit } from './editor.js';
 import { setView } from './views.js';
 import { camera, controls, state } from '../scene.js';
-import { enter as walkEnter, leave as walkLeave, walkTo } from './walk.js';
+import { enter as walkEnter, leave as walkLeave, walkError, walkTo } from './walk.js';
 import { setPhoto } from '../pathtracer.js';
 
 const $ = id => document.getElementById(id), panel = $('chatpanel'), log = $('chatlog'), input = $('chatinput'), sendBtn = $('chatsend');
@@ -61,12 +61,15 @@ function applyViewState(v) {
   for (const k of ['dims', 'furniture', 'labels', 'walk']) if (k in v && typeof v[k] !== 'boolean') throw new Error(k + ' must be true or false');
   if ('walk_to' in v) { const w = v.walk_to; if (!w || ![w.x, w.y].every(Number.isFinite) || ('yaw' in w && !Number.isFinite(w.yaw))) throw new Error('walk_to needs {x, y, yaw} as numbers'); if (v.walk === false) throw new Error('walk_to conflicts with walk false'); }
   if ('camera' in v) { const c = v.camera; if (!c) throw new Error('camera needs {cam, target}'); num3(c.cam, 'camera.cam'); num3(c.target, 'camera.target'); if (v.walk_to || v.walk || state.walk && v.walk !== false) throw new Error('leave walk mode (walk false) before setting the camera'); }
+  if ('style' in v && ![...$('style').options].some(o => o.value === v.style)) throw new Error(`unknown style "${v.style}"`);
+  if ('view' in v && !plan.views[v.view]) throw new Error(`no view "${v.view}"`);
+  if ('walk_to' in v) { const e = walkError(v.walk_to.x, v.walk_to.y); if (e) throw new Error(e); }
   if ('night' in v) { $(v.night ? 'mnight' : 'mday').click(); done.push('night ' + v.night); }
   if ('cut' in v) { $(v.cut ? 'wcut' : 'wfull').click(); done.push('cut ' + v.cut); }
-  if ('style' in v) { if (![...$('style').options].some(o => o.value === v.style)) throw new Error(`unknown style "${v.style}"`); setPreset(v.style); done.push('style ' + v.style + ' (saved in meta.style.preset)'); }
+  if ('style' in v) { setPreset(v.style); done.push('style ' + v.style + ' (saved in meta.style.preset)'); }
   if ('sun_month' in v) { fire('sunMonth', v.sun_month); done.push('sun month ' + v.sun_month); }
   if ('sun_hour' in v) { fire('sunTime', v.sun_hour); done.push('sun hour ' + v.sun_hour); }
-  if ('view' in v) { if (!plan.views[v.view]) throw new Error(`no view "${v.view}"`); setView(v.view); done.push('view ' + v.view); }
+  if ('view' in v) { setView(v.view); done.push('view ' + v.view); }
   if ('focal' in v) { fire('focal', v.focal); done.push('focal ' + v.focal); }
   if ('fstop' in v) { fire('fstop', v.fstop); done.push('fstop ' + v.fstop); }
   for (const [k, id] of [['dims', 'tdim'], ['furniture', 'tfur'], ['labels', 'tlab']]) if (k in v) { if (($(id).getAttribute('aria-pressed') === 'true') !== v[k]) $(id).click(); done.push(k + ' ' + v[k]); }
@@ -80,7 +83,7 @@ function applyViewState(v) {
 function runTool(block) {
   if (block.name === 'set_view_state') { try { const done = applyViewState(block.input || {}); say('note', done.length ? 'View: ' + done.join(', ') : 'No change.'); return { type: 'tool_result', tool_use_id: block.id, content: JSON.stringify({ applied: done }) }; }
     catch (e) { say('note error', 'Rejected: ' + e.message); return { type: 'tool_result', tool_use_id: block.id, is_error: true, content: e.message }; } }
-  if (block.name === 'history') { const { action, steps = 1 } = block.input || {}, fail = m => { say('note error', 'Rejected: ' + m); return { type: 'tool_result', tool_use_id: block.id, is_error: true, content: m }; };
+  if (block.name === 'history') { const { action, steps: st } = block.input || {}, steps = st ?? 1, fail = m => { say('note error', 'Rejected: ' + m); return { type: 'tool_result', tool_use_id: block.id, is_error: true, content: m }; };
     if (!['undo', 'redo', 'reset'].includes(action)) return fail('action must be undo, redo or reset'); if (!Number.isInteger(steps) || steps < 1 || steps > 100) return fail('steps must be an integer 1 to 100');
     const r = editHistory(action, steps), msg = r.steps ? `${action}: ${r.steps} step${r.steps > 1 ? 's' : ''}\n${r.lines.join('\n') || 'no net change'}` : `Nothing to ${action === 'reset' ? 'reset: the plan equals the published one' : action}.`;
     say('note', msg); return { type: 'tool_result', tool_use_id: block.id, content: JSON.stringify({ steps_done: r.steps, changes: r.lines, undo_left: r.left.undo, redo_left: r.left.redo, note: r.steps ? undefined : msg }) }; }

@@ -17,7 +17,7 @@ Plan conventions
 - Models: an item of type "model" with a "model" id, "pos", "rot", "h" (height of its base).
 - Anything the catalog lacks: an item of type "parts" = { id, type:"parts", pos:[x,y], rot, h (base height, default 0), label, parts:[{ shape, pos:[x,y,z], size, rot?, material, color?, radius? }] }. Part pos is the part centre in x (right) and y (depth) relative to the item origin and z = its bottom, metres above the base. size is [w,d,h] for box and rbox, [r,h] for cyl, [r] for sphere. rot is [rx,ry,rz] degrees (rz turns it about the vertical). Example, a side table: {"id":"side-1","type":"parts","pos":[3,4],"rot":0,"label":"Side table","parts":[{"shape":"rbox","pos":[0,0,0.5],"size":[0.5,0.5,0.04],"material":"oakFurn","radius":0.01},{"shape":"cyl","pos":[0,0,0],"size":[0.03,0.5],"material":"brass"}]}. "solid":false removes its floor footprint from the checks and walking. Shapes and material keys are listed in the first message.
 - Looks: "look" on an item = { partKey: { fin, color } } (fin and colour per key are listed in the first message); "resize" = [x, height, y] scale factors; "opts" on a catalog item holds the design options listed in the catalog (e.g. {"W": 2.7} for sofa width). To change a style for the whole apartment set meta.style.preset.
-- Colours (all #rrggbb hex, set with apply_changes). Floor: floors[i].material (a material key, e.g. oakFloor), floors[i].finish (overlay material key, e.g. chevron) and floors[i].color (tint); meta.style.floorTint tints every floor without its own colour. Floors are rectangles: to recolour one room, set the floor entries covering it (split an entry in two if it spans several rooms). Walls: meta.style.wallTint (all), walls[id].color (one whole wall), rooms[id].wallColor (that room's wall faces), blocks[id].color. Ceiling: meta.style.ceilingTint, ceilings[i].color. Skirting and picture-frame mouldings: meta.style.trimTint; rooms[id].trimColor (skirting of one room). Doors: openings.N.leaf.color or leaf.material on the wall. Window and door frames: meta.style.frameTint. Items: "look". Tints multiply the texture, so mid-light colours work best. To unset a colour use op unset; unset on an array index (e.g. openings.1) removes that entry; several such unsets on one array in a batch all refer to the list as it was before the batch.
+- Colours (all #rrggbb hex, set with apply_changes). Floor: floors[i].material (a material key, e.g. oakFloor), floors[i].finish (overlay material key, e.g. chevron) and floors[i].color (tint); meta.style.floorTint tints every floor without its own colour. Floors are rectangles: to recolour one room, set the floor entries covering it (split an entry in two if it spans several rooms). Walls: meta.style.wallTint (all), walls[id].color (one whole wall), rooms[id].wallColor (that room's wall faces), blocks[id].color. Ceiling: meta.style.ceilingTint, ceilings[i].color. Skirting, picture-frame mouldings and arch casings: meta.style.trimTint (arch casings have no per-room colour); rooms[id].trimColor (skirting of one room). Doors: openings.N.leaf.color or leaf.material on the wall. Window and door frames: meta.style.frameTint. Items: "look". Tints multiply the texture, so mid-light colours work best. To unset a colour use op unset; unset on an array index (e.g. openings.1) removes that entry; several such unsets on one array in a batch all refer to the list as it was before the batch.
 - Renaming an id: add a copy under the new id, fix every field that references the old id (room, wall, item references, views), then remove the old one, in one batch.
 - Moving a wall: change "from"/"to"; also move the room "poly" points that lie on it, and check the items standing on the wall (they follow through "wall" but free items and openings do not).
 
@@ -53,6 +53,7 @@ const TOOLS = [{
   }
 }];
 
+// set_view_state is not strict: strict mode needs every field required and nullable (17 nulls per call) and drops minimum/maximum; the app validates every field itself.
 TOOLS.push({
   name: 'set_view_state',
   description: 'Change what is not part of the plan file: the same controls as the toolbar. Give only the fields you want to change. Not saved in the plan and not undoable, except style, which sets meta.style.preset (saved, undoable).',
@@ -72,7 +73,7 @@ TOOLS.push({
       furniture: { type: 'boolean', description: 'Furniture overlay on or off.' },
       labels: { type: 'boolean', description: 'Room labels on or off.' },
       walk: { type: 'boolean', description: 'Walk mode (first person, eye height 1.6 m) on or off.' },
-      walk_to: { type: 'object', additionalProperties: false, required: ['x', 'y', 'yaw'], description: 'Stand at plan point (x, y) in metres looking yaw degrees (0 = north, 90 = east, clockwise seen from above); turns walk mode on. Rejected if the point is inside a wall or furniture.',
+      walk_to: { type: 'object', additionalProperties: false, required: ['x', 'y'], description: 'Stand at plan point (x, y) in metres looking yaw degrees (default 0 = north, 90 = east, clockwise seen from above); turns walk mode on. Rejected if the point is inside a wall or furniture.',
         properties: { x: { type: 'number' }, y: { type: 'number' }, yaw: { type: 'number' } } },
       camera: { type: 'object', additionalProperties: false, required: ['cam', 'target'], description: 'Orbit camera position and look-at point as [x, y, z] in metres (x east, y height, z south = plan y). Not saved in the plan; not while walking. Ceilings show automatically when the camera is inside the apartment; there is no manual ceiling switch.',
         properties: { cam: { type: 'array', items: { type: 'number' }, minItems: 3, maxItems: 3 }, target: { type: 'array', items: { type: 'number' }, minItems: 3, maxItems: 3 } } }
@@ -82,12 +83,13 @@ TOOLS.push({
 
 TOOLS.push({
   name: 'history',
+  strict: true,
   description: 'Undo or redo the last edit steps, or reset the whole plan to the published one (the same as the editor buttons; the undo list also holds the owner\'s hand edits). The result lists what changed, or says nothing was left. Reset is itself undoable.',
   input_schema: {
-    type: 'object', additionalProperties: false, required: ['action'],
+    type: 'object', additionalProperties: false, required: ['action', 'steps'],
     properties: {
       action: { type: 'string', enum: ['undo', 'redo', 'reset'] },
-      steps: { type: 'integer', minimum: 1, maximum: 100, description: 'How many undo or redo steps (default 1); ignored for reset.' }
+      steps: { type: ['integer', 'null'], description: 'How many undo or redo steps, 1 to 100 (null = 1); ignored for reset.' }
     }
   }
 });

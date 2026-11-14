@@ -43,7 +43,7 @@ function buildWall(w) {
   if (!arches.length) { wallRun(axis, t1, t2, s, e, ops, wm, inSign); return; }
   if (arches.length !== ops.length) throw new Error(`plan: wall ${w.id} mixes arches with other openings (not supported)`);
   let c = s;
-  for (const o of arches) { const end = Math.min(e, o.b + (o.a - c)); softArch(axis, t1, t2, c, end, o.a, o.b, o.top, o.radius); c = end; }
+  for (const o of arches) { const end = Math.min(e, o.b + (o.a - c)); softArch(axis, t1, t2, c, end, o.a, o.b, o.top, o.radius, wm); c = end; }
   if (e - c > EPS) wallRun(axis, t1, t2, c, e, [], wm, inSign);
 }
 function buildLeaves(w) {
@@ -88,9 +88,9 @@ export function buildArchitecture() {
     for (const [a, b] of fin.panels) softPanels(axis, at, s, a, b, gaps); }
   // fluted rounded corners
   const Q = { SW: [0, 3, -1, 1], SE: [2, 3, 1, 1], NW: [0, 1, -1, -1], NE: [2, 1, 1, -1] };
-  for (const b of plan.blocks) for (const c of b.bullnose || []) { const [ix, iy, qx, qy] = Q[c]; softBullnose(b.rect[ix], b.rect[iy], qx, qy); }
+  for (const b of plan.blocks) for (const c of b.bullnose || []) { const [ix, iy, qx, qy] = Q[c]; softBullnose(b.rect[ix], b.rect[iy], qx, qy, undefined, tinted('wall', b.color)); }
   for (const w of plan.walls) for (const c of w.bullnose || []) { const p = w[c.end], dir = c.end === 'to' ? 1 : -1, sd = c.side === 'S' || c.side === 'E' ? 1 : -1;
-    wallAxis(w) === 'x' ? softBullnose(p[0], p[1], dir, sd) : softBullnose(p[0], p[1], sd, dir); }
+    const wm = tinted('wall', w.color); wallAxis(w) === 'x' ? softBullnose(p[0], p[1], dir, sd, undefined, wm) : softBullnose(p[0], p[1], sd, dir, undefined, wm); }
   // ceiling (shown from eye level): slab, spots, coffered trays with LED cove
   const ceil = new THREE.Group(); world.add(ceil); ceil.userData.ceiling = true;
   for (const c of plan.ceilings) B(...c.rect, H, H + .06, tinted('ceiling', c.color), { parent: ceil, clamp: false, cast: false });
