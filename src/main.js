@@ -15,6 +15,7 @@ import { discardEdits, hasEdits, loadEdits, reselect } from './ui/editor.js';
 import { discardBroken, pullServer, start as syncStart } from './plan/sync.js';
 import { loadStyle } from './ui/style.js';
 import './ui/chat.js';
+import { initFast } from './fast.js';
 import { focalFov, ptCamera, ptSetScene, rebuildPT, stillTick } from './pathtracer.js';
 
 // extent of the ceilings: the camera counts as inside (wide lens, ceiling shown) within it
@@ -23,7 +24,7 @@ const ROOF = bbox(plan.ceilings.flatMap(c => [[c.rect[0], c.rect[1]], [c.rect[2]
 async function build() {
   await frame(); await buildTextures(); buildMaterials();
   loader.textContent = 'Building apartment…'; await frame();
-  const init = () => { loadStyle(); buildAll(); applySun(false); setView('overview', true); };
+  const init = () => { loadStyle(); buildAll(); applySun(false); setView('overview', true); initFast(); };
   await pullServer();
   const saved = hasEdits();
   try { loadEdits(); init(); } catch (err) { // a saved edit that cannot be built or shown: drop it and start from the published plan

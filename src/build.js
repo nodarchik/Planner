@@ -11,6 +11,7 @@ import { clearTints } from './tint.js';
 import { applyCut } from './ui/toolbar.js';
 import { clearOverlays, furnitureLabels, setupOverlays } from './ui/dims.js';
 import { renderPlanNotes } from './ui/panels.js';
+import { fastSync } from './fast.js';
 import { ptMats, rebuildPT } from './pathtracer.js';
 
 let baseEmissives = -1;
@@ -24,7 +25,7 @@ function finish(root) {
   emissives.forEach(m => m.emissiveIntensity = state.night ? m.userData.night : m.userData.day);
   world.updateMatrixWorld(true);
   root.traverse(o => { if (o.isMesh && !o.userData.clamp && o.userData.minY === undefined) { const bb = new THREE.Box3().setFromObject(o); o.userData.minY = bb.min.y; o.userData.maxY = bb.max.y; } });
-  syncLights();
+  syncLights(); fastSync();
   if (state.cutOn) applyCut(true);
 }
 function dress(it) { // per-item look and resize factors [x, height, y] stored in the plan
