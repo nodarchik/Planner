@@ -5,7 +5,10 @@ import { describe } from '../plan/patch.js';
 import { runChecks } from '../plan/checks.js';
 import { DESIGNS } from '../catalog.js';
 import { MODELS } from '../assets.js';
-import { BUILDERS } from '../items/index.js';
+import { BUILDERS, itemGroups } from '../items/index.js';
+import { SHAPES } from '../items/parts.js';
+import { M } from '../materials.js';
+import { lookKeys, styleInfo } from './style.js';
 import { tryEdit } from './editor.js';
 import { setView } from './views.js';
 import { setPhoto } from '../pathtracer.js';
@@ -15,10 +18,15 @@ const NO_ID = ['slabs', 'floors', 'ceilings']; // lists whose entries are addres
 const PWKEY = 'palace1-chat-password';
 let history = [], synced = null, busy = false;
 
-const context = () => ['Furniture catalog (type → variant index: design):',
-  ...Object.entries(DESIGNS).map(([t, d]) => `- ${t}: ` + d.items.map((v, i) => `${i}: ${v.name} (${v.info})`).join('; ')),
+const keysByType = () => { const by = {}; for (const it of plan.items) for (const g of itemGroups.get(it.id) || []) for (const k of lookKeys(g)) (by[it.type] ||= new Set()).add(k); return by; };
+const context = () => ['Furniture catalog (type → variant index: design; opts = extra fields in the item "opts" object, W = overall width in m):',
+  ...Object.entries(DESIGNS).map(([t, d]) => `- ${t}: ` + d.items.map((v, i) => `${i}: ${v.name} (${v.info})${v.opts ? ' opts ' + v.opts.join(',') : ''}`).join('; ')),
   'Built-in item types: ' + Object.keys(BUILDERS).join(', '),
-  'Model ids for items of type "model" or planter.model: ' + Object.entries(MODELS).map(([k, m]) => `${k} (${m.size.map(n => n.toFixed(2)).join(' × ')})`).join(', ')].join('\n');
+  'Shapes of a "parts" item (size length): ' + Object.entries(SHAPES).map(([k, n]) => `${k} (${n})`).join(', '),
+  'Material keys for parts[].material (a part with "color" clones the material and tints it): ' + Object.keys(M).join(', '),
+  'Model ids for items of type "model" or planter.model: ' + Object.entries(MODELS).map(([k, m]) => `${k} (${m.size.map(n => n.toFixed(2)).join(' × ')})`).join(', '),
+  'item.look = { partKey: { fin, color } } recolours one part of an item. Part keys and finishes:', ...styleInfo(),
+  'Part keys found on the built items, by item type (other designs of a type may differ; a key an item does not have is ignored): ' + Object.entries(keysByType()).map(([t, k]) => `${t}: ${[...k].join(' ')}`).join('; ')].join('\n');
 
 function say(cls, text) { const d = document.createElement('div'); d.className = 'msg ' + cls; d.textContent = text; log.appendChild(d); log.scrollTop = log.scrollHeight; return d; }
 

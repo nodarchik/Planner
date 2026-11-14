@@ -15,6 +15,10 @@ Plan conventions
 - Free furniture (catalog types): "pos" [x, y], "rot" in degrees clockwise seen from above (0 = facing north) or "lookAt" [x, y], "variant" = index in the catalog list.
 - Beds: "anchor" {wall, side, offset, gap}, or free "pos" + "rot".
 - Models: an item of type "model" with a "model" id, "pos", "rot", "h" (height of its base).
+- Anything the catalog lacks: an item of type "parts" = { id, type:"parts", pos:[x,y], rot, h (base height, default 0), label, parts:[{ shape, pos:[x,y,z], size, rot?, material, color?, radius? }] }. Part pos is the part centre in x (right) and y (depth) relative to the item origin and z = its bottom, metres above the base. size is [w,d,h] for box and rbox, [r,h] for cyl, [r] for sphere. rot is [rx,ry,rz] degrees (rz turns it about the vertical). Example, a side table: {"id":"side-1","type":"parts","pos":[3,4],"rot":0,"label":"Side table","parts":[{"shape":"rbox","pos":[0,0,0.5],"size":[0.5,0.5,0.04],"material":"oakFurn","radius":0.01},{"shape":"cyl","pos":[0,0,0],"size":[0.03,0.5],"material":"brass"}]}. "solid":false removes its floor footprint from the checks and walking. Shapes and material keys are listed in the first message.
+- Looks: "look" on an item = { partKey: { fin, color } } (fin and colour per key are listed in the first message); "resize" = [x, height, y] scale factors; "opts" on a catalog item holds the design options listed in the catalog (e.g. {"W": 2.7} for sofa width). To change a style for the whole apartment set meta.style.preset.
+- Renaming an id: add a copy under the new id, fix every field that references the old id (room, wall, item references, views), then remove the old one, in one batch.
+- Moving a wall: change "from"/"to"; also move the room "poly" points that lie on it, and check the items standing on the wall (they follow through "wall" but free items and openings do not).
 
 Rules
 - The owner has full authority over the whole plan. You may change anything: walls, rooms, openings, slabs, floors, ceilings, balconies, blocks, items, views and meta. You may add and delete anything asked. Do what is asked; do not refuse, hold back or shrink a request.

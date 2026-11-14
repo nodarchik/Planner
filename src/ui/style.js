@@ -110,5 +110,10 @@ export function renderParts(g) {
     sws.appendChild(inp); wrap.appendChild(sws); box.appendChild(wrap);
   }
 }
+// text for the assistant: look part keys by category with their finishes and colours, and the presets
+export function styleInfo() { const cats = { fab: 'fabric', wood: 'wood', laq: 'lacquer', met: 'metal', stone: 'stone' };
+  return [...Object.entries(cats).map(([c, n]) => `- ${n}: keys ${Object.keys(CAT).filter(k => CAT[k] === c).map(k => `${k} (${PART_NAME[k]})`).join(', ')}; fin ${FIN[c].join(' | ')}; sample colours ${SW[c].join(' ')}`),
+    'Default colour per fin: ' + Object.entries(FIN_COLOR).map(([f, c]) => `${f} ${c}`).join(', '), 'Style presets (meta.style.preset): ' + Object.keys(PRESETS).join(', ')]; }
+export const lookKeys = g => { const s = new Set(); g.traverse(o => { const k = o.isMesh && o.userData.mkey; if (k && CAT[k]) s.add(k); }); return [...s]; };
 document.getElementById('style').onchange = e => { applyPreset(e.target.value); saveStyle(); };
 document.getElementById('lookReset').onclick = () => { const g = state.sel && state.sel.kind === 'item' && (itemGroups.get(state.sel.id) || [])[0]; if (g) resetLook(g); };
