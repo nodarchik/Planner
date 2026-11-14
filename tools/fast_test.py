@@ -95,6 +95,7 @@ async def main():
         # Photo and Fast exclude each other
         ctx, pg = await page(viewport={'width': 1200, 'height': 720}); ev = pg.evaluate; await pg.click('#fast'); await settle(pg); await pg.click('#photo')
         await pg.wait_for_function("document.getElementById('status').textContent.includes('samples') || document.getElementById('status').textContent.includes('unavailable')", timeout=240000)
+        check('Photo on enables Save still and the path tracer renders samples', not await ev("document.getElementById('still').disabled") and 'samples' in await ev("document.getElementById('status').textContent"))
         check('Photo on turns Fast off', not await ev('__fast.on') and await pg.get_attribute('#fast', 'aria-pressed') == 'false')
         await pg.click('#fast'); await settle(pg)
         check('Fast on turns Photo off', await ev('__fast.on') and await pg.get_attribute('#photo', 'aria-pressed') == 'false')
