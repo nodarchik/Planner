@@ -82,7 +82,7 @@ async def main():
         check('proto path rejected', r3['v5'].get('is_error') is True)
         await pg.reload(); await pg.wait_for_selector('#loader[hidden]', state='attached', timeout=240000)
         check('model choice survives a reload', await pg.evaluate("document.getElementById('chatmodel').value") == 'claude-fable-5-2')
-        check('restored answers keep their model labels', await pg.evaluate("[...document.querySelectorAll('#chatlog .msg.bot')].map(m => m.dataset.model).join()") == 'Haiku 5.5 (fast),Opus 5.5,Fable 5.2 (most capable)')
+        check('restored answers keep their model labels', await pg.evaluate("[...document.querySelectorAll('#chatlog .msg.bot')].map(m => m.dataset.model).join()") == 'Haiku 5.5 (fast),Haiku 5.5 (fast),Opus 5.5,Fable 5.2 (most capable)')
         await pg.evaluate("localStorage.setItem('palace1-chat-model', 'bogus')"); await pg.reload(); await pg.wait_for_selector('#loader[hidden]', state='attached', timeout=240000)
         check('unknown stored model falls back to the default', await pg.evaluate("document.getElementById('chatmodel').value") == 'claude-haiku-5-5')
         check('meta removal survives reload', await pg.evaluate("'lights' in __editor.plan.meta") is False)
