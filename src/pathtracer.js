@@ -66,7 +66,7 @@ export async function setPhoto(on) {
       state.pt.renderScale = Math.min(1, 1.4 / DPR);
       state.pt.rasterizeSceneCallback = () => composer.render(); }
     statusEl.textContent = 'Preparing scene…'; await frame(); await frame();
-    ptGlass(true); state.photo = true; syncLights(); ptSetScene(); state.ptDirty = false; stillBtn.disabled = false;
+    setFast(false); ptGlass(true); state.photo = true; // Fast may have been switched on while the renderer loaded syncLights(); ptSetScene(); state.ptDirty = false; stillBtn.disabled = false;
   } catch (err) { console.warn(err); ptGlass(false); state.photo = false; btn.setAttribute('aria-pressed', 'false'); statusEl.textContent = 'Photo render unavailable on this device'; }
 }
 document.getElementById('photo').onclick = () => setPhoto(!state.photo);

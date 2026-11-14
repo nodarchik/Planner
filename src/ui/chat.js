@@ -60,6 +60,7 @@ function applyViewState(v) {
   if ('focal' in v && ![...$('focal').options].some(o => +o.value === v.focal)) throw new Error('focal must be one of ' + [...$('focal').options].map(o => o.value).join(', ') + ' (0 = auto)');
   if ('fstop' in v && ![...$('fstop').options].some(o => +o.value === v.fstop)) throw new Error('fstop must be one of ' + [...$('fstop').options].map(o => o.value).join(', ') + ' (0 = off)');
   for (const k of ['dims', 'furniture', 'labels', 'walk', 'fast']) if (k in v && typeof v[k] !== 'boolean') throw new Error(k + ' must be true or false');
+  if (v.fast && v.photo) throw new Error('fast and photo cannot both be on: Photo needs the full lighting');
   if ('walk_to' in v) { const w = v.walk_to; if (!w || ![w.x, w.y].every(Number.isFinite) || ('yaw' in w && !Number.isFinite(w.yaw))) throw new Error('walk_to needs {x, y, yaw} as numbers'); if (v.walk === false) throw new Error('walk_to conflicts with walk false'); }
   if ('camera' in v) { const c = v.camera; if (!c) throw new Error('camera needs {cam, target}'); num3(c.cam, 'camera.cam'); num3(c.target, 'camera.target'); if (v.walk_to || v.walk || state.walk && v.walk !== false) throw new Error('leave walk mode (walk false) before setting the camera'); }
   if ('style' in v && ![...$('style').options].some(o => o.value === v.style)) throw new Error(`unknown style "${v.style}"`);
