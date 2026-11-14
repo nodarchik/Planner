@@ -74,7 +74,7 @@ async def main():
             pg.on('console', lambda m: errs.append(m.text) if m.type == 'error' and not any(s in m.text for s in ('404', '503', 'Failed to load resource')) else None); pg.on('pageerror', lambda e: errs.append('PAGE: ' + str(e)))
             pg.on('dialog', lambda d: asyncio.ensure_future(d.accept()))
             await pg.route('**/api/chat', chat)
-            if pw: await pg.add_init_script("localStorage.setItem('palace1-chat-password', '%s')" % pw)
+            if pw: await pg.add_init_script("try { localStorage.setItem('palace1-chat-password', '%s') } catch (e) {}" % pw)
             if hroute: await pg.route('**/api/history', hroute)
             await pg.goto(sys.argv[1]); await pg.wait_for_selector('#loader[hidden]', state='attached', timeout=240000); await pg.click('#chatBtn'); return pg
         async def ask(pg, text, expect):
@@ -110,7 +110,7 @@ async def main():
 
         # stale rev: another writer bumped the server copy; this copy wins and is written with the new rev
         store['rev'] += 3; k = len(puts); await ask(a, 'stale writer', 'Done: stale writer'); await a.wait_for_timeout(800)
-        check('409: this device copy is kept and written with the new rev', len(puts) == k + 2 and puts[-1]['rev'] == store['rev'] - 1 and 'stale writer' in json.dumps(store['data']))
+        check('a newer server rev is picked up before the send: one PUT with the current rev', len(puts) == k + 1 and puts[-1]['rev'] == store['rev'] - 1 and 'stale writer' in json.dumps(store['data']))
 
         # a turn that fails in the middle of the tool loop
         await ask(a, 'FAILMID go', 'boom'); await a.wait_for_timeout(800)
@@ -154,7 +154,8 @@ async def main():
         check('a send first adopts a newer server copy (here: cleared)', len(calls[n]) == 1 and plan_in(calls[n][0]) and 'Chat updated from another device' in await a.evaluate(LOG), len(calls[n]))
         # 409 during a save: this device keeps its copy and says so
         await ask(a, 'BUMP now', 'Done: BUMP now')
-        check('409 on save: note shown and this copy kept', await until(lambda: a.evaluate("document.body.textContent.includes(\"this device's version was kept\")")) and 'BUMP now' in json.dumps(store['data']))
+        seen409 = await until(lambda: a.evaluate("document.body.textContent.includes(\"this device's version was kept\")"))
+        check('409 on save: note shown and this copy kept', seen409 and 'BUMP now' in json.dumps(store['data']), (seen409, [p['rev'] for p in puts[-3:]], store['rev']))
         # GET needs the password when the server asks for it
         pwreq['v'] = True; store.update(rev=store['rev'] + 1, data={'messages': turn_msgs(1), 'log': [['bot', 'from the server']]})
         wp = await page(pw='pw'); check('stored password is sent with the history GET', 'from the server' in await wp.evaluate(LOG))
