@@ -124,7 +124,7 @@ async function send() { const text = input.value.trim(); if (!text || busy) retu
       if (r.stop_reason !== 'tool_use') break;
       history.push({ role: 'user', content: r.content.filter(b => b.type === 'tool_use').map(runTool) }); } // all results of one turn in a single message
     if (last === 'tool_use') say('note', 'Stopped after 30 steps; tell it to continue.');
-    history = repair(history); if (history.length && history[history.length - 1].role === 'user' && typeof history[history.length - 1].content === 'string') history.pop(); // never keep an unanswered tool_use
+    history = repair(history); // never keep an unanswered tool_use
     if (history.length > base.length) synced = JSON.stringify(plan);
   } catch (e) { say('note error', e.message); if (history.length > base.length + 1) say('note', 'This request was left out of the conversation; the plan keeps the edits already applied.'); history = base; }
   wait.remove(); persist(); busy = false; sendBtn.disabled = false; input.focus(); }

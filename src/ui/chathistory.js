@@ -13,7 +13,7 @@ async function call(method, body, ms = 8000) {
   catch (e) { return { status: 0, j: null }; } finally { clearTimeout(t); } }
 
 const plain = m => m.role === 'user' && typeof m.content === 'string', uses = m => Array.isArray(m.content) ? m.content.filter(b => b && b.type === 'tool_use').map(b => b.id) : [], results = m => Array.isArray(m.content) ? m.content.filter(b => b && b.type === 'tool_result').map(b => b.tool_use_id) : [];
-// longest valid prefix: starts with a plain user message, roles alternate, every tool_use is answered by the next message
+// longest valid prefix (the request of an unanswered turn is cut): starts with a plain user message, roles alternate, every tool_use is answered by the next message
 export function repair(h) {
   const out = []; if (!Array.isArray(h)) return out;
   for (let i = 0; i < h.length; i++) { const m = h[i], prev = out[out.length - 1];
@@ -22,6 +22,7 @@ export function repair(h) {
     if (back.length !== (prev ? uses(prev).length : 0) || back.some(id => !uses(prev).includes(id))) break;
     if (ids.length) { const n = h[i + 1]; if (!n || n.role !== 'user' || results(n).length !== ids.length || !ids.every(id => results(n).includes(id))) break; }
     out.push(m); }
+  if (out.length && plain(out[out.length - 1])) out.pop(); // a request without its answer is dropped
   return out; }
 const size = h => JSON.stringify(h).length;
 // drop the oldest whole turns (cut at a plain user message) once the conversation nears the server limits; returns the same list if nothing to cut
