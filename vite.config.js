@@ -6,4 +6,4 @@ import { viteSingleFile } from 'vite-plugin-singlefile';
 // no external models, scanned maps or sky (the procedural fallbacks are used), fonts still come from Google Fonts.
 export default defineConfig(({ mode }) => mode === 'single'
   ? { plugins: [viteSingleFile()], publicDir: false, define: { 'import.meta.env.VITE_NO_ASSETS': '"1"' }, build: { outDir: 'dist-single', chunkSizeWarningLimit: 4000 } }
-  : { build: { chunkSizeWarningLimit: 1200 } });
+  : { build: { chunkSizeWarningLimit: 1200 }, optimizeDeps: { entries: ['index.html'] }, server: { watch: { ignored: ['**/.claude/**', '**/dist/**', '**/dist-single/**', '**/shots/**', '**/renders/**', '**/baseline/**'] } } }); // dev: worker worktrees and build output must not reload the page
