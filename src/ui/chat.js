@@ -14,11 +14,13 @@ import { setView } from './views.js';
 import { camera, controls, state } from '../scene.js';
 import { enter as walkEnter, leave as walkLeave, walkError, walkTo } from './walk.js';
 import { setPhoto } from '../pathtracer.js';
+import { CHAT_MODELS, DEFAULT_MODEL } from '../chat-models.js';
 import { load, save, watch, trim, repair, cleanLog, MAX_LOG } from './chathistory.js';
 
 const $ = id => document.getElementById(id), panel = $('chatpanel'), log = $('chatlog'), input = $('chatinput'), sendBtn = $('chatsend');
 const NO_ID = ['slabs', 'floors', 'ceilings']; // lists whose entries are addressed by index
-const PWKEY = 'palace1-chat-password';
+const PWKEY = 'palace1-chat-password', MODELKEY = 'palace1-chat-model', labelOf = id => (CHAT_MODELS.find(m => m.id === id) || { label: id }).label;
+let model = DEFAULT_MODEL; try { const m = localStorage.getItem(MODELKEY); if (CHAT_MODELS.some(c => c.id === m)) model = m; } catch (e) {}
 let history = [], entries = [], synced = null, busy = false, ready = Promise.resolve(); // history = API conversation, entries = visible transcript [class, text]
 
 const keysByType = () => { const by = {}; for (const it of plan.items) for (const g of itemGroups.get(it.id) || []) for (const k of lookKeys(g)) (by[it.type] ||= new Set()).add(k); return by; };
@@ -31,10 +33,10 @@ const context = () => ['Furniture catalog (type → variant index: design; opts 
   'item.look = { partKey: { fin, color } } recolours one part of an item. Part keys and finishes:', ...styleInfo(),
   'Part keys found on the built items, by item type (other designs of a type may differ; a key an item does not have is ignored): ' + Object.entries(keysByType()).map(([t, k]) => `${t}: ${[...k].join(' ')}`).join('; ')].join('\n');
 
-function add(cls, text) { const d = document.createElement('div'); d.className = 'msg ' + cls; d.textContent = text; log.appendChild(d); log.scrollTop = log.scrollHeight; return d; }
-function say(cls, text, keep = true) { if (keep) entries = [...entries, [cls, text]].slice(-MAX_LOG); return add(cls, text); }
+function add(cls, text, by) { const d = document.createElement('div'); d.className = 'msg ' + cls; d.textContent = text; if (by) d.dataset.model = by; log.appendChild(d); log.scrollTop = log.scrollHeight; return d; }
+function say(cls, text, keep = true, by = '') { if (keep) entries = [...entries, by ? [cls, text, by] : [cls, text]].slice(-MAX_LOG); return add(cls, text, by); } // by = model label, display data only (never sent to the API)
 // stored or adopted conversation: the next request carries the full current plan again (synced = null)
-function restore(d) { history = d ? d.messages : []; entries = d ? d.log : []; synced = null; log.textContent = ''; entries.forEach(([c, t]) => add(c, t)); }
+function restore(d) { history = d ? d.messages : []; entries = d ? d.log : []; synced = null; log.textContent = ''; entries.forEach(([c, t, by]) => add(c, t, by)); }
 const persist = () => save(history.length || entries.length ? { messages: history, log: entries } : null);
 
 // one batch from Claude → plan edits. Throws on the first invalid edit; tryEdit then restores the plan.
@@ -101,13 +103,13 @@ function runTool(block) {
 }
 async function post(messages) {
   const headers = { 'content-type': 'application/json' }; let pw = null; try { pw = localStorage.getItem(PWKEY); } catch (e) {} if (pw) headers['x-chat-password'] = pw;
-  let r; try { r = await fetch('/api/chat', { method: 'POST', headers, body: JSON.stringify({ messages }) }); } catch (e) { throw new Error('Could not reach the assistant.'); }
+  let r; try { r = await fetch('/api/chat', { method: 'POST', headers, body: JSON.stringify({ messages, model }) }); } catch (e) { throw new Error('Could not reach the assistant.'); }
   if (r.status === 404) throw new Error('The assistant runs only on the deployed site (Vercel), not in this build.');
   const data = await r.json().catch(() => ({ error: `HTTP ${r.status}` }));
   if (r.status === 401) { try { localStorage.removeItem(PWKEY); } catch (e) {} $('chatpw').hidden = false; throw new Error('Enter the chat password below, then send again.'); }
   if (!r.ok) throw new Error(data.error || `HTTP ${r.status}`); return data;
 }
-async function send() { const text = input.value.trim(); if (!text || busy) return; busy = true; sendBtn.disabled = true; input.value = ''; await ready; say('user', text);
+async function send() { const text = input.value.trim(); if (!text || busy) return; busy = true; sendBtn.disabled = $('chatmodel').disabled = true; input.value = ''; await ready; say('user', text);
   const cut = trim(history); if (cut !== history) { history = cut; synced = null; } // oldest turns dropped near the server limits
   let content = text;
   if (!history.length) content = `${context()}\n\nCurrent plan (palace1.json):\n${JSON.stringify(plan)}\n\nRequest: ${text}`;
@@ -118,7 +120,7 @@ async function send() { const text = input.value.trim(); if (!text || busy) retu
   const wait = say('note', 'Thinking…', false);
   try {
     let last = ''; for (let turn = 0; turn < 30; turn++) { const r = await post(history); last = r.stop_reason; history.push({ role: 'assistant', content: r.content }); // content goes back unchanged (thinking blocks included)
-      for (const b of r.content) if (b.type === 'text' && b.text.trim()) say('bot', b.text.trim());
+      for (const b of r.content) if (b.type === 'text' && b.text.trim()) say('bot', b.text.trim(), true, labelOf(r.model || model));
       if (r.stop_reason === 'refusal') { say('note error', 'The request was declined.'); break; }
       if (r.stop_reason === 'max_tokens') { say('note error', 'The answer was cut off; say "continue" to get the rest.'); break; }
       if (r.stop_reason !== 'tool_use') break;
@@ -127,9 +129,11 @@ async function send() { const text = input.value.trim(); if (!text || busy) retu
     history = repair(history); // never keep an unanswered tool_use
     if (history.length > base.length) synced = JSON.stringify(plan);
   } catch (e) { say('note error', e.message); if (history.length > base.length + 1) say('note', 'This request was left out of the conversation; the plan keeps the edits already applied.'); history = base; }
-  wait.remove(); persist(); busy = false; sendBtn.disabled = false; input.focus(); }
+  wait.remove(); persist(); busy = false; sendBtn.disabled = $('chatmodel').disabled = false; input.focus(); }
 
 if ($('chatBtn')) { const off = !!import.meta.env.VITE_NO_ASSETS; $('chatBtn').hidden = off;
+  const pick = $('chatmodel'); CHAT_MODELS.forEach(m => pick.add(new Option(m.label, m.id))); pick.value = model;
+  pick.onchange = () => { model = pick.value; try { localStorage.setItem(MODELKEY, model); } catch (e) {} };
   ready = load().then(d => { if (d && !busy) restore(d); }); watch(() => busy, d => restore(d));
   $('chatBtn').onclick = () => { panel.hidden = !panel.hidden; $('chatBtn').setAttribute('aria-pressed', !panel.hidden); if (!panel.hidden) input.focus(); };
   sendBtn.onclick = send; input.onkeydown = ev => { ev.stopPropagation(); if (ev.key === 'Enter' && !ev.shiftKey) { ev.preventDefault(); send(); } };

@@ -30,7 +30,7 @@ export function trim(h) {
   if (h.length <= MAX_MSGS && size(h) <= MAX_BYTES) return h;
   const cuts = h.map((m, i) => i && plain(m) ? i : 0).filter(Boolean); if (!cuts.length) return h;
   const at = cuts.find(i => h.length - i <= KEEP_MSGS && size(h.slice(i)) <= KEEP_BYTES) ?? cuts[cuts.length - 1]; return h.slice(at); }
-export const cleanLog = l => (Array.isArray(l) ? l : []).filter(e => Array.isArray(e) && CLASSES.includes(e[0]) && typeof e[1] === 'string').map(e => [e[0], e[1].slice(0, 20000)]).slice(-MAX_LOG);
+export const cleanLog = l => (Array.isArray(l) ? l : []).filter(e => Array.isArray(e) && CLASSES.includes(e[0]) && typeof e[1] === 'string').map(e => typeof e[2] === 'string' && e[2] ? [e[0], e[1].slice(0, 20000), e[2].slice(0, 60)] : [e[0], e[1].slice(0, 20000)]).slice(-MAX_LOG);
 export const cleanData = d => d && typeof d === 'object' ? { messages: repair(d.messages), log: cleanLog(d.log) } : null;
 
 // at start: server copy first (short timeout), else the local one
