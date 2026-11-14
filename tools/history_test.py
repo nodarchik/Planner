@@ -9,6 +9,11 @@ LOG = "document.getElementById('chatlog').innerText"
 def strict(ms):   # what the Claude API and api/chat.js would accept; returns an error text or None
     if not ms or len(ms) > 200 or len(json.dumps(ms)) > 1_500_000: return 'size'
     if ms[0]['role'] != 'user' or not isinstance(ms[0]['content'], str): return 'first message'
+    think = lambda m: isinstance(m['content'], list) and any(b.get('type') in ('thinking', 'redacted_thinking') for b in m['content'])
+    turn0 = max(i for i, m in enumerate(ms) if m['role'] == 'user' and (isinstance(m['content'], str) or any(b.get('type') == 'text' for b in m['content'])))
+    if any(think(m) for m in ms[:turn0]): return 'thinking block outside the current turn'
+    if any(m['role'] == 'assistant' and any(b.get('type') == 'tool_use' for b in m['content']) and not think(m) for m in ms[turn0 + 1:]): return 'thinking block dropped inside the running turn'
+    if any((not m['content']) or (isinstance(m['content'], list) and any(b.get('type') == 'text' and not b['text'].strip() for b in m['content'])) for m in ms): return 'empty content'
     for i, m in enumerate(ms):
         if i and m['role'] == ms[i - 1]['role']: return f'roles repeat at {i}'
         c = m['content']; uses = [b['id'] for b in c if b.get('type') == 'tool_use'] if isinstance(c, list) and m['role'] == 'assistant' else []
@@ -18,40 +23,50 @@ def strict(ms):   # what the Claude API and api/chat.js would accept; returns an
         if uses and (i + 1 >= len(ms)): return 'unanswered tool_use at the end'
     return None
 
+THINK = {'type': 'thinking', 'thinking': 'secret', 'signature': 'sig'}
 def turn_msgs(n, pad=0):   # n finished plain turns, optionally with a tool turn every 5th and padded replies
     out = []
     for i in range(n):
         out.append({'role': 'user', 'content': f'old request {i}'})
         if i % 5 == 2:
-            out += [{'role': 'assistant', 'content': [{'type': 'tool_use', 'id': f'o{i}', 'name': 'apply_changes', 'input': {'summary': 'x', 'changes': []}}]},
+            out += [{'role': 'assistant', 'content': [THINK, {'type': 'tool_use', 'id': f'o{i}', 'name': 'apply_changes', 'input': {'summary': 'x', 'changes': []}}]},
                     {'role': 'user', 'content': [{'type': 'tool_result', 'tool_use_id': f'o{i}', 'content': '{}'}]}]
-        out.append({'role': 'assistant', 'content': [{'type': 'text', 'text': f'old reply {i} ' + 'x' * pad}]})
+        out.append({'role': 'assistant', 'content': [THINK, {'type': 'text', 'text': f'old reply {i} ' + 'x' * pad}]})
     return out
 
+async def until(cond, limit=15):
+    for _ in range(int(limit / .2)):
+        r = cond(); r = await r if asyncio.iscoroutine(r) else r
+        if r: return True
+        await asyncio.sleep(.2)
+    return False
 async def main():
-    fails = []; calls = []; store = {'rev': 0, 'data': None}; puts = []; mode = {'v': 'ok'}; bad = []
+    fails = []; calls = []; store = {'rev': 0, 'data': None}; puts = []; mode = {'v': 'ok', 'put': 'ok'}; bad = []; pwreq = {'v': False}
     def check(name, ok, extra=''):
         print(('ok   ' if ok else 'FAIL ') + name + (' — ' + str(extra) if extra != '' else ''))
         if not ok: fails.append(name)
     async def hist(route):
         r = route.request
         if mode['v'] != 'ok': await route.fulfill(status=int(mode['v']), json={'error': 'x'}); return
+        if pwreq['v'] and r.headers.get('x-chat-password') != 'pw': await route.fulfill(status=401, json={'error': 'password required'}); return
         if r.method == 'GET': await route.fulfill(json=store); return
         body = json.loads(r.post_data); puts.append(body)
+        if mode['put'] != 'ok': await route.fulfill(status=int(mode['put']), json={'error': 'x'}); return
         if body['rev'] != store['rev']: await route.fulfill(status=409, json=store); return
         store.update(rev=store['rev'] + 1, data=body['data']); await route.fulfill(json=store)
     async def chat(route):
         ms = json.loads(route.request.post_data)['messages']; calls.append(ms); e = strict(ms)
         if e: bad.append(e); await route.fulfill(status=400, json={'error': e}); return
+        if 'BUMP' in json.dumps(ms[-1]['content']): store['rev'] += 5   # another device saves while this turn runs
         last = ms[-1]['content']; text = last if isinstance(last, str) else ' '.join(b.get('text', '') for b in last if b.get('type') == 'text'); res = isinstance(last, list) and last[0].get('type') == 'tool_result'
         edit = {'type': 'tool_use', 'id': f'u{len(calls)}', 'name': 'apply_changes', 'input': {'summary': 'x', 'changes': [{'op': 'add', 'list': 'meta', 'id': '', 'path': 'histTest', 'value_json': '{"a": 1}'}]}}
-        if not res and 'FAILMID' in text: await route.fulfill(json={'content': [edit], 'stop_reason': 'tool_use'}); return
+        if not res and 'FAILMID' in text: await route.fulfill(json={'content': [THINK, edit], 'stop_reason': 'tool_use'}); return
         if res and any('FAILMID' in str(m['content']) for m in ms[-3:-2]): await route.fulfill(status=500, json={'error': 'boom'}); return
-        if not res and 'EDIT' in text: await route.fulfill(json={'content': [{'type': 'text', 'text': 'Editing.'}, edit], 'stop_reason': 'tool_use'}); return
+        if not res and 'EDIT' in text: await route.fulfill(json={'content': [THINK, {'type': 'text', 'text': 'Editing.'}, edit], 'stop_reason': 'tool_use'}); return
         await route.fulfill(json={'content': [{'type': 'text', 'text': 'Done: ' + text.split('Request: ')[-1][:40]}], 'stop_reason': 'end_turn'})
     async with async_playwright() as p:
         b = await launch(p); errs = []; keep = {}
-        async def page(hroute=hist, seed=None):
+        async def page(hroute=hist, pw=None):
             for c in b.contexts:   # idle pages leave the 3D scene so the GPU stays free
                 for q in c.pages:
                     if c is not keep.get('a') and q.url != 'about:blank': await q.goto('about:blank')
@@ -59,6 +74,7 @@ async def main():
             pg.on('console', lambda m: errs.append(m.text) if m.type == 'error' and not any(s in m.text for s in ('404', '503', 'Failed to load resource')) else None); pg.on('pageerror', lambda e: errs.append('PAGE: ' + str(e)))
             pg.on('dialog', lambda d: asyncio.ensure_future(d.accept()))
             await pg.route('**/api/chat', chat)
+            if pw: await pg.add_init_script("localStorage.setItem('palace1-chat-password', '%s')" % pw)
             if hroute: await pg.route('**/api/history', hroute)
             await pg.goto(sys.argv[1]); await pg.wait_for_selector('#loader[hidden]', state='attached', timeout=240000); await pg.click('#chatBtn'); return pg
         async def ask(pg, text, expect):
@@ -112,6 +128,37 @@ async def main():
         store.update(rev=store['rev'] + 1, data={'messages': turn_msgs(2) + [{'role': 'user', 'content': 'q'}, {'role': 'assistant', 'content': [{'type': 'tool_use', 'id': 'dead', 'name': 'apply_changes', 'input': {}}]}], 'log': []})
         c2 = await page(); n = len(calls); await ask(c2, 'repair me', 'Done: repair me'); check('unanswered tool_use in stored data is dropped before sending', not bad and strict(calls[n]) is None and 'dead' not in json.dumps(calls[n]))
 
+        # thinking blocks: kept only while the tool loop of the current turn runs, never stored or resent
+        thk = await page(); n = len(calls); await ask(thk, 'EDIT with thinking', 'Editing.'); await thk.wait_for_timeout(500)
+        check('thinking block is echoed inside the running turn (strict mock accepts the loop)', not bad and any(THINK in m['content'] for m in calls[n + 1] if m['role'] == 'assistant' and isinstance(m['content'], list)), bad)
+        check('stored conversation has no thinking blocks', '"thinking"' not in json.dumps(store['data']['messages']) and 'signature' not in json.dumps(store['data']['messages']))
+        n = len(calls); await ask(thk, 'next after thinking', 'Done: next after thinking'); check('next turn resends no thinking (strict mock)', not bad and 'secret' not in json.dumps(calls[n]), bad)
+        await reload(thk); n = len(calls); await ask(thk, 'after reload thinking', 'Done: after reload thinking'); check('after a reload no thinking either', not bad, bad)
+        store.update(rev=store['rev'] + 1, data={'messages': turn_msgs(3), 'log': []})
+        thk2 = await page(); n = len(calls); await ask(thk2, 'strip stored', 'Done: strip stored'); check('old stored thinking blocks (earlier versions) are stripped on load', not bad and 'secret' not in json.dumps(calls[n]), bad)
+        mm = turn_msgs(3); mm[1]['content'] = []; mm[3]['content'] = [{'type': 'text', 'text': '  '}]
+        store.update(rev=store['rev'] + 1, data={'messages': mm, 'log': []})
+        em = await page(); n = len(calls); await ask(em, 'after empties', 'Done: after empties')
+        check('empty assistant content is repaired, request accepted', not bad and strict(calls[n]) is None and '(no answer)' in json.dumps(calls[n]), bad)
+        # a PUT that failed is retried at the next load instead of being overwritten by the older server copy
+        un = await page(); mode['put'] = '500'; await ask(un, 'unsent turn', 'Done: unsent turn'); await un.wait_for_timeout(500)
+        check('failed PUT leaves the unsent marker', await un.evaluate("localStorage.getItem('palace1-chat-unsent') === '1'") and 'unsent turn' not in json.dumps(store['data']))
+        mode['put'] = 'ok'; await reload(un)
+        check('next load pushes the local copy first', await until(lambda: 'unsent turn' in json.dumps(store['data'])) and 'unsent turn' in await un.evaluate(LOG))
+        check('marker cleared after the 200', await until(lambda: un.evaluate("localStorage.getItem('palace1-chat-unsent') === null")))
+        mode['put'] = '413'; await ask(un, 'too big turn', 'Done: too big turn'); await until(lambda: un.evaluate("!!document.getElementById('chatlocalbadge') && !document.getElementById('chatlocalbadge').hidden"))
+        check('413 shows the device-only badge', await un.evaluate("!document.getElementById('chatlocalbadge').hidden")); mode['put'] = 'ok'
+        # another device cleared the chat; this idle device (no focus event) still starts from the new state
+        n = len(calls); store.update(rev=store['rev'] + 1, data=None)
+        await ask(a, 'after remote clear', 'Done: after remote clear')
+        check('a send first adopts a newer server copy (here: cleared)', len(calls[n]) == 1 and plan_in(calls[n][0]) and 'Chat updated from another device' in await a.evaluate(LOG), len(calls[n]))
+        # 409 during a save: this device keeps its copy and says so
+        await ask(a, 'BUMP now', 'Done: BUMP now')
+        check('409 on save: note shown and this copy kept', await until(lambda: a.evaluate("document.body.textContent.includes(\"this device's version was kept\")")) and 'BUMP now' in json.dumps(store['data']))
+        # GET needs the password when the server asks for it
+        pwreq['v'] = True; store.update(rev=store['rev'] + 1, data={'messages': turn_msgs(1), 'log': [['bot', 'from the server']]})
+        wp = await page(pw='pw'); check('stored password is sent with the history GET', 'from the server' in await wp.evaluate(LOG))
+        np_ = await page(); check('no password: history falls back to the local copy', 'from the server' not in await np_.evaluate(LOG)); pwreq['v'] = False
         # trimming
         store.update(rev=store['rev'] + 1, data={'messages': turn_msgs(80), 'log': [['bot', f'r{i}'] for i in range(400)]})
         t = await page(); check('transcript keeps the last 300 entries', len(await t.evaluate("[...document.querySelectorAll('#chatlog .msg')].map(m => m.textContent)")) == 300)
