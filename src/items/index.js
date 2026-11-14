@@ -10,8 +10,9 @@ import { kitchen } from './kitchen.js';
 import { storage } from './storage.js';
 import { bath } from './bath.js';
 import { living } from './living.js';
+import { parts } from './parts.js';
 
-export const BUILDERS = { ...loose, ...hall, ...kitchen, ...storage, ...bath, ...living };
+export const BUILDERS = { ...loose, ...hall, ...kitchen, ...storage, ...bath, ...living, ...parts };
 export const itemGroups = new Map();  // item id → movable groups built for it
 export const itemObjects = new Map(); // item id → every object it added (groups, loose meshes, lights)
 

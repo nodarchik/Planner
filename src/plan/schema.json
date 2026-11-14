@@ -647,6 +647,66 @@
       "minimum": 1000,
       "maximum": 12000,
       "description": "light: colour temperature, kelvin"
+     },
+     "solid": {
+      "type": "boolean",
+      "description": "parts: false = no floor footprint for checks and walking"
+     },
+     "parts": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+       "type": "object",
+       "required": [
+        "shape",
+        "pos",
+        "size",
+        "material"
+       ],
+       "properties": {
+        "shape": {
+         "enum": [
+          "box",
+          "rbox",
+          "cyl",
+          "sphere"
+         ]
+        },
+        "pos": {
+         "type": "array",
+         "items": {
+          "type": "number"
+         },
+         "minItems": 3,
+         "maxItems": 3
+        },
+        "size": {
+         "type": "array",
+         "items": {
+          "type": "number"
+         },
+         "minItems": 1,
+         "maxItems": 3
+        },
+        "rot": {
+         "type": "array",
+         "items": {
+          "type": "number"
+         },
+         "minItems": 3,
+         "maxItems": 3
+        },
+        "material": {
+         "type": "string"
+        },
+        "color": {
+         "type": "string"
+        },
+        "radius": {
+         "type": "number"
+        }
+       }
+      }
      }
     }
    }
