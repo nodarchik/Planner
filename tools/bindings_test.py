@@ -1,5 +1,5 @@
 """Test of input bindings (meta.bindings). Usage: python3 tools/bindings_test.py <url>  (exit 1 on failure)"""
-import asyncio, sys, os
+import asyncio, sys, os, json, math
 from playwright.async_api import async_playwright
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from launch import launch
@@ -38,6 +38,14 @@ async def main():
         s0 = await st(); await touches(*THREE); s1 = await st()
         check('three-touch drag pans the target', move(s0['t'], s1['t']) > .1, move(s0['t'], s1['t']))
         check('three-touch drag does not rotate or zoom', move(off(s0), off(s1)) < 1e-3, move(off(s0), off(s1)))
+        await view('bed1'); s0 = await st(); p0, p1 = THREE
+        for k in (1, 2, 3): await cdp.send('Input.dispatchTouchEvent', {'type': 'touchStart', 'touchPoints': [{'x': x, 'y': y, 'id': i} for i, (x, y) in enumerate(p0[:k])]})
+        for k in range(1, 6): await cdp.send('Input.dispatchTouchEvent', {'type': 'touchMove', 'touchPoints': [{'x': x + (x1 - x) * k / 5, 'y': y + (y1 - y) * k / 5, 'id': i} for i, ((x, y), (x1, y1)) in enumerate(zip(p0, p1))]})
+        await cdp.send('Input.dispatchTouchEvent', {'type': 'touchEnd', 'touchPoints': []}); await settle(); s1 = await st()
+        check('fingers landing one after another (1, 2, 3) pan too', move(s0['t'], s1['t']) > .1 and move(off(s0), off(s1)) < 1e-3, (move(s0['t'], s1['t']), move(off(s0), off(s1))))
+        n0 = await ev('__bindings.listeners')
+        for i in range(10): await ev("__editor.edit(() => {})")
+        check('10 rebuilds leave exactly one set of listeners', n0 > 0 and await ev('__bindings.listeners') == n0, (n0, await ev('__bindings.listeners')))
         await view('bed1'); s0 = await st(); await ev(WHEEL, [0, -300, {}]); await settle(); s1 = await st()
         check('default wheel zooms and does not pan', dist(s1) < dist(s0) - .05 and move(s0['t'], s1['t']) < 1e-6, (dist(s0), dist(s1)))
         await ev(SET, [{'input': 'wheel', 'action': 'pan'}, {'input': 'ctrl+wheel', 'action': 'zoom'}])
@@ -50,6 +58,9 @@ async def main():
         s0 = await st(); await ev(WHEEL, [0, -300, {'shiftKey': True}]); await settle(); s1 = await st()
         check('unbound shift+wheel keeps the default (zoom)', dist(s1) < dist(s0) - .05, (dist(s0), dist(s1)))
         await ev(SET, [{'input': 'wheel', 'action': 'orbit'}, {'input': 'alt+wheel', 'action': 'none'}])
+        await view('bed1'); s0 = await st(); await ev(WHEEL, [0, 100, {}]); await settle(); s1 = await st()
+        o0, o1 = off(s0), off(s1); ang = math.degrees(math.acos(max(-1, min(1, sum(x * y for x, y in zip(o0, o1)) / (dist(s0) * dist(s1))))))
+        check('wheel orbit: one notch (100 px) is about 10 degrees', 6 < ang < 14, ang)
         await view('bed1'); s0 = await st(); await ev(WHEEL, [150, 0, {}]); await settle(); s1 = await st()
         check('wheel orbit rotates around the target', move(s0['t'], s1['t']) < 1e-6 and abs(dist(s1) - dist(s0)) < 1e-3 and move(s0['c'], s1['c']) > .1, move(s0['c'], s1['c']))
         s0 = await st(); await ev(WHEEL, [0, -300, {'altKey': True}]); await settle(); s1 = await st()
@@ -78,13 +89,38 @@ async def main():
         good = await ev('__editor.plan.meta.bindings'); tab = await ev('__bindings.table')
         bad = {'unknown input': [{'input': 'four-finger-drag', 'action': 'pan'}], 'unknown action': [{'input': 'wheel', 'action': 'fly'}], 'zoom on touch': [{'input': 'touch3-drag', 'action': 'zoom'}],
                'duplicate': [{'input': 'wheel', 'action': 'pan'}, {'input': 'wheel', 'action': 'zoom'}], 'unknown view': [{'input': 'key:KeyV', 'action': 'view:nowhere'}], 'bad key action': [{'input': 'key:KeyV', 'action': 'wheel'}],
-               'bad speed': [{'input': 'touch3-drag', 'action': 'pan', 'speed': -1}], 'speed on native': [{'input': 'mouse-left', 'action': 'pan', 'speed': 2}], 'extra field': [{'input': 'wheel', 'action': 'pan', 'code': 'x'}], 'not a list': {'input': 'wheel'}}
+               'bad speed': [{'input': 'touch3-drag', 'action': 'pan', 'speed': -1}], 'speed on native': [{'input': 'mouse-left', 'action': 'pan', 'speed': 2}], 'extra field': [{'input': 'wheel', 'action': 'pan', 'code': 'x'}], 'not a list': {'input': 'wheel'},
+               'same key twice (KeyN and n)': [{'input': 'key:KeyN', 'action': 'toggle:night'}, {'input': 'key:n', 'action': 'toggle:cut'}]}
         for name, v in bad.items():
             msg = await ev(TRY, v); check('rejected and rolled back: ' + name, isinstance(msg, str) and await ev('__editor.plan.meta.bindings') == good and await ev('__bindings.table') == tab, (msg or '')[:130])
         msg = await ev(TRY, [{'input': 'four-finger-drag', 'action': 'pan'}]); check('error lists the valid inputs', 'touch3-drag' in msg and 'key:' in msg, msg[:80])
         await ev(SET, [{'input': 'wheel', 'action': 'zoom'}]); check('edit changes the table', [e['input'] for e in await ev('__bindings.table')] == ['wheel'])
         await ev('__editor.undo()'); check('undo restores the previous table', [e['input'] for e in await ev('__bindings.table')] == ['key:KeyN', 'wheel'] and await ev('__bindings.table[1].action') == 'pan', await ev('__bindings.table'))
         await ctx.close()
+        # a bad stored/shared binding must not wipe the plan
+        reqs = []
+        patch = {'meta': {'bindings': [{'input': 'four-finger-drag', 'action': 'pan'}, {'input': 'wheel', 'action': 'pan'}]}, 'items': {'set': {'wardrobe-b2': {'to': 4.6}}, 'unset': {}, 'add': [], 'remove': []}}
+        async def api(route):
+            m = route.request.method
+            if m == 'GET': await route.fulfill(json={'rev': 3, 'patch': patch, 'base': None})
+            else: reqs.append((m, route.request.post_data)); await route.fulfill(json={'rev': 4})
+        ctx = await b.new_context(viewport={'width': 1200, 'height': 720}); pg = await ctx.new_page(); ev = pg.evaluate; await pg.route('**/api/plan', api)
+        pg.on('console', lambda m: errs.append(m.text) if m.type == 'error' and '404' not in m.text else None); pg.on('pageerror', lambda e: errs.append('PAGE: ' + str(e)))
+        warns = []; pg.on('console', lambda m: warns.append(m.text) if m.type == 'warning' else None)
+        await pg.goto(sys.argv[1]); await pg.wait_for_selector('#loader[hidden]', state='attached', timeout=240000); await pg.wait_for_timeout(3500)
+        check('bad shared binding: rest of the plan loads, no discard note', await ev("__editor.plan.items.find(i => i.id === 'wardrobe-b2').to") == 4.6 and await ev("!document.getElementById('discardnote')"))
+        check('bad shared binding: valid entries used, one warning', await ev('__bindings.table.map(e => e.input)') == ['wheel'] and len([w for w in warns if 'meta.bindings' in w]) == 1, warns)
+        check('bad shared binding: server copy not wiped', not any(r[0] != 'GET' and json.loads(r[1] or '{}').get('patch') is None for r in reqs), reqs)
+        await ev("__editor.edit(() => { __editor.plan.items.find(i => i.id === 'wardrobe-b2').to = 4.5; })")
+        check('other edits still work while a stored binding is bad', await ev("__editor.plan.items.find(i => i.id === 'wardrobe-b2').to") == 4.5); await ctx.close()
+        # moving quality and Photo (no touch emulation: desktop pointer)
+        ctx, pg = await page(sys.argv[1], viewport={'width': 1200, 'height': 720}); ev = pg.evaluate
+        raf = 'new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))'; smp = "+((document.getElementById('status').textContent.match(/(\\d+) samples/) || [0, 0])[1])"
+        await ev(SET, [{'input': 'wheel', 'action': 'pan'}]); await view('bed1'); await ev(WHEEL, [0, 200, {}]); await ev(raf)
+        check('a bound pan counts as moving (quality drop, like an orbit)', await ev('window.__settled') is False)
+        await settle(); await pg.click('#photo'); await pg.wait_for_function('(() => ' + smp + ')() >= 6', timeout=240000, polling=200)
+        n0 = await ev(smp); await ev(WHEEL, [0, 200, {}]); await ev(raf); n1 = await ev(smp)
+        check('Photo: a bound pan restarts the accumulation', n1 < n0, (n0, n1)); await ctx.close()
         # ?safe=1
         ctx, pg = await page(sys.argv[1] + '?safe=1', viewport={'width': 1200, 'height': 720}, has_touch=True); ev = pg.evaluate; cdp = await ctx.new_cdp_session(pg)
         await view('bed1'); check('safe: table empty and flag set', await ev('__bindings.table') == [] and await ev('__bindings.safe'))
