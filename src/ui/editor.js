@@ -38,7 +38,7 @@ export function resetPlan() { if (isEmpty(diffPlan(PUBLISHED, plan))) return fal
 // undo / redo up to `steps` times, or reset; returns how many steps ran and what changed
 export function history(action, steps = 1) {
   const before = JSON.parse(snapshot()); let n = 0;
-  if (action === 'reset') n = +resetPlan(); else { const st = action === 'undo' ? undoStack : redoStack, fn = action === 'undo' ? undo : redo; while (n < steps && st.length) { fn(); n++; } }
+  if (action === 'reset') n = +resetPlan(); else { const from = action === 'undo' ? undoStack : redoStack, to = action === 'undo' ? redoStack : undoStack; let cur = snapshot(); while (n < steps && from.length) { to.push(cur); cur = from.pop(); n++; } if (n) restore(cur); } // move the stacks, rebuild once
   return { steps: n, lines: describe(before, plan), left: { undo: undoStack.length, redo: redoStack.length } };
 }
 
