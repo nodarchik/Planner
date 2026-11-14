@@ -5,14 +5,11 @@ import { lamp } from '../lighting.js';
 import { M } from '../materials.js';
 import { B, C, add } from '../primitives.js';
 import { H, PASSABLE, plan, wallRect, wallAxis, openingsOf, faceCoord, bbox } from '../plan/plan.js';
+import { tinted } from '../tint.js';
 import { door, setFrame, skirt, wallRun } from './walls.js';
 import { softArch, softBullnose, softPanels, softTray } from './soft.js';
 
-const EPS = 1e-6, HEX = /^#[0-9a-f]{6}$/i, tints = new Map();
-const mat = key => M[key] || (() => { throw new Error(`plan: unknown material "${key}" (valid: ${Object.keys(M).join(', ')})`); })();
-// material `key`, or a clone tinted with a #rrggbb colour (optional colour fields in the plan)
-function tinted(key, hex) { const m = mat(key); if (hex === undefined || hex === null || hex === '') return m;
-  if (!HEX.test(hex)) throw new Error(`plan: colour "${hex}" must look like #e9ddcc`); const id = key + hex.toLowerCase(); if (!tints.has(id)) { const c = m.clone(); c.color.set(hex); tints.set(id, c); } return tints.get(id); }
+const EPS = 1e-6;
 // shared material recoloured by a meta.style tint; without a tint it returns to its original colour
 function setTint(key, hex) { const m = M[key]; m.userData.baseColor ??= m.color.getHex(); m.color.set(hex ?? m.userData.baseColor); }
 const solids = () => [...plan.walls.map(w => ({ rect: wallRect(w), axis: wallAxis(w), wall: w })), ...plan.blocks.map(b => ({ rect: b.rect }))];
@@ -63,7 +60,7 @@ function buildLeaves(w) {
 }
 
 export function buildArchitecture() {
-  const st = plan.meta.style; tints.clear(); setTint('wall', st.wallTint); setTint('ceiling', st.ceilingTint); setTint('skirting', st.trimTint); setFrame(tinted('frame', st.frameTint));
+  const st = plan.meta.style; setTint('wall', st.wallTint); setTint('ceiling', st.ceilingTint); setTint('skirting', st.trimTint); setFrame(tinted('frame', st.frameTint));
   for (const s of plan.slabs) B(...s.rect, -.36, -.05, M.concrete, { clamp: false });
   for (const f of plan.floors) { const c = f.color ?? st.floorTint; B(...f.rect, -.05, f.top ?? 0, tinted(f.material, c), { clamp: false }); if (f.finish) B(...f.rect, 0, .006, tinted(f.finish, c), { clamp: false, cast: false }); }
   for (const w of plan.walls) { const n = world.children.length; buildWall(w); world.children.slice(n).forEach(o => { o.userData.wall = w.id; }); }
