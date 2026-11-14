@@ -62,6 +62,9 @@ async def main():
         edit = {'type': 'tool_use', 'id': f'u{len(calls)}', 'name': 'apply_changes', 'input': {'summary': 'x', 'changes': [{'op': 'add', 'list': 'meta', 'id': '', 'path': 'histTest', 'value_json': '{"a": 1}'}]}}
         if not res and 'FAILMID' in text: await route.fulfill(json={'content': [THINK, edit], 'stop_reason': 'tool_use'}); return
         if res and any('FAILMID' in str(m['content']) for m in ms[-3:-2]): await route.fulfill(status=500, json={'error': 'boom'}); return
+        bnd = [{'input': 'wheel', 'action': 'pan'}]
+        combo = [{'type': 'tool_use', 'id': f'v{len(calls)}', 'name': 'set_view_state', 'input': {'fast': True}}, {'type': 'tool_use', 'id': f'b{len(calls)}', 'name': 'apply_changes', 'input': {'summary': 'x', 'changes': [{'op': 'set', 'list': 'meta', 'id': '', 'path': 'bindings', 'value_json': json.dumps(bnd)}]}}]
+        if not res and 'COMBO' in text: await route.fulfill(json={'content': [THINK, {'type': 'text', 'text': 'Combo.'}] + combo, 'stop_reason': 'tool_use'}); return
         if not res and 'EDIT' in text: await route.fulfill(json={'content': [THINK, {'type': 'text', 'text': 'Editing.'}, edit], 'stop_reason': 'tool_use'}); return
         await route.fulfill(json={'content': [{'type': 'text', 'text': 'Done: ' + text.split('Request: ')[-1][:40]}], 'stop_reason': 'end_turn'})
     async with async_playwright() as p:
@@ -171,6 +174,13 @@ async def main():
         t2 = await page(); n = len(calls); await ask(t2, 'trim by size', 'Done: trim by size'); sent = calls[n]
         check('over 1 MB: sent conversation is cut to under the server limit with valid pairing', not bad and strict(sent) is None and len(json.dumps(sent)) < 900_000 and len(sent) < 100, (len(sent), len(json.dumps(sent))))
         await t2.wait_for_timeout(800); check('stored copy stays under the 2 MB server cap', len(json.dumps(store['data'])) < 1_000_000, len(json.dumps(store['data'])))
+
+        # Fast and a binding in one turn, saved with one PUT; the restored chat can still set a binding
+        store.update(rev=store['rev'] + 1, data=None); cb = await page(); k = len(puts); n = len(calls); await ask(cb, 'COMBO go', 'Combo.'); await cb.wait_for_timeout(1000)
+        check('combined turn: Fast on and binding set', await cb.evaluate("__fast.on") is True and await cb.evaluate("__editor.plan.meta.bindings[0].action") == 'pan' and not bad, bad)
+        check('combined turn: one history PUT with both tool results', len(puts) == k + 1 and 'View: fast true' in json.dumps(puts[-1]) and json.dumps(puts[-1]).count('tool_result') == 2 and strict(store['data']['messages'] + [{'role': 'user', 'content': 'x'}]) is None, len(puts) - k)
+        await cb.evaluate("__editor.edit(() => { delete __editor.plan.meta.bindings; })"); await reload(cb); n = len(calls); await ask(cb, 'COMBO again', 'Combo.'); await cb.wait_for_timeout(500)
+        check('after a reload the restored chat still sets a binding (strict mock)', not bad and strict(calls[n]) is None and await cb.evaluate("__editor.plan.meta.bindings[0].input") == 'wheel', bad)
 
         # inert rendering of stored text
         evil = '<img src=x onerror="window.__xss=1"><script>window.__xss=1</script>'
