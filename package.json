@@ -15,10 +15,12 @@
     "shots:diff": "python3 tools/diff.py baseline shots",
     "validate": "node tools/validate.mjs",
     "walk:test": "python3 tools/walk_test.py http://localhost:4173/",
+    "sync:test": "node tools/plan_api_test.mjs && python3 tools/sync_test.py http://localhost:4173/",
     "build:single": "vite build --mode single"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.8.0",
+    "@vercel/blob": "^2.9.0",
     "three": "0.160.0",
     "three-gpu-pathtracer": "0.0.23",
     "three-mesh-bvh": "0.7.6"

@@ -17,14 +17,14 @@ const legs4 = (x1, y1, x2, y2, h, r, m, inset = .06, rt) => [[x1 + inset, y1 + i
 function cylAlong(axis, x, y, h, r, len, m) { const g = new THREE.CylinderGeometry(r, r, len, 28); axis === 'x' ? g.rotateZ(Math.PI / 2) : g.rotateX(Math.PI / 2); return add(g, m, x, h, y); }
 export const DESIGNS = {
   sofa: { label: 'Sofa', items: [
-    { name: 'Bouclé modern', info: '2.20 × 0.90 · 3 seats', build: (o) => { const W = o.W || 2.2, x1 = -W / 2, x2 = W / 2, y1 = -.45, y2 = .45;
+    { name: 'Bouclé modern', info: '2.20 × 0.90 · 3 seats', opts: ['W'], build: (o) => { const W = o.W || 2.2, x1 = -W / 2, x2 = W / 2, y1 = -.45, y2 = .45;
       B(x1 + .07, y1 + .07, x2 - .07, y2 - .07, 0, .08, M.carcass); RB(x1, y1, x2, y2, .08, .36, .04, M.boucle);
       RB(x1, y1, x1 + .18, y2, .08, .62, .06, M.boucle, { seg: 5 }); RB(x2 - .18, y1, x2, y2, .08, .62, .06, M.boucle, { seg: 5 });
       const n = W >= 2 ? 3 : 2, w = (W - .36) / n;
       for (let i = 0; i < n; i++) { const a = x1 + .18 + i * w + .01, b = a + w - .02; RB(a, y1 + .02, b, y2 - .28, .34, .50, .06, M.boucle, { seg: 5 }); RB(a, y2 - .27, b, y2 - .02, .34, .84, .07, M.boucle, { seg: 5 }); }
       pillow(x1 + .44, .09, .64, .44, .15, .44, M.velvetTerra, 1.2, Math.PI); pillow(x2 - .44, .09, .64, .44, .15, .44, M.velvetSage, 1.2, Math.PI);
       drape(x2 - .18, y1 + .1, x2 + .01, y1 + .55, .64, .14, .05, 1, M.velvetChoco); } },
-    { name: 'Chesterfield', info: '2.10 × 0.92 · tufted velvet', build: (o) => { const W = o.W || 2.1, x1 = -W / 2, x2 = W / 2, y1 = -.46, y2 = .46;
+    { name: 'Chesterfield', info: '2.10 × 0.92 · tufted velvet', opts: ['W'], build: (o) => { const W = o.W || 2.1, x1 = -W / 2, x2 = W / 2, y1 = -.46, y2 = .46;
       [[x1 + .08, y1 + .08], [x2 - .08, y1 + .08], [x1 + .08, y2 - .08], [x2 - .08, y2 - .08]].forEach(([x, y]) => lathe([[0, 0], [.03, 0], [.045, .04], [.035, .09], [0, .09]], x, y, 0, M.walnut));
       RB(x1, y1, x2, y2, .09, .42, .02, M.velvetChoco);
       [x1 + .11, x2 - .11].forEach(x => { RB(x - .11, y1, x + .11, y2, .09, .62, .02, M.velvetChoco); cylAlong('y', x, 0, .64, .13, y2 - y1, M.velvetChoco); });
@@ -32,7 +32,7 @@ export const DESIGNS = {
       for (let r = 0; r < 2; r++) for (let i = 0; i < 9; i++) S(x1 + .3 + i * (W - .6) / 8 + (r ? (W - .6) / 16 : 0), y2 - .225, .52 + r * .14, .012, M.velvetChoco);
       RB(x1 + .22, y1 + .03, x2 - .22, y2 - .22, .42, .56, .05, M.velvetChoco, { seg: 5 });
       pillow(x1 + .5, .1, .66, .42, .14, .42, M.linenSand, 1.2, Math.PI); } },
-    { name: 'Mid-century', info: '1.90 × 0.85 · on walnut legs', build: (o) => { const W = o.W || 1.9, x1 = -W / 2, x2 = W / 2, y1 = -.425, y2 = .425;
+    { name: 'Mid-century', info: '1.90 × 0.85 · on walnut legs', opts: ['W'], build: (o) => { const W = o.W || 1.9, x1 = -W / 2, x2 = W / 2, y1 = -.425, y2 = .425;
       [[x1 + .08, y1 + .08], [x2 - .08, y1 + .08], [x1 + .08, y2 - .08], [x2 - .08, y2 - .08], [0, y1 + .08], [0, y2 - .08]].forEach(([x, y]) => C(x, y, .022, 0, .2, M.walnut, { rt: .014, seg: 12 }));
       B(x1, y1, x2, y2, .2, .24, M.walnut); RB(x1 + .02, y1 + .02, x2 - .02, y2 - .02, .24, .38, .02, M.linenSand);
       RB(x1, y1, x1 + .09, y2, .24, .6, .02, M.linenSand); RB(x2 - .09, y1, x2, y2, .24, .6, .02, M.linenSand);
@@ -40,7 +40,7 @@ export const DESIGNS = {
         RB(a, y1 + .03, b, y2 - .22, .38, .5, .03, M.linenSand, { seg: 4 }); RB(a, y2 - .21, b, y2 - .03, .4, .82, .03, M.linenSand, { seg: 4 });
         [.55, .7].forEach(h => S((a + b) / 2, y2 - .215, h, .012, M.linenSand)); }
       pillow(x1 + .4, .05, .62, .4, .13, .4, M.velvetTerra, 1.25, Math.PI); } },
-    { name: 'Cloud modular', info: '2.30 × 1.05 · deep & low', build: (o) => { const W = o.W || 2.3, x1 = -W / 2, x2 = W / 2, y1 = -.525, y2 = .525;
+    { name: 'Cloud modular', info: '2.30 × 1.05 · deep & low', opts: ['W'], build: (o) => { const W = o.W || 2.3, x1 = -W / 2, x2 = W / 2, y1 = -.525, y2 = .525;
       RB(x1, y1, x2, y2, 0, .28, .1, M.boucle, { seg: 5 });
       [x1 + .16, x2 - .16].forEach(x => { const g = pillowGeo(.34, .58, 1.0, .5); add(g, M.boucle, x, .32, 0); });
       const w = (W - .34) / 3; for (let i = 0; i < 3; i++) {
@@ -62,7 +62,7 @@ export const DESIGNS = {
       sector(0, cy, 1.25, 1.95, a1 + .02, a2 - .02, 0, .08, M.carcass, .01); sector(0, cy, 1.15, 2.05, a1, a2, .08, .34, M.boucleOat, .05);
       sector(0, cy, 1.18, 1.8, a1 + .1, a2 - .1, .33, .5, M.boucleOat, .06); sector(0, cy, 1.76, 2.03, a1, a2, .33, .84, M.boucleOat, .075);
       [-.3, 0, .3].forEach((d, i) => { const a = Math.PI / 2 + d, r = 1.7; pillow(r * Math.cos(a), cy + r * Math.sin(a), .64, .42, .15, .42, [M.velvetTerra, M.linenSand, M.velvetSage][i], 1.2, Math.atan2(-Math.cos(a), -Math.sin(a))); }); } } ,
-    { name: 'Corner chaise (R)', info: '2.20 × 2.10 · chaise on the right', build: (o) => { const X = v => -v, R = (a, b, c, d, h1, h2, r, m, o) => RB(Math.min(X(a), X(b)), c, Math.max(X(a), X(b)), d, h1, h2, r, m, o), BB = (a, b, c, d, h1, h2, m) => B(X(a), b, X(c), d, h1, h2, m);
+    { name: 'Corner chaise (R)', info: '2.20 × 2.10 · chaise on the right', opts: ['W'], build: (o) => { const X = v => -v, R = (a, b, c, d, h1, h2, r, m, o) => RB(Math.min(X(a), X(b)), c, Math.max(X(a), X(b)), d, h1, h2, r, m, o), BB = (a, b, c, d, h1, h2, m) => B(X(a), b, X(c), d, h1, h2, m);
       const W = o.W || 2.2, x1 = -W / 2, x2 = W / 2, y1 = -.45, y2 = .45, cy1 = -1.65, cx2 = x1 + .9;
       BB(x1 + .07, y1 + .07, x2 - .07, y2 - .07, 0, .08, M.carcass); BB(x1 + .07, cy1 + .07, cx2 - .07, y1 + .07, 0, .08, M.carcass);
       R(x1, x2, y1, y2, .08, .36, .04, M.boucle); R(x1, cx2, cy1, y1 + .02, .08, .36, .04, M.boucle);

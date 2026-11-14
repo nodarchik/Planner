@@ -5,6 +5,7 @@ import { M } from '../materials.js';
 import { B, C, add } from '../primitives.js';
 
 /* ================= architecture ================= */
+let frameMat = null; export const setFrame = m => { frameMat = m; }; // window and door frame material (meta.style.frameTint)
 export function wallRun(axis, t1, t2, s, e, ops, m, inSign) {
   ops = [...ops].sort((p, q) => p.a - q.a); let c = s;
   const mk = (a, b, h1, h2) => axis === 'x' ? B(a, t1, b, t2, h1, h2, m) : B(t1, a, t2, b, h1, h2, m);
@@ -13,9 +14,9 @@ export function wallRun(axis, t1, t2, s, e, ops, m, inSign) {
   if (c < e) mk(c, e, 0, H);
 }
 function glazing(axis, c, o, inSign, thick) {
-  const f = .055, d = .075, { a, b, sill: s, head: h } = o;
+  const f = .055, d = .075, { a, b, sill: s, head: h } = o, fm = frameMat || M.frame;
   const R = (a1, b1, h1, h2, m, dd = d, off = 0, opt = {}) => axis === 'x' ? B(a1, c - dd / 2 + off, b1, c + dd / 2 + off, h1, h2, m, opt) : B(c - dd / 2 + off, a1, c + dd / 2 + off, b1, h1, h2, m, opt);
-  R(a, a + f, s, h, M.frame); R(b - f, b, s, h, M.frame); R(a, b, h - f, h, M.frame); R(a, b, s, s + f * (o.glass === 'door' ? .5 : 1), M.frame);
+  R(a, a + f, s, h, fm); R(b - f, b, s, h, fm); R(a, b, h - f, h, fm); R(a, b, s, s + f * (o.glass === 'door' ? .5 : 1), fm);
   R(a + f, b - f, s + f * (o.glass === 'door' ? .5 : 1), h - f, M.glassWin, .012, 0, { cast: false });
   // reveals (plaster returns) and sills
   if (o.glass === 'win') R(a - .01, b + .01, s - .025, s, M.trav, .2, inSign * (thick / 2 + .02));
@@ -34,7 +35,7 @@ export function door(hx, hy, cdx, cdy, len, ang, sign, m, o = {}) {
     add(new THREE.BoxGeometry(.13, .016, .016), M[o.handle || 'blackMetal'], ex + nx * .045 * sd - dx * .055, 1.0, ey + ny * .045 * sd - dy * .055, { rotY: rot });
   }
 }
-export function skirt(axis, at, inSign, a, b, gaps = []) { // 80 mm skirting board on one wall face
+export function skirt(axis, at, inSign, a, b, gaps = [], m = M.skirting) { // 80 mm skirting board on one wall face
   let c = a; const segs = []; [...gaps].sort((p, q) => p[0] - q[0]).forEach(([g1, g2]) => { if (g1 > c) segs.push([c, g1]); c = Math.max(c, g2); }); if (c < b) segs.push([c, b]);
-  for (const [s, e] of segs) axis === 'x' ? B(s, at, e, at + inSign * .012, 0, .08, M.skirting) : B(at, s, at + inSign * .012, e, 0, .08, M.skirting);
+  for (const [s, e] of segs) axis === 'x' ? B(s, at, e, at + inSign * .012, 0, .08, m) : B(at, s, at + inSign * .012, e, 0, .08, m);
 }

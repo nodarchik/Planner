@@ -28,6 +28,10 @@ export function footprints(plan, G) {
     if (t === 'bed') { const [w, l] = it.size, an = it.anchor; if (!an) { put(it, [sq(it.pos, Math.max(w, l))]); continue; }
       const sp = G.frameSpec({ wall: an.wall, side: an.side, offset: an.gap || 0, from: an.offset - w / 2, to: an.offset + w / 2 });
       put(it, [G.frameRect(sp, 0, 0, w, l + .17)], { bed: { sp, w, l } }); continue; }
+    if (t === 'parts') { if (it.solid === false || !Array.isArray(it.parts)) continue; const [x, y] = it.pos, th = -(it.rot || 0) * Math.PI / 180, c = Math.cos(th), s = Math.sin(th), pts = [];
+      for (const p of it.parts) { if (!p.pos || !p.size || (p.pos[2] || 0) + (p.size[2] ?? p.size[1] ?? 2 * p.size[0]) + (it.h || 0) < .05) continue; const round = p.shape === 'cyl' || p.shape === 'sphere', hw = round ? p.size[0] : p.size[0] / 2, hd = round ? p.size[0] : p.size[1] / 2, a = -(p.rot && p.rot[2] || 0) * Math.PI / 180, ca = Math.cos(a), sa = Math.sin(a);
+        for (const [u, v] of [[-hw, -hd], [hw, -hd], [hw, hd], [-hw, hd]]) { const lx = p.pos[0] + u * ca + v * sa, ly = p.pos[1] - u * sa + v * ca; pts.push([x + lx * c + ly * s, y - lx * s + ly * c]); } }
+      if (pts.length) put(it, [bbox(pts)]); continue; }
     if (t === 'nightstand') { put(it, [sq(it.pos, .45)]); continue; }
     if (t === 'vanityStool') { put(it, [sq(it.pos, .36)]); continue; }
     if (t === 'planter') { put(it, [sq(it.pos, it.plant === 'olive' ? .6 : 2 * (it.pot ? it.pot[0] : .2))]); continue; }

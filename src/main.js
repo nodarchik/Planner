@@ -1,15 +1,18 @@
-import { CUT, H, MOBILE, V3, camera, controls, frame, loader, markShadows, renderer, scene, state, statusEl } from './scene.js';
+import { Box3 } from 'three';
+import { CUT, H, MOBILE, V3, camera, controls, frame, loader, markShadows, renderer, scene, state, statusEl, world } from './scene.js';
 import { buildTextures } from './textures.js';
 import { buildMaterials, textured } from './materials.js';
 import { upgradeMaterials, whenIdle } from './assets.js';
 import { PUBLISHED, bbox, plan, setPlan } from './plan/plan.js';
 import { buildAll, refreshOverlays } from './build.js';
+import { hasTints } from './tint.js';
 import { composer, lod, setMoving } from './post.js';
 import { labels } from './ui/dims.js';
 import { applySun, loadSky } from './ui/toolbar.js';
 import { setView } from './ui/views.js';
 import { step as walkStep } from './ui/walk.js';
-import { discardEdits, hasEdits, loadEdits } from './ui/editor.js';
+import { discardEdits, hasEdits, loadEdits, reselect } from './ui/editor.js';
+import { discardBroken, pullServer, start as syncStart } from './plan/sync.js';
 import { loadStyle } from './ui/style.js';
 import './ui/chat.js';
 import { focalFov, ptCamera, ptSetScene, rebuildPT, stillTick } from './pathtracer.js';
@@ -21,15 +24,17 @@ async function build() {
   await frame(); await buildTextures(); buildMaterials();
   loader.textContent = 'Building apartment…'; await frame();
   const init = () => { loadStyle(); buildAll(); applySun(false); setView('overview', true); };
+  await pullServer();
   const saved = hasEdits();
   try { loadEdits(); init(); } catch (err) { // a saved edit that cannot be built or shown: drop it and start from the published plan
-    if (!saved) throw err; console.error('stored edits could not be built; using the published plan', err); discardEdits(); setPlan(PUBLISHED); init();
+    if (!saved) throw err; console.error('stored edits could not be built; using the published plan', err); discardBroken(); discardEdits(); setPlan(PUBLISHED); init();
     const n = document.createElement('div'); n.id = 'discardnote'; n.textContent = 'Saved edits were discarded because they could not be built. Click to close.'; n.onclick = () => n.remove();
     n.style.cssText = 'position:fixed;left:50%;top:12px;transform:translateX(-50%);z-index:9;background:#c4552f;color:#fff;padding:8px 14px;border-radius:8px;font:600 12px system-ui;cursor:pointer'; document.body.appendChild(n); }
-  loader.hidden = true;
-  upgradeMaterials(textured); loadSky(); whenIdle(refreshOverlays); // scanned detail maps and models arrive after the first frame
+  loader.hidden = true; syncStart();
+  upgradeMaterials(textured); whenIdle(() => { if (hasTints()) { buildAll(); reselect(); } }); loadSky(); whenIdle(refreshOverlays); // scanned detail maps and models arrive after the first frame
 }
 
+window.__wallTop = () => { const b = new Box3(); let t = 0; world.updateMatrixWorld(true); world.children.forEach(o => { if (o.userData.wall) o.traverse(m => { if (m.isMesh && m.visible && m.userData.clamp) t = Math.max(t, b.setFromObject(m).max.y); }); }); return t; }; // test hook: top of the visible wall pieces the cut clamps
 window.__sceneTriangles = () => { let n = 0; scene.traverse(o => { if (o.isMesh && o.geometry) n += (o.geometry.index ? o.geometry.index.count : o.geometry.attributes.position.count) / 3; }); return Math.round(n); }; // budget check
 
 /* ================= loop ================= */
