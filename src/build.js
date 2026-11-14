@@ -6,7 +6,7 @@ import { coveLights, fitShadow, nightLights, syncLights } from './lighting.js';
 import { plan, refreshGeom } from './plan/plan.js';
 import { buildArchitecture } from './arch/shell.js';
 import { buildItem, buildItems, itemGroups, itemObjects } from './items/index.js';
-import { applyLook } from './ui/style.js';
+import { applyLook, syncPreset } from './ui/style.js';
 import { applyCut } from './ui/toolbar.js';
 import { clearOverlays, furnitureLabels, setupOverlays } from './ui/dims.js';
 import { renderPlanNotes } from './ui/panels.js';
@@ -35,7 +35,7 @@ export function buildAll() {
   nightLights.forEach(l => l.parent && l.parent.remove(l)); coveLights.forEach(l => l.parent && l.parent.remove(l)); coveLights.length = 0; world.clear(); clampables.length = 0; movables.length = 0; nightLights.length = 0;
   refreshGeom(); state.planVer++;
   state.ceiling = buildArchitecture(); state.lastCeil = null; buildItems(); plan.items.forEach(dress);
-  finish(world); clearOverlays(); setupOverlays(); furnitureLabels(); renderPlanNotes(); fitShadow(); rebuildPT();
+  syncPreset(); finish(world); clearOverlays(); setupOverlays(); furnitureLabels(); renderPlanNotes(); fitShadow(); rebuildPT();
 }
 export function refreshOverlays() { clearOverlays(); setupOverlays(); furnitureLabels(); }
 export function removeItemObjects(id) { for (const o of itemObjects.get(id) || []) o.parent && o.parent.remove(o); itemObjects.delete(id); itemGroups.delete(id); prune(); markShadows(); }

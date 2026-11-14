@@ -4,7 +4,7 @@ import { M, P, T } from '../materials.js';
 import { plan } from '../plan/plan.js';
 import { rebuildPT } from '../pathtracer.js';
 import { itemGroups } from '../items/index.js';
-import { edit } from './editor.js';
+import { edit, tryEdit } from './editor.js';
 
 /* ================= colours, finishes and style presets ================= */
 const SKEY = 'palace1-style-v3', DS = THREE.DoubleSide;
@@ -86,7 +86,14 @@ export function applyLook(g, look) { if (look) for (const k in look) if (CAT[k])
 function resetLook(g) { const it = itemOfGroup(g); if (it && it.look) edit(() => { delete it.look; }, { item: it.id }); }
 function saveStyle() { try { localStorage.setItem(SKEY, JSON.stringify({ preset: curPreset })); } catch (e) {} }
 export function loadStyle() { let d = null; try { d = JSON.parse(localStorage.getItem(SKEY) || 'null'); } catch (e) {}
-  applyPreset(d && d.preset || plan.meta.style.preset); }
+  applyPreset(d && d.preset || plan.meta.style.preset); metaSeen = plan.meta.style.preset; }
+let metaSeen = null;
+// after a rebuild: if meta.style.preset changed (assistant edit, undo, reset) show it; the editor's own select never touches the plan
+export function syncPreset() { const n = plan.meta.style.preset; if (n === metaSeen) return; metaSeen = n; if (n !== curPreset) { applyPreset(n); saveStyle(); } }
+// choose a preset through the plan (undoable, persisted) and show it
+export function setPreset(name) { if (!PRESETS[name]) throw new Error(`unknown style "${name}" (valid: ${Object.keys(PRESETS).join(', ')})`);
+  if (plan.meta.style.preset !== name) { const err = tryEdit(() => { plan.meta.style.preset = name; }); if (err) throw new Error(err); }
+  if (name !== curPreset) { applyPreset(name); saveStyle(); } }
 export function partsOf(g) { const cnt = {}; g.traverse(o => { const k = o.isMesh && o.userData.mkey; if (k && CAT[k]) cnt[k] = (cnt[k] || 0) + 1; });
   return Object.keys(cnt).sort((a, b) => cnt[b] - cnt[a]).slice(0, 6); }
 export function renderParts(g) {

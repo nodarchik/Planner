@@ -54,7 +54,7 @@ const TOOLS = [{
 
 TOOLS.push({
   name: 'set_view_state',
-  description: 'Change what is not part of the plan file: the same controls as the toolbar. Give only the fields you want to change. Not saved in the plan and not undoable.',
+  description: 'Change what is not part of the plan file: the same controls as the toolbar. Give only the fields you want to change. Not saved in the plan and not undoable, except style, which sets meta.style.preset (saved, undoable).',
   input_schema: {
     type: 'object', additionalProperties: false,
     properties: {

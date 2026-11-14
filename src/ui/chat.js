@@ -8,7 +8,7 @@ import { MODELS } from '../assets.js';
 import { BUILDERS, itemGroups } from '../items/index.js';
 import { SHAPES } from '../items/parts.js';
 import { M } from '../materials.js';
-import { lookKeys, styleInfo } from './style.js';
+import { lookKeys, setPreset, styleInfo } from './style.js';
 import { history as editHistory, tryEdit } from './editor.js';
 import { setView } from './views.js';
 import { camera, controls, state } from '../scene.js';
@@ -60,7 +60,7 @@ function applyViewState(v) {
   if ('camera' in v) { const c = v.camera; if (!c) throw new Error('camera needs {cam, target}'); num3(c.cam, 'camera.cam'); num3(c.target, 'camera.target'); if (v.walk_to || v.walk || state.walk && v.walk !== false) throw new Error('leave walk mode (walk false) before setting the camera'); }
   if ('night' in v) { $(v.night ? 'mnight' : 'mday').click(); done.push('night ' + v.night); }
   if ('cut' in v) { $(v.cut ? 'wcut' : 'wfull').click(); done.push('cut ' + v.cut); }
-  if ('style' in v) { if (![...$('style').options].some(o => o.value === v.style)) throw new Error(`unknown style "${v.style}"`); fire('style', v.style); done.push('style ' + v.style); }
+  if ('style' in v) { if (![...$('style').options].some(o => o.value === v.style)) throw new Error(`unknown style "${v.style}"`); setPreset(v.style); done.push('style ' + v.style + ' (saved in meta.style.preset)'); }
   if ('sun_month' in v) { fire('sunMonth', v.sun_month); done.push('sun month ' + v.sun_month); }
   if ('sun_hour' in v) { fire('sunTime', v.sun_hour); done.push('sun hour ' + v.sun_hour); }
   if ('view' in v) { if (!plan.views[v.view]) throw new Error(`no view "${v.view}"`); setView(v.view); done.push('view ' + v.view); }
