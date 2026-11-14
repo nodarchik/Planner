@@ -76,7 +76,7 @@ async def main():
             await pg.route('**/api/chat', chat)
             if pw: await pg.add_init_script("try { localStorage.setItem('palace1-chat-password', '%s') } catch (e) {}" % pw)
             if hroute: await pg.route('**/api/history', hroute)
-            await pg.goto(sys.argv[1]); await pg.wait_for_selector('#loader[hidden]', state='attached', timeout=240000); await pg.click('#chatBtn'); return pg
+            await pg.goto(sys.argv[1], timeout=120000); await pg.wait_for_selector('#loader[hidden]', state='attached', timeout=240000); await pg.click('#chatBtn'); return pg
         async def ask(pg, text, expect):
             await pg.fill('#chatinput', text); await pg.click('#chatsend')
             await pg.wait_for_function("t => [...document.querySelectorAll('#chatlog .msg')].some(m => m.textContent.includes(t)) && !document.getElementById('chatsend').disabled", arg=expect, timeout=60000)
