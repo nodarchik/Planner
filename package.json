@@ -15,6 +15,7 @@
     "shots:diff": "python3 tools/diff.py baseline shots",
     "validate": "node tools/validate.mjs",
     "walk:test": "python3 tools/walk_test.py http://localhost:4173/",
+    "fast:test": "python3 tools/fast_test.py http://localhost:4173/",
     "sync:test": "node tools/plan_api_test.mjs && python3 tools/sync_test.py http://localhost:4173/",
     "build:single": "vite build --mode single"
   },
