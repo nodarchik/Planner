@@ -1,5 +1,5 @@
 // Difference between two plans, by id. Used for persistence (the patch is stored, not the whole plan) and for the change summary.
-const LISTS = ['rooms', 'walls', 'blocks', 'items'];
+const LISTS = ['rooms', 'walls', 'blocks', 'items'], WHOLE = ['balconies', 'slabs', 'floors', 'ceilings']; // WHOLE: no ids, stored as the whole list
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 const show = v => (typeof v === 'number' ? (Number.isInteger(v) ? String(v) : v.toFixed(2)) : JSON.stringify(v));
 
@@ -10,7 +10,8 @@ export function diffPlan(base, cur) {
       for (const f of new Set([...Object.keys(o), ...Object.keys(o0)])) { if (same(o[f], o0[f])) continue; if (o[f] === undefined) (p.unset[id] ||= []).push(f); else (p.set[id] ||= {})[f] = o[f]; } }
     for (const id of b.keys()) if (!c.has(id)) p.remove.push(id);
     if (Object.keys(p.set).length || Object.keys(p.unset).length || p.add.length || p.remove.length) patch[k] = p; }
-  for (const k of ['meta', 'views']) if (!same(base[k], cur[k])) patch[k] = cur[k];
+  for (const k of ['meta', 'views', ...WHOLE]) if (!same(base[k], cur[k])) patch[k] = cur[k];
+  if (patch.meta) { const gone = Object.keys(base.meta).filter(k => !(k in cur.meta)); if (gone.length) patch.metaUnset = gone; } // removed meta keys would be merged back from the published meta
   return patch;
 }
 export function applyPatch(base, patch) {
@@ -19,8 +20,10 @@ export function applyPatch(base, patch) {
     out[k] = out[k].filter(o => !p.remove.includes(o.id));
     for (const o of out[k]) { Object.assign(o, structuredClone(p.set[o.id] || {})); for (const f of p.unset[o.id] || []) delete o[f]; }
     out[k].push(...structuredClone(p.add)); }
+  for (const k of WHOLE) if (patch[k]) out[k] = structuredClone(patch[k]);
   if (patch.views) out.views = structuredClone(patch.views);
   if (patch.meta) out.meta = { ...structuredClone(base.meta), ...structuredClone(patch.meta) }; // old patches may lack newer meta keys (lights)
+  for (const k of patch.metaUnset || []) delete out.meta[k];
   return out;
 }
 export const isEmpty = patch => !Object.keys(patch).length;
@@ -39,6 +42,7 @@ export function describe(base, cur) {
       lines.push(`${id}: ${parts.join(', ')}`); }
     for (const o of p.add) lines.push(`+ ${o.id} added: ${JSON.stringify(o)}`);
     for (const id of p.remove) lines.push(`− ${id} removed`); }
-  if (patch.meta) lines.push('meta changed'); if (patch.views) lines.push('views changed');
+  for (const k of WHOLE) if (patch[k]) lines.push(`${k} changed`);
+  if (patch.meta) lines.push('meta changed: ' + [...new Set([...Object.keys(base.meta), ...Object.keys(cur.meta)])].filter(k => !same(base.meta[k], cur.meta[k])).join(', ')); if (patch.views) lines.push('views changed');
   return lines;
 }

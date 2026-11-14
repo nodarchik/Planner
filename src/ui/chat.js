@@ -7,8 +7,11 @@ import { DESIGNS } from '../catalog.js';
 import { MODELS } from '../assets.js';
 import { BUILDERS } from '../items/index.js';
 import { tryEdit } from './editor.js';
+import { setView } from './views.js';
+import { setPhoto } from '../pathtracer.js';
 
 const $ = id => document.getElementById(id), panel = $('chatpanel'), log = $('chatlog'), input = $('chatinput'), sendBtn = $('chatsend');
+const NO_ID = ['slabs', 'floors', 'ceilings']; // lists whose entries are addressed by index
 const PWKEY = 'palace1-chat-password';
 let history = [], synced = null, busy = false;
 
@@ -21,16 +24,36 @@ function say(cls, text) { const d = document.createElement('div'); d.className =
 
 // one batch from Claude → plan edits. Throws on the first invalid edit; tryEdit then restores the plan.
 function applyBatch(changes) {
-  for (const c of changes) { const parts = c.path ? c.path.split('.').map(p => (/^\d+$/.test(p) ? +p : p)) : [], val = () => JSON.parse(c.value_json);
-    const find = () => { if (c.list === 'meta') return plan.meta; if (c.list === 'views') { if (!plan.views[c.id]) throw new Error(`no view "${c.id}"`); return plan.views[c.id]; }
-      const o = plan[c.list].find(x => x.id === c.id); if (!o) throw new Error(`no ${c.list} entry with id "${c.id}"`); return o; };
-    if (c.op === 'add') { const o = val(); if (c.list === 'views') { plan.views[c.id] = o; continue; } if (c.list === 'meta') throw new Error('cannot add to meta');
-      if (!o.id) o.id = c.id; if (plan[c.list].some(x => x.id === o.id)) throw new Error(`id "${o.id}" already exists`); if (c.list === 'items' && !o.type) throw new Error('an item needs a type'); plan[c.list].push(o); }
-    else if (c.op === 'remove') { if (c.list === 'views') { find(); delete plan.views[c.id]; continue; } if (c.list === 'meta') throw new Error('cannot remove meta'); find(); plan[c.list].splice(plan[c.list].findIndex(x => x.id === c.id), 1); }
-    else { if (!parts.length) throw new Error('set / unset need a path'); let host = find(); for (const p of parts.slice(0, -1)) { host = host[p]; if (host === null || typeof host !== 'object') throw new Error(`path "${c.path}" does not exist on ${c.id}`); }
-      const last = parts[parts.length - 1]; if (c.op === 'unset') delete host[last]; else host[last] = val(); } }
+  const rm = changes.filter(c => c.op === 'remove' && NO_ID.includes(c.list)).filter((c, i, a) => a.findIndex(d => d.list === c.list && d.id === c.id) === i).sort((a, b) => b.id - a.id); // indexes refer to the list before the batch
+  changes = [...changes.filter(c => !(c.op === 'remove' && NO_ID.includes(c.list))), ...rm];
+  for (const c of changes) { const parts = c.path ? c.path.split('.').map(p => (/^\d+$/.test(p) ? +p : p)) : [], val = () => JSON.parse(c.value_json), noId = NO_ID.includes(c.list);
+    const index = () => { const i = plan[c.list].findIndex((x, n) => (noId ? String(n) : x.id) === c.id); if (i < 0) throw new Error(`no ${c.list} entry "${c.id}"`); return i; };
+    const find = () => c.list === 'meta' ? plan.meta : c.list === 'views' ? (plan.views[c.id] || (() => { throw new Error(`no view "${c.id}"`); })()) : plan[c.list][index()];
+    const setPath = (host, v) => { if (!parts.length) throw new Error('set / unset need a path'); if (parts.some(p => ['__proto__', 'constructor', 'prototype'].includes(p))) throw new Error(`path "${c.path}" is not allowed`); for (const p of parts.slice(0, -1)) { host = host[p]; if (host === null || typeof host !== 'object') throw new Error(`path "${c.path}" does not exist on ${c.id || 'meta'}`); }
+      const last = parts[parts.length - 1]; if (v === undefined) delete host[last]; else host[last] = v; };
+    if (c.list === 'meta' && c.op !== 'set' && c.op !== 'unset') { setPath(plan.meta, c.op === 'add' ? val() : undefined); continue; }
+    if (c.op === 'add') { const o = val(); if (c.list === 'views') { plan.views[c.id] = o; continue; } if (!noId) { if (!o.id) o.id = c.id; if (plan[c.list].some(x => x.id === o.id)) throw new Error(`id "${o.id}" already exists`); } if (c.list === 'items' && !o.type) throw new Error('an item needs a type'); plan[c.list].push(o); }
+    else if (c.op === 'remove') { if (c.list === 'views') { find(); delete plan.views[c.id]; continue; } plan[c.list].splice(index(), 1); }
+    else setPath(find(), c.op === 'unset' ? undefined : val()); }
+}
+// view state: drive the same toolbar controls a click would
+function applyViewState(v) {
+  let uiErr = null; const onErr = ev => { uiErr = ev.error || new Error(ev.message); ev.preventDefault(); };
+  const fire = (id, value) => { const e = $(id); e.value = value; addEventListener('error', onErr); e.dispatchEvent(new Event(id === 'sunTime' ? 'input' : 'change')); removeEventListener('error', onErr); if (uiErr) throw uiErr; }, done = []; // listener errors do not propagate: catch and rethrow them
+  if ('sun_month' in v && !(Number.isInteger(v.sun_month) && v.sun_month >= 1 && v.sun_month <= 12)) throw new Error('sun_month must be an integer 1 to 12');
+  if ('sun_hour' in v && !(v.sun_hour >= 5 && v.sun_hour <= 21)) throw new Error('sun_hour must be between 5 and 21');
+  if ('night' in v) { $(v.night ? 'mnight' : 'mday').click(); done.push('night ' + v.night); }
+  if ('cut' in v) { $(v.cut ? 'wcut' : 'wfull').click(); done.push('cut ' + v.cut); }
+  if ('style' in v) { if (![...$('style').options].some(o => o.value === v.style)) throw new Error(`unknown style "${v.style}"`); fire('style', v.style); done.push('style ' + v.style); }
+  if ('sun_month' in v) { fire('sunMonth', v.sun_month); done.push('sun month ' + v.sun_month); }
+  if ('sun_hour' in v) { fire('sunTime', v.sun_hour); done.push('sun hour ' + v.sun_hour); }
+  if ('view' in v) { if (!plan.views[v.view]) throw new Error(`no view "${v.view}"`); setView(v.view); done.push('view ' + v.view); }
+  if ('photo' in v) { setPhoto(v.photo); done.push('photo ' + v.photo); }
+  return done;
 }
 function runTool(block) {
+  if (block.name === 'set_view_state') { try { const done = applyViewState(block.input || {}); say('note', done.length ? 'View: ' + done.join(', ') : 'No change.'); return { type: 'tool_result', tool_use_id: block.id, content: JSON.stringify({ applied: done }) }; }
+    catch (e) { say('note error', 'Rejected: ' + e.message); return { type: 'tool_result', tool_use_id: block.id, is_error: true, content: e.message }; } }
   if (block.name !== 'apply_changes') return { type: 'tool_result', tool_use_id: block.id, is_error: true, content: 'unknown tool' };
   const before = JSON.parse(JSON.stringify(plan)), err = tryEdit(() => applyBatch(block.input.changes || []));
   if (err) { say('note error', 'Rejected: ' + err); return { type: 'tool_result', tool_use_id: block.id, is_error: true, content: 'Batch rejected, plan unchanged: ' + err }; }
@@ -52,12 +75,13 @@ async function send() { const text = input.value.trim(); if (!text || busy) retu
   else { const manual = describe(JSON.parse(synced), plan); if (manual.length) content = `Edits made by hand in the editor since your last turn:\n${manual.join('\n')}\n\nRequest: ${text}`; }
   const mark = history.length; history.push({ role: 'user', content }); const wait = say('note', 'Thinking…');
   try {
-    for (let turn = 0; turn < 8; turn++) { const r = await post(history); history.push({ role: 'assistant', content: r.content }); // content goes back unchanged (thinking blocks included)
+    let last = ''; for (let turn = 0; turn < 30; turn++) { const r = await post(history); last = r.stop_reason; history.push({ role: 'assistant', content: r.content }); // content goes back unchanged (thinking blocks included)
       for (const b of r.content) if (b.type === 'text' && b.text.trim()) say('bot', b.text.trim());
       if (r.stop_reason === 'refusal') { say('note error', 'The request was declined.'); break; }
-      if (r.stop_reason === 'max_tokens') { say('note error', 'The reply was cut off; ask again in smaller steps.'); break; }
+      if (r.stop_reason === 'max_tokens') { say('note error', 'The answer was cut off; say "continue" to get the rest.'); break; }
       if (r.stop_reason !== 'tool_use') break;
       history.push({ role: 'user', content: r.content.filter(b => b.type === 'tool_use').map(runTool) }); } // all results of one turn in a single message
+    if (last === 'tool_use') say('note', 'Stopped after 30 steps; tell it to continue.');
     synced = JSON.stringify(plan);
   } catch (e) { say('note error', e.message); if (history.length === mark + 1) history.pop(); else { history = []; say('note', 'Conversation reset; the plan keeps the edits already applied.'); } }
   wait.remove(); busy = false; sendBtn.disabled = false; input.focus(); }

@@ -17,11 +17,10 @@ Plan conventions
 - Models: an item of type "model" with a "model" id, "pos", "rot", "h" (height of its base).
 
 Rules
-- Make the smallest change that satisfies the request. Do not touch anything that was not asked for.
-- Never change wall, room or block coordinates unless the owner explicitly asks to move a wall.
-- Walk-in closet units are at most 0.30 deep. Aisles should be at least 0.60. Report any value below standard that your change causes; read it from the checks in the tool result, do not guess.
-- If a tool result reports an error, fix the change or say plainly that it failed.
-- If the request is ambiguous in a way that changes the result (which bed, which wall), ask one short question instead of guessing.
+- The owner has full authority over the whole plan. You may change anything: walls, rooms, openings, slabs, floors, ceilings, balconies, blocks, items, views and meta. You may add and delete anything asked. Do what is asked; do not refuse, hold back or shrink a request.
+- After a change, report the check findings and any value below standard as information, read from the tool result, not as a reason to refuse.
+- If a tool result reports an error, fix the change and retry.
+- If the request is ambiguous, pick the most likely meaning, do it, and say what you assumed. Edits are undoable.
 - Replies: blunt and short, plain text only (no markdown, no bullet lists, no bold). State what changed with the numbers, then stop. No filler, no offers.`;
 
 const TOOLS = [{
@@ -37,17 +36,34 @@ const TOOLS = [{
         items: {
           type: 'object', additionalProperties: false, required: ['op', 'list', 'id', 'path', 'value_json'],
           properties: {
-            op: { type: 'string', enum: ['set', 'unset', 'add', 'remove'], description: 'set / unset a field of an existing object; add a new object; remove an object.' },
-            list: { type: 'string', enum: ['items', 'walls', 'rooms', 'blocks', 'views', 'meta'], description: 'Which part of the plan.' },
-            id: { type: 'string', description: 'Object id (item, wall, room, block id or view name). Empty string for meta.' },
-            path: { type: 'string', description: 'Dotted path of the field for set / unset, e.g. "to", "anchor.offset", "pos", "openings.0.at". Empty string for add / remove.' },
-            value_json: { type: 'string', description: 'The new value as JSON text for set (e.g. "4.6", "[3.7, 4.43]", "\\"S\\""), the whole new object as JSON text for add. Empty string for unset / remove.' }
+            op: { type: 'string', enum: ['set', 'unset', 'add', 'remove'], description: 'set / unset a field of an existing object; add a new object; remove an object. For meta, add = set and remove = unset of the key at path (any key, including new ones).' },
+            list: { type: 'string', enum: ['items', 'walls', 'rooms', 'blocks', 'balconies', 'slabs', 'floors', 'ceilings', 'views', 'meta'], description: 'Which part of the plan.' },
+            id: { type: 'string', description: 'Object id (item, wall, room, block, balcony id or view name). For slabs, floors and ceilings, which have no id, the zero-based index as text ("0"); for add, any text. Indexes refer to the list as it was before this batch (removals are applied from the highest index down). Empty string for meta.' },
+            path: { type: 'string', description: 'Dotted path of the field for set / unset, e.g. "to", "anchor.offset", "pos", "openings.0.at". Empty string for add / remove of a list entry; for meta add / remove use it like set / unset.' },
+            value_json: { type: 'string', description: 'The new value as JSON text for set (e.g. "4.6", "[3.7, 4.43]", "\\"S\\""), the whole new object as JSON text for add (for meta: the new value). Empty string for unset / remove.' }
           }
         }
       }
     }
   }
 }];
+
+TOOLS.push({
+  name: 'set_view_state',
+  description: 'Change what is not part of the plan file: the same controls as the toolbar. Give only the fields you want to change. Not saved in the plan and not undoable.',
+  input_schema: {
+    type: 'object', additionalProperties: false,
+    properties: {
+      night: { type: 'boolean', description: 'Night (true) or day (false).' },
+      photo: { type: 'boolean', description: 'Photo render (path tracer) on or off.' },
+      cut: { type: 'boolean', description: 'Cut (walls cut at 1.2 m) on or off.' },
+      style: { type: 'string', description: 'Interior style preset: warm, soft, nordic, japandi, luxe or midcentury.' },
+      sun_month: { type: 'integer', minimum: 1, maximum: 12, description: 'Month for the sun.' },
+      sun_hour: { type: 'number', minimum: 5, maximum: 21, description: 'Hour of day for the sun, e.g. 14.5.' },
+      view: { type: 'string', description: 'Name of a camera view (a key of plan.views) to jump to.' }
+    }
+  }
+});
 
 const bad = (res, code, error) => res.status(code).json({ error });
 
@@ -56,7 +72,7 @@ export default async function handler(req, res) {
   if (process.env.CHAT_PASSWORD && req.headers['x-chat-password'] !== process.env.CHAT_PASSWORD) return bad(res, 401, 'password required');
   if (!process.env.ANTHROPIC_API_KEY) return bad(res, 500, 'ANTHROPIC_API_KEY is not set in the Vercel project (Settings → Environment Variables); add it and redeploy.');
   const messages = req.body && req.body.messages;
-  if (!Array.isArray(messages) || !messages.length || messages.length > 80 || messages[0].role !== 'user') return bad(res, 400, 'messages must be a non-empty conversation starting with the user');
+  if (!Array.isArray(messages) || !messages.length || messages.length > 200 || messages[0].role !== 'user') return bad(res, 400, 'messages must be a non-empty conversation starting with the user');
   if (JSON.stringify(messages).length > 1_500_000) return bad(res, 413, 'conversation too long; start a new chat');
   try {
     const client = new Anthropic();

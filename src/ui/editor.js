@@ -19,7 +19,9 @@ const itemOf = id => plan.items.find(i => i.id === id), wallOf = id => plan.wall
 const r2 = v => Math.round(v * 100) / 100;
 
 /* ---------- persistence, undo, redo ---------- */
-export function loadEdits() { try { const p = JSON.parse(localStorage.getItem(PKEY) || 'null'); if (p) setPlan(applyPatch(PUBLISHED, p)); } catch (e) {} }
+export function hasEdits() { try { return localStorage.getItem(PKEY) !== null; } catch (e) { return false; } }
+export function loadEdits() { const raw = localStorage.getItem(PKEY); if (raw) setPlan(applyPatch(PUBLISHED, JSON.parse(raw))); } // throws when the saved patch cannot be applied; main.js recovers
+export function discardEdits() { try { localStorage.removeItem(PKEY); } catch (e) {} }
 function persist() { try { const p = diffPlan(PUBLISHED, plan); if (isEmpty(p)) localStorage.removeItem(PKEY); else localStorage.setItem(PKEY, JSON.stringify(p)); } catch (e) {} updateBar(); }
 function updateBar() { const n = describe(PUBLISHED, plan).length; $('changeCount').textContent = n ? `${n} change${n > 1 ? 's' : ''} vs published` : 'no changes';
   $('undoBtn').disabled = !undoStack.length; $('redoBtn').disabled = !redoStack.length; }
