@@ -8,6 +8,7 @@
     "site": {"lat": 41.7211, "lon": 44.7699, "tz": 4},
     "sun": {"month": 9, "hour": 16.5},
     "north": 352,
+    "bindings": [{"input": "touch3-drag", "action": "pan"}],
     "lights": {
       "scale": 0.018,
       "note": "lm = lumens per fixture (per metre for strips); scale maps lumens to scene units",
