@@ -3,7 +3,7 @@
 import * as blob from '@vercel/blob';
 import { createHash, timingSafeEqual } from 'node:crypto';
 
-const PLAN = { path: 'plan/palace1.json', max: 256 * 1024, keys: ['patch', 'base'], what: 'plan', shape: '{rev, patch, base}',
+const PLAN = { path: 'plan/palace1.json', max: 256 * 1024, keys: ['patch', 'base'], what: 'plan', protectGet: false, shape: '{rev, patch, base}',
   valid: b => (b.patch === null || (typeof b.patch === 'object' && !Array.isArray(b.patch))) && (b.base == null || typeof b.base === 'string') }; // cfg of one rev-checked blob; api/history.js passes its own
 const bad = (res, code, error) => res.status(code).json({ error });
 const NOT_CONFIGURED = 'storage not configured';
@@ -23,8 +23,8 @@ export function createHandler(b, cfg = PLAN) {
     if (!process.env.BLOB_READ_WRITE_TOKEN && !process.env.BLOB_STORE_ID) return bad(res, 503, NOT_CONFIGURED);
     try {
       res.setHeader('cache-control', 'no-store');
+      if (process.env.CHAT_PASSWORD && (req.method === 'PUT' || cfg.protectGet) && !pwOk(req.headers['x-chat-password'])) return bad(res, 401, 'password required');
       if (req.method === 'GET') return res.status(200).json(pub(await read()));
-      if (process.env.CHAT_PASSWORD && !pwOk(req.headers['x-chat-password'])) return bad(res, 401, 'password required');
       let body; try { body = req.body; if (typeof body === 'string') body = JSON.parse(body); } catch (e) { return bad(res, 400, 'invalid JSON'); }
       if (Buffer.byteLength(JSON.stringify(body ?? null)) > MAX || Number(req.headers['content-length']) > MAX) return bad(res, 413, cfg.what + ' too large');
       if (!body || typeof body !== 'object' || !Number.isInteger(body.rev) || body.rev < 0 || !cfg.valid(body)) return bad(res, 400, 'body must be ' + cfg.shape);

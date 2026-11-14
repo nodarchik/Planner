@@ -56,7 +56,8 @@ delete process.env.BLOB_READ_WRITE_TOKEN; r = await call('GET'); check('no token
   r = await hc('PUT', { rev: 3, patch: {} }); check('history: plan-shaped body gives 400', r.code === 400);
   process.env.CHAT_PASSWORD = 'pw'; r = await hc('PUT', { rev: 3, data: d }); check('history: PUT needs the password when set', r.code === 401);
   r = await hc('PUT', { rev: 3, data: d }, { 'x-chat-password': 'pw' }); check('history: PUT with the password works', r.code === 200);
-  r = await hc('GET'); check('history: GET stays open', r.code === 200); delete process.env.CHAT_PASSWORD;
+  r = await hc('GET'); check('history: GET needs the password when set', r.code === 401);
+  r = await hc('GET', null, { 'x-chat-password': 'pw' }); check('history: GET with the password works', r.code === 200 && r.json.rev >= 1); delete process.env.CHAT_PASSWORD;
   delete process.env.BLOB_READ_WRITE_TOKEN; r = await hc('GET'); check('history: no token gives 503', r.code === 503);
 }
 process.exit(fails ? 1 : 0);
