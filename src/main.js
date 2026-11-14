@@ -11,7 +11,7 @@ import { labels } from './ui/dims.js';
 import { applySun, loadSky } from './ui/toolbar.js';
 import { setView } from './ui/views.js';
 import { step as walkStep } from './ui/walk.js';
-import { discardEdits, hasEdits, loadEdits } from './ui/editor.js';
+import { discardEdits, hasEdits, loadEdits, reselect } from './ui/editor.js';
 import { discardBroken, pullServer, start as syncStart } from './plan/sync.js';
 import { loadStyle } from './ui/style.js';
 import './ui/chat.js';
@@ -31,7 +31,7 @@ async function build() {
     const n = document.createElement('div'); n.id = 'discardnote'; n.textContent = 'Saved edits were discarded because they could not be built. Click to close.'; n.onclick = () => n.remove();
     n.style.cssText = 'position:fixed;left:50%;top:12px;transform:translateX(-50%);z-index:9;background:#c4552f;color:#fff;padding:8px 14px;border-radius:8px;font:600 12px system-ui;cursor:pointer'; document.body.appendChild(n); }
   loader.hidden = true; syncStart();
-  upgradeMaterials(textured); whenIdle(() => { if (hasTints()) buildAll(); }); loadSky(); whenIdle(refreshOverlays); // scanned detail maps and models arrive after the first frame
+  upgradeMaterials(textured); whenIdle(() => { if (hasTints()) { buildAll(); reselect(); } }); loadSky(); whenIdle(refreshOverlays); // scanned detail maps and models arrive after the first frame
 }
 
 window.__wallTop = () => { const b = new Box3(); let t = 0; world.updateMatrixWorld(true); world.children.forEach(o => { if (o.userData.wall) o.traverse(m => { if (m.isMesh && m.visible && m.userData.clamp) t = Math.max(t, b.setFromObject(m).max.y); }); }); return t; }; // test hook: top of the visible wall pieces the cut clamps

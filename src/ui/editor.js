@@ -51,7 +51,7 @@ const objectsOf = s => s.kind === 'item' ? (itemObjects.get(s.id) || []) : world
 function drawBoxes() { boxes.splice(0).forEach(b => { scene.remove(b); b.geometry.dispose(); }); if (!sel) return;
   for (const o of objectsOf(sel)) { if (o.isLight) continue; const b = new THREE.BoxHelper(o, sel.kind === 'wall' ? 0xc4552f : 0x2f6fd8); b.material.depthTest = false; b.material.transparent = true; b.renderOrder = 10; scene.add(b); boxes.push(b); } }
 export function select(s) { sel = s; state.sel = s; selPanel.hidden = !s; drawBoxes(); if (s) renderPanel(); rebuildPT(); }
-function reselect() { if (sel && !(sel.kind === 'item' ? itemOf(sel.id) : wallOf(sel.id))) sel = null; select(sel); }
+export function reselect() { if (sel && !(sel.kind === 'item' ? itemOf(sel.id) : wallOf(sel.id))) sel = null; select(sel); }
 
 addEventListener('modelswap', () => drawBoxes()); // a model replaced its placeholder: selection outlines follow
 
