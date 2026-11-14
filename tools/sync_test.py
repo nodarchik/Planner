@@ -124,6 +124,34 @@ async def main():
         await m2.evaluate("localStorage.removeItem('palace1-chat-password')"); await m2.evaluate(setw(4.5)); await m2.wait_for_timeout(3000)
         check('cancelled password prompt: badge, edit stays local', await m2.evaluate("!document.getElementById('localbadge').hidden") and store['rev'] == 51)
         await m2.context.close(); pwreq['v'] = False
+        # assistant edits (mocked /api/chat) reach the server through the same persist path
+        store.update(rev=60, patch=None, base=None); puts.clear(); queue = []; tn = [0]
+        async def chatmock(route):
+            await route.fulfill(json=queue.pop(0) if queue else {"content": [{"type": "text", "text": "idle"}], "stop_reason": "end_turn"})
+        async def turn(pg, *blocks):
+            tn[0] += 1; tag = f'turn-end-{tn[0]}'
+            queue.append({"content": [{"type": "tool_use", "id": f'x{i}', "name": nm, "input": inp} for i, (nm, inp) in enumerate(blocks)], "stop_reason": "tool_use"})
+            queue.append({"content": [{"type": "text", "text": tag}], "stop_reason": "end_turn"})
+            if await pg.evaluate("document.getElementById('chatpanel').hidden"): await pg.click('#chatBtn')
+            await pg.fill('#chatinput', 'scripted'); await pg.click('#chatsend')
+            await pg.wait_for_function("t => [...document.querySelectorAll('#chatlog .msg.bot')].some(m => m.textContent.includes(t))", arg=tag, timeout=120000); await pg.wait_for_timeout(3000)
+        setit = lambda v: ("apply_changes", {"summary": "t", "changes": [{"op": "set", "list": "items", "id": "wardrobe-b2", "path": "to", "value_json": str(v)}]})
+        q = await page(); await q.route('**/api/chat', chatmock); dlg2 = []; q.on('dialog', lambda d: (dlg2.append(d.message), asyncio.ensure_future(d.accept())))
+        part = {"id": "tp1", "type": "parts", "pos": [10.3, 2.6], "rot": 30, "parts": [{"shape": "sphere", "pos": [0, 0, .76], "size": [.1], "material": "ceramic", "color": "#c0504d"}]}
+        await turn(q, setit(4.5), ("apply_changes", {"summary": "t", "changes": [{"op": "add", "list": "items", "id": "tp1", "path": "", "value_json": json.dumps(part)}]}))
+        check('assistant batch gives exactly one PUT with the change', len(puts) == 1 and puts[0]['rev'] == 60 and '4.5' in json.dumps(puts[0]['patch']) and 'tp1' in json.dumps(puts[0]['patch']), len(puts))
+        await turn(q, setit(4.4)); check('second assistant batch is saved', len(puts) == 2 and '4.4' in json.dumps(store['patch']), len(puts))
+        await turn(q, ("history", {"action": "undo"})); check('assistant undo is saved', len(puts) == 3 and '4.5' in json.dumps(store['patch']) and '4.4' not in json.dumps(store['patch']), len(puts))
+        await turn(q, ("history", {"action": "reset"}))
+        check('assistant reset sends patch null without a dialog', len(puts) == 4 and puts[-1]['patch'] is None and store['patch'] is None and not dlg2 and await q.evaluate(wd) == 5.06, (len(puts), dlg2))
+        await q.context.close()
+        # a server patch with the new fields loads and builds in a fresh browser
+        ref = await page(); floors = await ref.evaluate("structuredClone(__editor.plan.floors)"); meta = await ref.evaluate("structuredClone(__editor.plan.meta)"); await ref.context.close()
+        floors[0]['color'] = '#8a8a8a'; meta['ceiling'] = 3.2
+        store.update(rev=70, patch={"items": {"set": {}, "unset": {}, "add": [part], "remove": []}, "floors": floors, "rooms": {"set": {"bed1": {"wallColor": "#a0c0a0"}}, "unset": {}, "add": [], "remove": []}, "meta": meta}); puts.clear(); ne = len(errs)
+        r2 = await page(); await r2.wait_for_timeout(1500)
+        check('server patch with parts, floor colour, wallColor and ceiling builds', await r2.evaluate("__editor.plan.items.some(i => i.id === 'tp1') && __editor.plan.floors[0].color === '#8a8a8a' && __editor.plan.rooms.find(r => r.id === 'bed1').wallColor === '#a0c0a0' && __editor.plan.meta.ceiling === 3.2") and not puts and len(errs) == ne and not await r2.evaluate("document.body.textContent.includes('discarded')"), errs[ne:ne + 3])
+        await r2.context.close()
         check('no page errors', not errs, errs[:5])
         await b.close()
     sys.exit(1 if fails else 0)
