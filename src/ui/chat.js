@@ -14,6 +14,7 @@ import { setView } from './views.js';
 import { camera, controls, state } from '../scene.js';
 import { enter as walkEnter, leave as walkLeave, walkError, walkTo } from './walk.js';
 import { setPhoto } from '../pathtracer.js';
+import { setFast } from '../fast.js';
 
 const $ = id => document.getElementById(id), panel = $('chatpanel'), log = $('chatlog'), input = $('chatinput'), sendBtn = $('chatsend');
 const NO_ID = ['slabs', 'floors', 'ceilings']; // lists whose entries are addressed by index
@@ -58,7 +59,7 @@ function applyViewState(v) {
   const num3 = (a, n) => { if (!Array.isArray(a) || a.length !== 3 || !a.every(Number.isFinite)) throw new Error(n + ' needs 3 numbers [x, y, z]'); };
   if ('focal' in v && ![...$('focal').options].some(o => +o.value === v.focal)) throw new Error('focal must be one of ' + [...$('focal').options].map(o => o.value).join(', ') + ' (0 = auto)');
   if ('fstop' in v && ![...$('fstop').options].some(o => +o.value === v.fstop)) throw new Error('fstop must be one of ' + [...$('fstop').options].map(o => o.value).join(', ') + ' (0 = off)');
-  for (const k of ['dims', 'furniture', 'labels', 'walk']) if (k in v && typeof v[k] !== 'boolean') throw new Error(k + ' must be true or false');
+  for (const k of ['dims', 'furniture', 'labels', 'walk', 'fast']) if (k in v && typeof v[k] !== 'boolean') throw new Error(k + ' must be true or false');
   if ('walk_to' in v) { const w = v.walk_to; if (!w || ![w.x, w.y].every(Number.isFinite) || ('yaw' in w && !Number.isFinite(w.yaw))) throw new Error('walk_to needs {x, y, yaw} as numbers'); if (v.walk === false) throw new Error('walk_to conflicts with walk false'); }
   if ('camera' in v) { const c = v.camera; if (!c) throw new Error('camera needs {cam, target}'); num3(c.cam, 'camera.cam'); num3(c.target, 'camera.target'); if (v.walk_to || v.walk || state.walk && v.walk !== false) throw new Error('leave walk mode (walk false) before setting the camera'); }
   if ('style' in v && ![...$('style').options].some(o => o.value === v.style)) throw new Error(`unknown style "${v.style}"`);
@@ -77,6 +78,7 @@ function applyViewState(v) {
   if (v.walk === true && !state.walk) { walkEnter(); done.push('walk true'); }
   if ('walk_to' in v) { walkTo(v.walk_to.x, v.walk_to.y, v.walk_to.yaw || 0); done.push(`walk_to ${v.walk_to.x}, ${v.walk_to.y}`); }
   if ('camera' in v) { state.anim = null; camera.position.set(...v.camera.cam); controls.target.set(...v.camera.target); controls.update(); done.push('camera set'); }
+  if ('fast' in v) { setFast(v.fast); done.push('fast ' + v.fast); }
   if ('photo' in v) { setPhoto(v.photo); done.push('photo ' + v.photo); }
   return done;
 }
