@@ -2,8 +2,8 @@
 // this endpoint only adds the system prompt and the tool definition and forwards the turn to Claude.
 // Needs ANTHROPIC_API_KEY in the Vercel project. Optional CHAT_PASSWORD: if set, requests must send it as x-chat-password.
 import Anthropic from '@anthropic-ai/sdk';
+import { CHAT_MODELS, DEFAULT_MODEL } from '../src/chat-models.js';
 
-const MODEL = 'claude-opus-5-5';
 const SYSTEM = `You edit the plan of one real apartment ("Palace 1", Tbilisi) inside its 3D web app. The owner types plain requests ("make the closet 1.30 m", "rotate the bed to face the balcony", "move the dining table 20 cm east"). You answer by calling apply_changes; the app rebuilds the model and returns the result of its automatic checks.
 
 The first user message contains the full plan JSON and the furniture catalog. Later tool results and messages tell you what changed; keep track of the current state from them.
@@ -96,18 +96,19 @@ TOOLS.push({
 
 const bad = (res, code, error) => res.status(code).json({ error });
 
-export default async function handler(req, res) {
+export const createHandler = newClient => async function handler(req, res) {
   if (req.method !== 'POST') return bad(res, 405, 'POST only');
   if (process.env.CHAT_PASSWORD && req.headers['x-chat-password'] !== process.env.CHAT_PASSWORD) return bad(res, 401, 'password required');
   if (!process.env.ANTHROPIC_API_KEY) return bad(res, 500, 'ANTHROPIC_API_KEY is not set in the Vercel project (Settings → Environment Variables); add it and redeploy.');
   const messages = req.body && req.body.messages;
   if (!Array.isArray(messages) || !messages.length || messages.length > 200 || messages[0].role !== 'user') return bad(res, 400, 'messages must be a non-empty conversation starting with the user');
   if (JSON.stringify(messages).length > 1_500_000) return bad(res, 413, 'conversation too long; start a new chat');
+  const chosen = CHAT_MODELS.find(m => m.id === (req.body.model ?? DEFAULT_MODEL));
+  if (!chosen) return bad(res, 400, 'model must be one of: ' + CHAT_MODELS.map(m => m.id).join(', '));
   try {
-    const client = new Anthropic();
-    const response = await client.beta.messages.create({
-      model: MODEL, max_tokens: 16000,
-      betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default', // a declined request is retried on a fallback model in the same call
+    const response = await newClient().beta.messages.create({
+      model: chosen.id, max_tokens: 16000,
+      ...(chosen.fallback ? { betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default' } : {}), // a declined request is retried on a fallback model in the same call (not offered on Haiku)
       thinking: { type: 'adaptive' }, output_config: { effort: 'medium' },
       cache_control: { type: 'ephemeral' },
       system: SYSTEM, tools: TOOLS, messages
@@ -121,4 +122,6 @@ export default async function handler(req, res) {
     if (error instanceof Anthropic.APIError) return bad(res, 502, `Claude API error ${error.status}: ${error.message}`);
     return bad(res, 500, 'Unexpected error: ' + (error && error.message));
   }
-}
+};
+
+export default createHandler(() => new Anthropic());
