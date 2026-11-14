@@ -133,6 +133,6 @@ if ($('chatBtn')) { const off = !!import.meta.env.VITE_NO_ASSETS; $('chatBtn').h
   ready = load().then(d => { if (d && !busy) restore(d); }); watch(() => busy, d => restore(d));
   $('chatBtn').onclick = () => { panel.hidden = !panel.hidden; $('chatBtn').setAttribute('aria-pressed', !panel.hidden); if (!panel.hidden) input.focus(); };
   sendBtn.onclick = send; input.onkeydown = ev => { ev.stopPropagation(); if (ev.key === 'Enter' && !ev.shiftKey) { ev.preventDefault(); send(); } };
-  $('chatnew').onclick = () => { if (busy) return; history = []; synced = null; log.textContent = ''; };
+  $('chatnew').onclick = () => { if (busy || !(history.length || entries.length) || !confirm('Clear this conversation on all devices? The plan keeps its edits.')) return; restore(null); persist(); };
   $('chatpwsave').onclick = () => { try { localStorage.setItem(PWKEY, $('chatpwinput').value); } catch (e) {} $('chatpw').hidden = true; $('chatpwinput').value = ''; };
   $('chatpwinput').onkeydown = ev => ev.stopPropagation(); }
