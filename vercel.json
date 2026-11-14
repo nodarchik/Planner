@@ -5,6 +5,9 @@
     },
     "api/plan.js": {
       "maxDuration": 10
+    },
+    "api/history.js": {
+      "maxDuration": 10
     }
   }
 }

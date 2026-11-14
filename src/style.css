@@ -147,7 +147,7 @@ canvas{touch-action:none}
 .chatlog{overflow:auto;display:grid;gap:6px;align-content:start;min-height:80px}
 .msg{white-space:pre-wrap;overflow-wrap:anywhere;padding:6px 8px;border-radius:10px}
 .msg.user{background:var(--fg);color:var(--panel);justify-self:end;max-width:90%}
-.msg.bot{background:var(--panel);border:1px solid var(--line)}
+.msg.bot{background:var(--panel);border:1px solid var(--line)}.msg[data-model]::after{content:attr(data-model);display:block;margin-top:3px;font-size:10px;color:var(--muted)}.chathead select{font:inherit;font-size:11px;margin-left:auto;margin-right:6px;max-width:150px}
 .msg.note{color:var(--muted);font-size:11px;padding:0 2px;font-variant-numeric:tabular-nums}.msg.note.error{color:var(--accent)}
 .chatrow,.chatpw{display:grid;grid-template-columns:1fr auto;gap:6px;align-items:end}
 .chatpanel textarea,.chatpanel input{width:100%;min-width:0;box-sizing:border-box;font:12px/1.4 var(--f-mono);padding:7px 8px;border:1px solid var(--line);border-radius:10px;background:var(--panel);color:var(--fg);resize:none}

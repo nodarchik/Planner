@@ -12,6 +12,7 @@ async def main():
     async def mock(route):
         body = json.loads(route.request.post_data); calls.append(body)
         if len(calls) > 6 and queue: await route.fulfill(json=queue.pop(0)); return
+        if len(calls) == 3: await asyncio.sleep(.5)   # keeps the turn in flight long enough to look at the model select
         if len(calls) == 3:   # second request: floor by index, meta add, view state
             content = [{"type": "tool_use", "id": "u1", "name": "apply_changes", "input": {"summary": "floor + meta", "changes": [
                            {"op": "set", "list": "floors", "id": "0", "path": "rect", "value_json": "[0, 0, 4.5, 7.13]"},
@@ -50,19 +51,28 @@ async def main():
         check('two requests', len(calls) == 2, len(calls))
         first = calls[0]['messages'][0]['content']; check('first message carries plan and catalog', '"wardrobe-b2"' in first and 'Furniture catalog' in first and first.rstrip().endswith('1.65 wide'))
         check('plan edited', await pg.evaluate("__editor.plan.items.find(i => i.id === 'wardrobe-b2').to") == 4.6)
+        check('default request names Haiku 5.5', calls[0].get('model') == 'claude-haiku-5-5' and await pg.evaluate("document.getElementById('chatmodel').value") == 'claude-haiku-5-5')
+        check('select offers the four labelled models', await pg.evaluate("[...document.getElementById('chatmodel').options].map(o => o.textContent).join('|')") == 'Haiku 5.5 (fast)|Sonnet 5.5|Opus 5.5|Fable 5.2 (most capable)')
+        check('answer carries the model label as display data, not in the text', await pg.evaluate("[...document.querySelectorAll('#chatlog .msg.bot')].every(m => m.dataset.model === 'Haiku 5.5 (fast)' && !m.textContent.includes('Haiku'))"))
+        check('no label inside the API messages', 'Haiku 5.5 (fast)' not in json.dumps(calls[1]['messages']))
         last = calls[1]['messages'][-1]; res = last['content']
         check('both tool results in one user message', last['role'] == 'user' and [r['tool_use_id'] for r in res] == ['t1', 't2'])
         check('valid batch reported with checks', 'wardrobe-b2: to 5.06' in res[0]['content'] and 'checks_not_passing' in res[0]['content'], res[0]['content'][:120])
         check('invalid batch rejected, plan unchanged', res[1].get('is_error') is True and 'no-such-item' in res[1]['content'])
         check('assistant content echoed unchanged', calls[1]['messages'][1]['content'][1]['id'] == 't1')
         check('one undo step restores', await pg.evaluate("(__editor.undo(), __editor.describe().length)") == 0)
+        await pg.select_option('#chatmodel', 'claude-opus-5-5')
         await pg.fill('#chatinput', 'shrink the floor and add a note'); await pg.click('#chatsend')
+        check('model select is disabled while a turn runs', await pg.evaluate("document.getElementById('chatmodel').disabled"))
         await pg.wait_for_function("[...document.querySelectorAll('#chatlog .msg.bot')].some(m => m.textContent.includes('Floor and note'))", timeout=120000)
         check('floor edited by index', await pg.evaluate("__editor.plan.floors[0].rect[2]") == 4.5)
         check('meta key added', await pg.evaluate("__editor.plan.meta.chatTest.a") == 1)
         r2 = calls[3]['messages'][-1]['content']; check('both tools reported ok', [r['tool_use_id'] for r in r2] == ['u1', 'u2'] and not any(r.get('is_error') for r in r2), r2)
         check('night on', await pg.evaluate("document.getElementById('mnight').getAttribute('aria-pressed')") == 'true')
         check('hour set', await pg.evaluate("document.getElementById('sunTime').value") == '9.5')
+        check('model select is enabled again after the turn', await pg.evaluate("!document.getElementById('chatmodel').disabled"))
+        check('changing the model mid-conversation: next request uses it', calls[2].get('model') == 'claude-opus-5-5' and calls[3].get('model') == 'claude-opus-5-5')
+        await pg.select_option('#chatmodel', 'claude-fable-5-2')
         await pg.fill('#chatinput', 'third'); await pg.click('#chatsend')
         await pg.wait_for_function("[...document.querySelectorAll('#chatlog .msg.bot')].some(m => m.textContent.includes('Third done'))", timeout=120000)
         r3 = {r['tool_use_id']: r for r in calls[5]['messages'][-1]['content']}
@@ -71,6 +81,10 @@ async def main():
         check('unknown view rejected', r3['v4'].get('is_error') is True)
         check('proto path rejected', r3['v5'].get('is_error') is True)
         await pg.reload(); await pg.wait_for_selector('#loader[hidden]', state='attached', timeout=240000)
+        check('model choice survives a reload', await pg.evaluate("document.getElementById('chatmodel').value") == 'claude-fable-5-2')
+        check('restored answers keep their model labels', await pg.evaluate("[...document.querySelectorAll('#chatlog .msg.bot')].map(m => m.dataset.model).join()") == 'Haiku 5.5 (fast),Haiku 5.5 (fast),Opus 5.5,Fable 5.2 (most capable)')
+        await pg.evaluate("localStorage.setItem('palace1-chat-model', 'bogus')"); await pg.reload(); await pg.wait_for_selector('#loader[hidden]', state='attached', timeout=240000)
+        check('unknown stored model falls back to the default', await pg.evaluate("document.getElementById('chatmodel').value") == 'claude-haiku-5-5')
         check('meta removal survives reload', await pg.evaluate("'lights' in __editor.plan.meta") is False)
         check('floor edit survives reload', await pg.evaluate("__editor.plan.floors[0].rect[2]") == 4.5)
         await pg.evaluate("document.getElementById('resetPlan').click()")

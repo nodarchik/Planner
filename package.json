@@ -16,6 +16,10 @@
     "validate": "node tools/validate.mjs",
     "walk:test": "python3 tools/walk_test.py http://localhost:4173/",
     "sync:test": "node tools/plan_api_test.mjs && python3 tools/sync_test.py http://localhost:4173/",
+    "chat:test": "python3 tools/chat_test.py http://localhost:4173/",
+    "history:test": "python3 tools/history_test.py http://localhost:4173/",
+    "chat-api:test": "node tools/chat_api_test.mjs",
+    "editor:test": "python3 tools/editor_test.py http://localhost:4173/",
     "build:single": "vite build --mode single"
   },
   "dependencies": {
