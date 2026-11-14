@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { H, bbox, plan } from './plan/plan.js';
 import { MOBILE, V3, markShadows, scene, state, world } from './scene.js';
 import { RectAreaLightUniformsLib } from 'three/examples/jsm/lights/RectAreaLightUniformsLib.js';
+import { fastLights } from './fast.js';
 import { isWindowless, kelvin, kindOf, pointCd, stripNits } from './lights.js';
 
 /* ================= sun position ================= */
@@ -105,4 +106,5 @@ const wp = new V3();
 const DAY_LAMP = .2, DAY_WB_K = 5200; // day Photo: windowless-room lamps are white-balanced (they are the only light there)
 export function syncLights() { for (const l of nightLights) { l.getWorldPosition(wp); l.visible = state.night || (state.photo && isWindowless(wp.x, wp.z));
   l.intensity = pointCd(l.userData.lm) * (state.night || !state.photo ? 1 : DAY_LAMP); l.color.copy(kelvin(state.photo && !state.night ? DAY_WB_K : l.userData.k)); }
-  for (const l of coveLights) l.visible = state.night && state.photo; }
+  for (const l of coveLights) l.visible = state.night && state.photo;
+  fastLights(); }

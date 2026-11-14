@@ -3,6 +3,7 @@ import { composer } from './post.js';
 import { M } from './materials.js';
 import { setView } from './ui/views.js';
 import { syncLights } from './lighting.js';
+import { setFast } from './fast.js';
 
 // vertical FOV in degrees for a full-frame focal length at the given aspect
 export const focalFov = (mm, aspect) => 2 * Math.atan(18 / Math.max(aspect, 1) / mm) * 180 / Math.PI;
@@ -52,7 +53,7 @@ const focalSel = document.getElementById('focal'), fstopSel = document.getElemen
 function setLens(focal, fstop) { state.focal = focal; state.fstop = fstop; focalSel.value = String(focal); fstopSel.value = String(fstop); if (state.photo) ptCamera(); }
 focalSel.onchange = fstopSel.onchange = () => setLens(+focalSel.value, +fstopSel.value);
 export async function setPhoto(on) {
-  if (on) state.leaveWalk?.();
+  if (on) { state.leaveWalk?.(); setFast(false); } // Photo needs the full lighting: it turns Fast off
   document.getElementById('pcam').hidden = !on;
   const btn = document.getElementById('photo');
   if (!on) { if (still) { const s = still; endStill(); s.reject?.(new Error('Photo turned off during the still')); } ptGlass(false); scene.environmentIntensity = 1; state.photo = false; syncLights(); markShadows(); btn.setAttribute('aria-pressed', 'false'); stillBtn.disabled = true; statusEl.textContent = ''; return; }
@@ -65,7 +66,8 @@ export async function setPhoto(on) {
       state.pt.renderScale = Math.min(1, 1.4 / DPR);
       state.pt.rasterizeSceneCallback = () => composer.render(); }
     statusEl.textContent = 'Preparing scene…'; await frame(); await frame();
-    ptGlass(true); state.photo = true; syncLights(); ptSetScene(); state.ptDirty = false; stillBtn.disabled = false;
+    // Fast may have been switched on while the renderer loaded
+    setFast(false); ptGlass(true); state.photo = true; syncLights(); ptSetScene(); state.ptDirty = false; stillBtn.disabled = false;
   } catch (err) { console.warn(err); ptGlass(false); state.photo = false; btn.setAttribute('aria-pressed', 'false'); statusEl.textContent = 'Photo render unavailable on this device'; }
 }
 document.getElementById('photo').onclick = () => setPhoto(!state.photo);

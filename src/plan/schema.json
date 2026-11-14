@@ -45,6 +45,31 @@
      ],
      "description": "compass bearing of plan north (\u2212y), degrees; null until measured"
     },
+    "bindings": {
+     "type": "array",
+     "description": "input bindings: camera gestures and key shortcuts (inputs and actions are listed in src/ui/bindings.js and checked there)",
+     "items": {
+      "type": "object",
+      "required": [
+       "input",
+       "action"
+      ],
+      "additionalProperties": false,
+      "properties": {
+       "input": {
+        "type": "string"
+       },
+       "action": {
+        "type": "string"
+       },
+       "speed": {
+        "type": "number",
+        "exclusiveMinimum": 0,
+        "maximum": 10
+       }
+      }
+     }
+    },
     "style": {
      "type": "object",
      "required": [

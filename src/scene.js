@@ -48,6 +48,7 @@ export const state = {
   anim: null,
   pt: null,
   photo: false,
+  fast: false, // Fast mode (src/fast.js): no reflections, shadows, AO, bloom or lamps
   focal: 0, // Photo lens in mm, 0 = automatic FOV
   fstop: 0, // Photo aperture, 0 = no depth of field
   ptDirty: false,

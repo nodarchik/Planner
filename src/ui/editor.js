@@ -10,6 +10,7 @@ import { buildAll, rebuildItem } from '../build.js';
 import { itemGroups, itemObjects } from '../items/index.js';
 import { rebuildPT, setPhoto } from '../pathtracer.js';
 import { renderParts } from './style.js';
+import { validateBindings } from './bindings.js';
 import { active as syncActive, save as syncSave, setApplier } from '../plan/sync.js';
 
 const PKEY = 'palace1-plan-patch-v1', GRID = .05, SNAP = .08;
@@ -29,7 +30,7 @@ setApplier(patch => { const before = snapshot(); try { undoStack.length = redoSt
 function updateBar() { const n = describe(PUBLISHED, plan).length; $('changeCount').textContent = n ? `${n} change${n > 1 ? 's' : ''} vs published` : 'no changes';
   $('undoBtn').disabled = !undoStack.length; $('redoBtn').disabled = !redoStack.length; }
 // run a change: opts.item = rebuild only that item, opts.none = already applied to the scene, otherwise rebuild everything
-export function edit(fn, opts = {}) { undoStack.push(snapshot()); if (undoStack.length > 100) undoStack.shift(); redoStack.length = 0; fn(); persist();
+export function edit(fn, opts = {}) { undoStack.push(snapshot()); if (undoStack.length > 100) undoStack.shift(); redoStack.length = 0; const nb = JSON.stringify(plan.meta.bindings); fn(); if (JSON.stringify(plan.meta.bindings) !== nb) validateBindings(); persist(); // strict check only when the edit touched the bindings
   if (opts.none) return; if (opts.item) rebuildItem(opts.item); else buildAll(); reselect(); }
 // like edit(), for changes that may be invalid: on any error the plan is put back and the message is returned
 export function tryEdit(fn) { const before = snapshot(); try { edit(fn); return null; } catch (e) { if (undoStack[undoStack.length - 1] === before) undoStack.pop(); try { restore(before); } catch (e2) { console.error(e2); } return String((e && e.message) || e); } }
@@ -149,7 +150,7 @@ $('importFile').onchange = async ev => { const f = ev.target.files[0]; if (!f) r
   const before = snapshot(); try { undoStack.push(before); restore(JSON.stringify(next)); } catch (e) { undoStack.pop(); restore(before); throw e; } } catch (e) { alert('Import failed: ' + e.message); } ev.target.value = ''; };
 $('copyChanges').onclick = copyChanges;
 
-window.__editor = { plan, select, edit, undo, redo, moveWall, describe: () => describe(PUBLISHED, plan) }; // for tools/ scripts and the console
+window.__editor = { plan, select, edit, tryEdit, undo, redo, moveWall, describe: () => describe(PUBLISHED, plan) }; // for tools/ scripts and the console
 
 /* ---------- edit mode, dragging with snapping, keyboard ---------- */
 export function setMove(on) { if (on) state.leaveWalk?.(); state.moveMode = on; $('move').setAttribute('aria-pressed', on); bar.hidden = !on; updateBar();

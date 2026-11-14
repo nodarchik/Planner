@@ -2,8 +2,8 @@
 // this endpoint only adds the system prompt and the tool definition and forwards the turn to Claude.
 // Needs ANTHROPIC_API_KEY in the Vercel project. Optional CHAT_PASSWORD: if set, requests must send it as x-chat-password.
 import Anthropic from '@anthropic-ai/sdk';
+import { CHAT_MODELS, DEFAULT_MODEL } from '../src/chat-models.js';
 
-const MODEL = 'claude-opus-5-5';
 const SYSTEM = `You edit the plan of one real apartment ("Palace 1", Tbilisi) inside its 3D web app. The owner types plain requests ("make the closet 1.30 m", "rotate the bed to face the balcony", "move the dining table 20 cm east"). You answer by calling apply_changes; the app rebuilds the model and returns the result of its automatic checks.
 
 The first user message contains the full plan JSON and the furniture catalog. Later tool results and messages tell you what changed; keep track of the current state from them.
@@ -18,6 +18,7 @@ Plan conventions
 - Anything the catalog lacks: an item of type "parts" = { id, type:"parts", pos:[x,y], rot, h (base height, default 0), label, parts:[{ shape, pos:[x,y,z], size, rot?, material, color?, radius? }] }. Part pos is the part centre in x (right) and y (depth) relative to the item origin and z = its bottom, metres above the base. size is [w,d,h] for box and rbox, [r,h] for cyl, [r] for sphere. rot is [rx,ry,rz] degrees (rz turns it about the vertical). Example, a side table: {"id":"side-1","type":"parts","pos":[3,4],"rot":0,"label":"Side table","parts":[{"shape":"rbox","pos":[0,0,0.5],"size":[0.5,0.5,0.04],"material":"oakFurn","radius":0.01},{"shape":"cyl","pos":[0,0,0],"size":[0.03,0.5],"material":"brass"}]}. "solid":false removes its floor footprint from the checks and walking. Shapes and material keys are listed in the first message.
 - Looks: "look" on an item = { partKey: { fin, color } } (fin and colour per key are listed in the first message); "resize" = [x, height, y] scale factors; "opts" on a catalog item holds the design options listed in the catalog (e.g. {"W": 2.7} for sofa width). To change a style for the whole apartment set meta.style.preset.
 - Colours (all #rrggbb hex, set with apply_changes). Floor: floors[i].material (a material key, e.g. oakFloor), floors[i].finish (overlay material key, e.g. chevron) and floors[i].color (tint); meta.style.floorTint tints every floor without its own colour. Floors are rectangles: to recolour one room, set the floor entries covering it (split an entry in two if it spans several rooms). Walls: meta.style.wallTint (all), walls[id].color (one whole wall), rooms[id].wallColor (that room's wall faces), blocks[id].color. Ceiling: meta.style.ceilingTint, ceilings[i].color. Skirting, picture-frame mouldings and arch casings: meta.style.trimTint (arch casings have no per-room colour); rooms[id].trimColor (skirting of one room). Doors: openings.N.leaf.color or leaf.material on the wall. Window and door frames: meta.style.frameTint. Items: "look". Tints multiply the texture, so mid-light colours work best. To unset a colour use op unset; unset on an array index (e.g. openings.1) removes that entry; several such unsets on one array in a batch all refer to the list as it was before the batch.
+- Input bindings (camera gestures and key shortcuts) are data in meta.bindings; the first message lists the valid inputs, actions and device limits. Set the whole list with one meta set at path "bindings". Explain device limits plainly instead of promising what a device cannot send.
 - Renaming an id: add a copy under the new id, fix every field that references the old id (room, wall, item references, views), then remove the old one, in one batch.
 - Moving a wall: change "from"/"to"; also move the room "poly" points that lie on it, and check the items standing on the wall (they follow through "wall" but free items and openings do not).
 
@@ -62,6 +63,7 @@ TOOLS.push({
     properties: {
       night: { type: 'boolean', description: 'Night (true) or day (false).' },
       photo: { type: 'boolean', description: 'Photo render (path tracer) on or off.' },
+      fast: { type: 'boolean', description: 'Fast mode on or off: no reflections, shadows, ambient occlusion, bloom or lamps, for speed. Photo turns it off.' },
       cut: { type: 'boolean', description: 'Cut (walls cut at 1.2 m) on or off.' },
       style: { type: 'string', description: 'Interior style preset: warm, soft, nordic, japandi, luxe or midcentury.' },
       sun_month: { type: 'integer', minimum: 1, maximum: 12, description: 'Month for the sun.' },
@@ -96,18 +98,19 @@ TOOLS.push({
 
 const bad = (res, code, error) => res.status(code).json({ error });
 
-export default async function handler(req, res) {
+export const createHandler = newClient => async function handler(req, res) {
   if (req.method !== 'POST') return bad(res, 405, 'POST only');
   if (process.env.CHAT_PASSWORD && req.headers['x-chat-password'] !== process.env.CHAT_PASSWORD) return bad(res, 401, 'password required');
   if (!process.env.ANTHROPIC_API_KEY) return bad(res, 500, 'ANTHROPIC_API_KEY is not set in the Vercel project (Settings → Environment Variables); add it and redeploy.');
   const messages = req.body && req.body.messages;
   if (!Array.isArray(messages) || !messages.length || messages.length > 200 || messages[0].role !== 'user') return bad(res, 400, 'messages must be a non-empty conversation starting with the user');
   if (JSON.stringify(messages).length > 1_500_000) return bad(res, 413, 'conversation too long; start a new chat');
+  const chosen = CHAT_MODELS.find(m => m.id === (req.body.model ?? DEFAULT_MODEL));
+  if (!chosen) return bad(res, 400, 'model must be one of: ' + CHAT_MODELS.map(m => m.id).join(', '));
   try {
-    const client = new Anthropic();
-    const response = await client.beta.messages.create({
-      model: MODEL, max_tokens: 16000,
-      betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default', // a declined request is retried on a fallback model in the same call
+    const response = await newClient().beta.messages.create({
+      model: chosen.id, max_tokens: 16000,
+      ...(chosen.fallback ? { betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default' } : {}), // a declined request is retried on a fallback model in the same call (not offered on Haiku)
       thinking: { type: 'adaptive' }, output_config: { effort: 'medium' },
       cache_control: { type: 'ephemeral' },
       system: SYSTEM, tools: TOOLS, messages
@@ -121,4 +124,6 @@ export default async function handler(req, res) {
     if (error instanceof Anthropic.APIError) return bad(res, 502, `Claude API error ${error.status}: ${error.message}`);
     return bad(res, 500, 'Unexpected error: ' + (error && error.message));
   }
-}
+};
+
+export default createHandler(() => new Anthropic());
