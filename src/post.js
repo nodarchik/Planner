@@ -22,6 +22,7 @@ composer.addPass(new OutputPass());
 
 // while the camera moves (desktop): ratio <= 1.25, no AO, no bloom (~71 -> ~21 ms at 1080p DPR 1.75); full quality again once settled
 export const lod = { on: false };
-export function applyPost() { const pr = state.fast ? 1 : lod.on ? Math.min(DPR, 1.25) : DPR; // Fast: ratio 1, no AO, no bloom
-  renderer.setPixelRatio(pr); composer.setPixelRatio(pr); composer.setSize(innerWidth, innerHeight); gtao.enabled = !MOBILE && !lod.on && !state.fast; bloom.enabled = !lod.on && !state.fast; }
+export function applyPost() { const pr = state.fast || !lod.on ? DPR : Math.min(DPR, 1.25); // Fast: no AO, no bloom, nothing to drop
+  if (pr !== renderer.getPixelRatio()) { renderer.setPixelRatio(pr); composer.setPixelRatio(pr); composer.setSize(innerWidth, innerHeight); }
+  gtao.enabled = !MOBILE && !lod.on && !state.fast; bloom.enabled = !lod.on && !state.fast; }
 export function setMoving(on) { if (on === lod.on) return; lod.on = on; applyPost(); }
