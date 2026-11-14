@@ -11,6 +11,8 @@ import { M } from '../materials.js';
 import { lookKeys, styleInfo } from './style.js';
 import { tryEdit } from './editor.js';
 import { setView } from './views.js';
+import { camera, controls, state } from '../scene.js';
+import { enter as walkEnter, leave as walkLeave, walkTo } from './walk.js';
 import { setPhoto } from '../pathtracer.js';
 
 const $ = id => document.getElementById(id), panel = $('chatpanel'), log = $('chatlog'), input = $('chatinput'), sendBtn = $('chatsend');
@@ -50,12 +52,25 @@ function applyViewState(v) {
   const fire = (id, value) => { const e = $(id); e.value = value; addEventListener('error', onErr); e.dispatchEvent(new Event(id === 'sunTime' ? 'input' : 'change')); removeEventListener('error', onErr); if (uiErr) throw uiErr; }, done = []; // listener errors do not propagate: catch and rethrow them
   if ('sun_month' in v && !(Number.isInteger(v.sun_month) && v.sun_month >= 1 && v.sun_month <= 12)) throw new Error('sun_month must be an integer 1 to 12');
   if ('sun_hour' in v && !(v.sun_hour >= 5 && v.sun_hour <= 21)) throw new Error('sun_hour must be between 5 and 21');
+  const num3 = (a, n) => { if (!Array.isArray(a) || a.length !== 3 || !a.every(Number.isFinite)) throw new Error(n + ' needs 3 numbers [x, y, z]'); };
+  if ('focal' in v && ![...$('focal').options].some(o => +o.value === v.focal)) throw new Error('focal must be one of ' + [...$('focal').options].map(o => o.value).join(', ') + ' (0 = auto)');
+  if ('fstop' in v && ![...$('fstop').options].some(o => +o.value === v.fstop)) throw new Error('fstop must be one of ' + [...$('fstop').options].map(o => o.value).join(', ') + ' (0 = off)');
+  for (const k of ['dims', 'furniture', 'labels', 'walk']) if (k in v && typeof v[k] !== 'boolean') throw new Error(k + ' must be true or false');
+  if ('walk_to' in v) { const w = v.walk_to; if (!w || ![w.x, w.y].every(Number.isFinite) || ('yaw' in w && !Number.isFinite(w.yaw))) throw new Error('walk_to needs {x, y, yaw} as numbers'); if (v.walk === false) throw new Error('walk_to conflicts with walk false'); }
+  if ('camera' in v) { const c = v.camera; if (!c) throw new Error('camera needs {cam, target}'); num3(c.cam, 'camera.cam'); num3(c.target, 'camera.target'); if (v.walk_to || v.walk || state.walk && v.walk !== false) throw new Error('leave walk mode (walk false) before setting the camera'); }
   if ('night' in v) { $(v.night ? 'mnight' : 'mday').click(); done.push('night ' + v.night); }
   if ('cut' in v) { $(v.cut ? 'wcut' : 'wfull').click(); done.push('cut ' + v.cut); }
   if ('style' in v) { if (![...$('style').options].some(o => o.value === v.style)) throw new Error(`unknown style "${v.style}"`); fire('style', v.style); done.push('style ' + v.style); }
   if ('sun_month' in v) { fire('sunMonth', v.sun_month); done.push('sun month ' + v.sun_month); }
   if ('sun_hour' in v) { fire('sunTime', v.sun_hour); done.push('sun hour ' + v.sun_hour); }
   if ('view' in v) { if (!plan.views[v.view]) throw new Error(`no view "${v.view}"`); setView(v.view); done.push('view ' + v.view); }
+  if ('focal' in v) { fire('focal', v.focal); done.push('focal ' + v.focal); }
+  if ('fstop' in v) { fire('fstop', v.fstop); done.push('fstop ' + v.fstop); }
+  for (const [k, id] of [['dims', 'tdim'], ['furniture', 'tfur'], ['labels', 'tlab']]) if (k in v) { if (($(id).getAttribute('aria-pressed') === 'true') !== v[k]) $(id).click(); done.push(k + ' ' + v[k]); }
+  if (v.walk === false && state.walk) { walkLeave(true); done.push('walk false'); }
+  if (v.walk === true && !state.walk) { walkEnter(); done.push('walk true'); }
+  if ('walk_to' in v) { walkTo(v.walk_to.x, v.walk_to.y, v.walk_to.yaw || 0); done.push(`walk_to ${v.walk_to.x}, ${v.walk_to.y}`); }
+  if ('camera' in v) { state.anim = null; camera.position.set(...v.camera.cam); controls.target.set(...v.camera.target); controls.update(); done.push('camera set'); }
   if ('photo' in v) { setPhoto(v.photo); done.push('photo ' + v.photo); }
   return done;
 }

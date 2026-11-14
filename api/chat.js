@@ -64,7 +64,17 @@ TOOLS.push({
       style: { type: 'string', description: 'Interior style preset: warm, soft, nordic, japandi, luxe or midcentury.' },
       sun_month: { type: 'integer', minimum: 1, maximum: 12, description: 'Month for the sun.' },
       sun_hour: { type: 'number', minimum: 5, maximum: 21, description: 'Hour of day for the sun, e.g. 14.5.' },
-      view: { type: 'string', description: 'Name of a camera view (a key of plan.views) to jump to.' }
+      view: { type: 'string', description: 'Name of a camera view (a key of plan.views) to jump to.' },
+      focal: { type: 'number', enum: [0, 18, 24, 35, 50], description: 'Photo lens in mm (0 = auto).' },
+      fstop: { type: 'number', enum: [0, 1.4, 2.8, 5.6, 11], description: 'Photo depth of field, f-number (0 = off); focus is on the orbit target.' },
+      dims: { type: 'boolean', description: 'Dimension labels on or off.' },
+      furniture: { type: 'boolean', description: 'Furniture overlay on or off.' },
+      labels: { type: 'boolean', description: 'Room labels on or off.' },
+      walk: { type: 'boolean', description: 'Walk mode (first person, eye height 1.6 m) on or off.' },
+      walk_to: { type: 'object', additionalProperties: false, required: ['x', 'y', 'yaw'], description: 'Stand at plan point (x, y) in metres looking yaw degrees (0 = north, 90 = east, clockwise seen from above); turns walk mode on. Rejected if the point is inside a wall or furniture.',
+        properties: { x: { type: 'number' }, y: { type: 'number' }, yaw: { type: 'number' } } },
+      camera: { type: 'object', additionalProperties: false, required: ['cam', 'target'], description: 'Orbit camera position and look-at point as [x, y, z] in metres (x east, y height, z south = plan y). Not saved in the plan; not while walking. Ceilings show automatically when the camera is inside the apartment; there is no manual ceiling switch.',
+        properties: { cam: { type: 'array', items: { type: 'number' }, minItems: 3, maxItems: 3 }, target: { type: 'array', items: { type: 'number' }, minItems: 3, maxItems: 3 } } }
     }
   }
 });
