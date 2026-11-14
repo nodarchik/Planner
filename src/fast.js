@@ -48,5 +48,5 @@ btn.onclick = () => setFast(!state.fast);
 // test hook: snapshot of every material value Fast touches and of every light, plus the render settings
 window.__fast = { get on() { return state.fast; },
   settings: () => ({ shadows: renderer.shadowMap.enabled, env: !!scene.environment, ao: gtao.enabled, bloom: bloom.enabled, pr: renderer.getPixelRatio() }),
-  snapshot: () => { const mm = {}, ll = []; for (const m of mats()) { const o = { color: m.color?.getHex() }; for (const f of FIELDS) if (f in m) o[f] = f.endsWith('Map') ? m[f]?.uuid ?? null : m[f]; mm[m.uuid] = o; }
+  snapshot: () => { const mm = {}, ll = []; for (const m of mats()) { const o = { color: m.color?.getHex(), roughness: m.roughness }; for (const f of FIELDS) if (f in m) o[f] = f.endsWith('Map') ? m[f]?.uuid ?? null : m[f]; mm[m.uuid] = o; }
     scene.traverse(o => { if (o.isLight) ll.push([o.uuid, o.visible, o.intensity, o.type, o.castShadow]); }); return { mats: mm, lights: ll }; } };

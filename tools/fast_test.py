@@ -29,7 +29,7 @@ async def main():
         check('default: shadows, env, AO, bloom on', set0['shadows'] and set0['env'] and set0['ao'] and set0['bloom'], set0)
         await pg.click('#fast'); await settle(pg)
         check('button on', await pg.get_attribute('#fast', 'aria-pressed') == 'true' and await ev('__fast.on'))
-        st = await ev('__fast.settings()'); check('shadows, environment, AO, bloom off, pixel ratio 1', not st['shadows'] and not st['env'] and not st['ao'] and not st['bloom'] and st['pr'] == 1, st)
+        st = await ev('__fast.settings()'); check('shadows, environment, AO, bloom off, pixel ratio unchanged', not st['shadows'] and not st['env'] and not st['ao'] and not st['bloom'] and st['pr'] == await ev('Math.min(devicePixelRatio, 1.75)'), st)
         r = await ev(BAD); check('no clearcoat, sheen, transmission, env, metal or maps on any material', r['bad'] == 0 and r['n'] > 50, r)
         check('only the flat lights are on', sorted(r['lights']) == ['DirectionalLight', 'HemisphereLight'], r['lights'])
         await pg.click('#mnight'); await settle(pg); r = await ev(BAD)
@@ -64,6 +64,34 @@ async def main():
         check('Fast persists over reload', await ev('__fast.on') and await pg.get_attribute('#fast', 'aria-pressed') == 'true')
         r = await ev(BAD); check('after reload: all materials flat, flat lights only', r['bad'] == 0 and sorted(r['lights']) == ['DirectionalLight', 'HemisphereLight'], r)
         await pg.click('#fast'); await ctx.close()
+        # a finish changed while Fast is on stays flat and restores to the NEW finish
+        ctx, pg = await page(viewport={'width': 1200, 'height': 720}); ev = pg.evaluate; await pg.click('#fast'); await settle(pg)
+        await ev("__editor.select({kind:'item', id:'wardrobe-b2'})")
+        pick = "(n) => { const b = [...document.querySelectorAll('#selparts .chips button')].find(x => x.textContent === n); if (b) b.click(); return !!b; }"
+        for fin in ('Chrome', 'Gloss'):
+            if not await ev(pick, fin): continue
+            await settle(pg); r = await ev(BAD); check(f'finish {fin} picked in Fast stays flat', r['bad'] == 0, r)
+            await ev("(c) => { const i = document.querySelector('#selparts input[type=color]'); i.value = c; i.dispatchEvent(new Event('input')); }", '#336699'); await settle(pg)
+            r = await ev(BAD); check('colour picker input in Fast stays flat', r['bad'] == 0, r); break
+        else: check('a part with a Chrome or Gloss finish exists', False)
+        await pg.click('#fast'); await settle(pg); s = await ev('__fast.snapshot()')
+        check('Fast off: the new finish is restored (metal chrome or clearcoat gloss, not the old one)', any(m['roughness'] == .07 and m['metalness'] == 1 for m in s['mats'].values()) or any(m['clearcoat'] == 1 and m['color'] == 0x336699 for m in s['mats'].values()))
+        # Cut and walk work in Fast
+        await pg.click('#fast'); await settle(pg); await pg.click('#wcut'); await settle(pg); r = await ev(BAD)
+        check('Cut in Fast', await pg.get_attribute('#wcut', 'aria-pressed') == 'true' and r['bad'] == 0, r); await pg.click('#wfull')
+        await pg.click('#walk'); await ev('__walk.step(1/60)'); await settle(pg); r = await ev(BAD); check('walk in Fast', await ev('__walk.on') and r['bad'] == 0 and await ev('__fast.on'), r)
+        await pg.keyboard.press('Escape'); await pg.click('#fast'); await ctx.close()
+        # Fast switched off while the scanned maps still load keeps them
+        maps0 = sum(1 for m in s0['mats'].values() if m.get('normalMap'))
+        ctx = await b.new_context(viewport={'width': 1200, 'height': 720}); await ctx.add_init_script("try { localStorage.setItem('palace1-fast-v1', '1'); } catch (e) {}")
+        async def slow(route): await asyncio.sleep(4); await route.continue_()
+        await ctx.route('**/textures/*.webp', slow); pg = await ctx.new_page(); ev = pg.evaluate
+        pg.on('pageerror', lambda e: errs.append('PAGE: ' + str(e)))
+        await pg.goto(sys.argv[1]); await pg.wait_for_selector('#loader[hidden]', state='attached', timeout=240000)
+        check('loaded with Fast on and scans pending', await ev('__fast.on') and await ev('window.__assetsReady') is False)
+        await pg.click('#fast'); await pg.wait_for_function('window.__assetsReady !== false', timeout=240000); await settle(pg)
+        s2 = await ev('__fast.snapshot()'); maps2 = sum(1 for m in s2['mats'].values() if m.get('normalMap'))
+        check('Fast off during the scan load keeps the scanned maps', maps2 == maps0 and not (await ev('__fast.on')), (maps0, maps2)); await ctx.close()
         # Photo and Fast exclude each other
         ctx, pg = await page(viewport={'width': 1200, 'height': 720}); ev = pg.evaluate; await pg.click('#fast'); await settle(pg); await pg.click('#photo')
         await pg.wait_for_function("document.getElementById('status').textContent.includes('samples') || document.getElementById('status').textContent.includes('unavailable')", timeout=240000)
