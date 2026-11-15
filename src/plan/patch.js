@@ -1,4 +1,5 @@
 // Difference between two plans, by id. Used for persistence (the patch is stored, not the whole plan) and for the change summary.
+import { productLabel } from './products.js';
 const LISTS = ['rooms', 'walls', 'blocks', 'items'], WHOLE = ['balconies', 'slabs', 'floors', 'ceilings']; // WHOLE: no ids, stored as the whole list
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 const show = v => (typeof v === 'number' ? (Number.isInteger(v) ? String(v) : v.toFixed(2)) : JSON.stringify(v));
@@ -30,7 +31,7 @@ export const isEmpty = patch => !Object.keys(patch).length;
 
 // short human-readable lines: "wardrobe-b2: to 5.06 → 4.6"
 export function describe(base, cur) {
-  const lines = [], patch = diffPlan(base, cur);
+  const lines = [], patch = diffPlan(base, cur), tl = (o, id) => { const x = o.find(i => i.id === id); return x && x.type === 'product' ? ` (${productLabel(x) || 'product ' + x.product})` : ''; };
   for (const k of LISTS) { const p = patch[k]; if (!p) continue; const b = new Map(base[k].map(o => [o.id, o]));
     for (const id of new Set([...Object.keys(p.set), ...Object.keys(p.unset)])) { const o0 = b.get(id), parts = [];
       for (const [f, v] of Object.entries(p.set[id] || {})) {
@@ -39,9 +40,9 @@ export function describe(base, cur) {
           v.forEach((e, i) => { for (const g of Object.keys(e)) if (!same(e[g], o0[f][i][g])) parts.push(`${f}[${e.id || i}].${g} ${show(o0[f][i][g])} → ${show(e[g])}`); }); }
         else parts.push(`${f} ${show(o0[f])} → ${show(v)}`); }
       for (const f of p.unset[id] || []) parts.push(`${f} removed`);
-      lines.push(`${id}: ${parts.join(', ')}`); }
-    for (const o of p.add) lines.push(`+ ${o.id} added: ${JSON.stringify(o)}`);
-    for (const id of p.remove) lines.push(`− ${id} removed`); }
+      lines.push(`${id}${tl(cur[k], id) || tl(base[k], id)}: ${parts.join(', ')}`); }
+    for (const o of p.add) lines.push(`+ ${o.id}${tl([o], o.id)} added: ${JSON.stringify(o)}`);
+    for (const id of p.remove) lines.push(`− ${id}${tl(base[k], id)} removed`); }
   for (const k of WHOLE) if (patch[k]) lines.push(`${k} changed`);
   if (patch.meta) lines.push('meta changed: ' + [...new Set([...Object.keys(base.meta), ...Object.keys(cur.meta)])].filter(k => !same(base.meta[k], cur.meta[k])).join(', ')); if (patch.views) lines.push('views changed');
   return lines;

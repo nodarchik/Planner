@@ -6,6 +6,9 @@ import { M } from '../materials.js';
 import { DESIGNS } from '../catalog.js';
 import { PUBLISHED, plan, setPlan, wallAxis, wallRect } from '../plan/plan.js';
 import { applyPatch, describe, diffPlan, isEmpty } from '../plan/patch.js';
+import { openPicker } from './picker.js';
+import { PRODUCTS } from '../plan/products.js';
+import { HEX } from '../tint.js';
 import { buildAll, rebuildItem } from '../build.js';
 import { itemGroups, itemObjects } from '../items/index.js';
 import { rebuildPT, setPhoto } from '../pathtracer.js';
@@ -32,7 +35,8 @@ function updateBar() { const n = describe(PUBLISHED, plan).length; $('changeCoun
   $('undoBtn').disabled = !undoStack.length; $('redoBtn').disabled = !redoStack.length;
   if ($('chatundo')) $('chatundo').disabled = !undoStack.length; }
 // run a change: opts.item = rebuild only that item, opts.none = already applied to the scene, otherwise rebuild everything
-export function edit(fn, opts = {}) { pushUndo(snapshot()); redoStack.length = 0; const nb = JSON.stringify(plan.meta.bindings); fn(); if (JSON.stringify(plan.meta.bindings) !== nb) validateBindings(); persist(); // strict check only when the edit touched the bindings
+const badProducts = () => plan.items.filter(i => i.type === 'product' && !PRODUCTS.has(i.product)).map(i => `${i.id}: ${i.product}`).join(', ');
+export function edit(fn, opts = {}) { pushUndo(snapshot()); redoStack.length = 0; const nb = JSON.stringify(plan.meta.bindings), nbad = badProducts(); fn(); const bad = badProducts(); if (bad && bad !== nbad) throw new Error(`unknown product id (${bad}); use an id from the shop product list`); if (JSON.stringify(plan.meta.bindings) !== nb) validateBindings(); persist(); // strict check only when the edit touched the bindings
   if (opts.none) return; if (opts.item) rebuildItem(opts.item); else buildAll(); reselect(); }
 // like edit(), for changes that may be invalid: on any error the plan is put back and the message is returned
 export function tryEdit(fn) { const before = snapshot(); try { edit(fn); return null; } catch (e) { if (undoStack[undoStack.length - 1] === before) undoStack.pop(); try { restore(before); } catch (e2) { console.error(e2); } return String((e && e.message) || e); } }
@@ -102,8 +106,13 @@ function setAt(o, p, v) { const last = p[p.length - 1], host = p.slice(0, -1).re
 function renderPanel() { const isItem = sel.kind === 'item', obj = isItem ? itemOf(sel.id) : wallOf(sel.id), box = $('selfields'); if (!obj) return;
   $('selname').textContent = isItem ? (obj.label || obj.name || obj.type) : 'Wall'; $('selpos').textContent = `${sel.id}${isItem ? ' · ' + obj.type : ''}`;
   box.textContent = '';
-  const list = fields(obj); const catalog = isItem && DESIGNS[obj.type];
+  const prod = isItem && obj.type === 'product' ? PRODUCTS.get(obj.product) : null, list = fields(obj).filter(f => !(isItem && obj.type === 'product' && f.p[0] === 'product')).map(f => isItem && obj.type === 'product' && f.p[0] === 'color' ? { ...f, kind: 'color' } : isItem && obj.type === 'product' && f.p[0] === 'chaise' ? { ...f, kind: 'enum', opts: ['L', 'R'] } : f), catalog = isItem && DESIGNS[obj.type];
+  if (isItem && obj.type === 'product') { if (!('rot' in obj) && !obj.lookAt) list.push({ p: ['rot'], v: 0, kind: 'num' }); if (!('color' in obj)) list.push({ p: ['color'], v: '', kind: 'color' });
+    if (prod && prod.kind === 'cornerSofa' && !('chaise' in obj)) list.push({ p: ['chaise'], v: 'R', kind: 'enum', opts: ['L', 'R'] });
+    if (prod && (prod.wMax || prod.dMax || prod.hMax) && !('extended' in obj)) list.push({ p: ['extended'], v: false, kind: 'bool' }); }
   if (catalog) { if (!('variant' in obj)) list.unshift({ p: ['variant'], v: 0, kind: 'num' }); if (!('rot' in obj) && !obj.lookAt) list.push({ p: ['rot'], v: 0, kind: 'num' }); }
+  if (isItem && obj.type === 'product') { const row = document.createElement('div'); row.className = 'fld'; const nm = document.createElement('span'); nm.textContent = 'product'; const bx = document.createElement('div'), t = document.createElement('b'), ch = document.createElement('button');
+    t.textContent = prod ? prod.title : `unknown product ${obj.product}`; ch.type = 'button'; ch.textContent = 'Change…'; ch.id = 'prodChange'; ch.onclick = () => openPicker(id => edit(() => { obj.product = id; delete obj.label; delete obj.chaise; delete obj.extended; }, { item: obj.id })); bx.append(t, ch); row.append(nm, bx); box.appendChild(row); }
   const apply = (p, v) => edit(() => { setAt(obj, p, v); if (p[0] === 'rot') delete obj.lookAt; }, isItem ? { item: sel.id } : {});
   for (const f of list) { const fname = f.p.join('.'), row = document.createElement(f.kind === 'nums' ? 'div' : 'label'); row.className = 'fld'; const name = document.createElement('span'); name.textContent = fname; row.appendChild(name);
     if (f.kind === 'nums') { const lid = 'fld-' + fname.replace(/[^a-zA-Z0-9_-]/g, '-'); name.id = lid; row.setAttribute('role', 'group'); row.setAttribute('aria-labelledby', lid); }
@@ -114,12 +123,13 @@ function renderPanel() { const isItem = sel.kind === 'item', obj = isItem ? item
     else if (f.kind === 'nums') { const w = document.createElement('span'); w.className = 'nums'; row.appendChild(w); const axes = f.v.length === 3 ? ['x', 'y', 'z'] : ['x', 'y', 'x2', 'y2']; f.v.forEach((n, k) => { const i = mk('number', n, el => { const v = parseFloat(el.value); if (!isNaN(v)) { const a = [...getAt(obj, f.p)]; a[k] = v; apply(f.p, a); } }, w); i.setAttribute('aria-label', `${fname} ${axes[k] || k + 1}`); }); }
     else if (f.kind === 'bool') { const i = document.createElement('input'); i.type = 'checkbox'; i.checked = f.v; i.onchange = () => apply(f.p, i.checked); row.appendChild(i); }
     else if (f.kind === 'wall' || f.kind === 'enum') { const s = document.createElement('select'); (f.kind === 'wall' ? [...plan.walls, ...plan.blocks].map(w => w.id) : f.opts).forEach(o => s.add(new Option(o, o))); s.value = f.v; s.onchange = () => apply(f.p, s.value); row.appendChild(s); }
+    else if (f.kind === 'color') { const i = mk('text', f.v, el => { const v = el.value.trim(); if (v && !HEX.test(v)) { el.value = f.v; el.setCustomValidity('#rrggbb'); el.reportValidity(); return; } el.setCustomValidity(''); edit(() => { if (v) obj.color = v; else delete obj.color; }, { item: obj.id }); }); i.placeholder = '#rrggbb (catalog colour)'; }
     else if (f.kind === 'text') mk('text', f.v, i => apply(f.p, i.value));
     else { const t = document.createElement('textarea'); t.rows = 2; t.value = JSON.stringify(f.v); t.onkeydown = stopNonEsc; t.onchange = () => { try { apply(f.p, JSON.parse(t.value)); } catch (e) { t.value = JSON.stringify(f.v); } }; row.appendChild(t); }
     box.appendChild(row); }
   $('selactions').hidden = !isItem; $('selparts').textContent = '';
   if (isItem) { const g = (itemGroups.get(sel.id) || [])[0]; if (g) { renderParts(g, sel.id); renderSize(g, obj); } $('sizebox').hidden = !g || !catalog;
-    $('rotL').disabled = $('rotR').disabled = !(catalog || (obj.type === 'bed' && obj.pos)); }
+    $('rotL').disabled = $('rotR').disabled = !(catalog || obj.type === 'product' || (obj.type === 'bed' && obj.pos)); }
   else { $('sizebox').hidden = true; renderWallControls(obj); } }
 function renderWallControls(w) {
   const openings = Array.isArray(w?.openings) ? w.openings : [];
@@ -151,7 +161,7 @@ function renderSize(g, it) { const s = g.userData.size, sc = it.resize || [1, 1,
 $('szReset').onclick = () => { if (sel && sel.kind === 'item' && itemOf(sel.id).resize) edit(() => { delete itemOf(sel.id).resize; }, { item: sel.id }); };
 
 /* ---------- actions ---------- */
-function rotate(deg) { if (!sel || sel.kind !== 'item') return; const it = itemOf(sel.id); if (!(DESIGNS[it.type] || (it.type === 'bed' && it.pos))) return;
+function rotate(deg) { if (!sel || sel.kind !== 'item') return; const it = itemOf(sel.id); if (!(DESIGNS[it.type] || it.type === 'product' || (it.type === 'bed' && it.pos))) return;
   edit(() => { let r = it.rot || 0; if (it.lookAt) { r = Math.round(Math.atan2(it.lookAt[0] - it.pos[0], it.lookAt[1] - it.pos[1]) * 180 / Math.PI); delete it.lookAt; } it.rot = ((r + deg) % 360 + 360) % 360; }, { item: it.id }); }
 const freshId = base => { let n = 2, id = base; while (plan.items.some(i => i.id === id)) id = `${base}-${n++}`; return id; };
 function duplicate() { if (!sel || sel.kind !== 'item') return; const src = itemOf(sel.id), it = structuredClone(src), mv = mover(it); it.id = freshId(src.id.replace(/-\d+$/, ''));
@@ -160,8 +170,10 @@ function remove() { if (!sel || sel.kind !== 'item') return; const id = sel.id; 
 const ADD = { nightstand: { type: 'nightstand' }, 'planter · fig': { type: 'planter', plant: 'fig', scale: 1 }, 'planter · snake': { type: 'planter', plant: 'snake', scale: 1 }, 'planter · olive': { type: 'planter', plant: 'olive', scale: 1 },
   rug: { type: 'rug', material: 'rug', radius: .05, h: [0, .012] }, 'vanity stool': { type: 'vanityStool' }, 'table decor + pendants': { type: 'tableDecor' },
   bed: { type: 'bed', name: 'Bed', size: [1.6, 2.0], rot: 0, materials: { accent: 'velvetTerra', duvet: 'linenSand', throw: 'velvetSage' } } };
-{ const s = $('addType'); Object.entries(DESIGNS).forEach(([k, d]) => s.add(new Option(d.label, 'catalog:' + k))); Object.keys(ADD).forEach(k => s.add(new Option(k, k))); }
+{ const s = $('addType'); Object.entries(DESIGNS).forEach(([k, d]) => s.add(new Option(d.label, 'catalog:' + k))); Object.keys(ADD).forEach(k => s.add(new Option(k, k))); s.add(new Option('Shop product…', 'shop')); }
+function addProduct(product) { const it = { id: freshId('product'), type: 'product', product, pos: [r2(controls.target.x), r2(controls.target.z)], rot: 0 }; edit(() => plan.items.push(it), { item: it.id }); select({ kind: 'item', id: it.id }); }
 function addItem() { const key = $('addType').value, x = r2(controls.target.x), y = r2(controls.target.z); let it;
+  if (key === 'shop') { openPicker(addProduct); return; }
   if (key.startsWith('catalog:')) it = { type: key.slice(8), variant: 0, pos: [x, y] }; else { it = structuredClone(ADD[key]); if (it.type === 'rug') it.rect = [x - .8, y - .5, x + .8, y + .5]; else it.pos = [x, y]; }
   it.id = freshId(it.type.toLowerCase()); edit(() => plan.items.push(it), { item: it.id }); select({ kind: 'item', id: it.id }); }
 function download(name, text) { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], { type: 'application/json' })); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000); }

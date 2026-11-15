@@ -767,6 +767,26 @@
         }
        }
       }
+     },
+     "product": {
+      "type": "integer",
+      "description": "product: comforter.ge product id (src/plan/comforter.json)"
+     },
+     "color": {
+      "type": "string",
+      "pattern": "^#[0-9a-fA-F]{6}$",
+      "description": "product: #rrggbb override of the product colour"
+     },
+     "chaise": {
+      "enum": [
+       "L",
+       "R"
+      ],
+      "description": "product: corner sofa chaise side"
+     },
+     "extended": {
+      "type": "boolean",
+      "description": "product: build at the extended width (wMax)"
      }
     }
    }

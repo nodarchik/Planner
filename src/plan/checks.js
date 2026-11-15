@@ -25,7 +25,7 @@ export function runChecks(plan) {
   // 2. items inside walls · 3. items overlapping each other
   for (const f of fps) for (const r of f.rects) for (const s of fixed) { const [ox, oy] = inter(r, s); if (ox > .03 && oy > .03) { add('error', f.id, 'Overlaps a wall', fmt(Math.min(ox, oy)), '0.00', f.name); break; } }
   for (let i = 0; i < fps.length; i++) for (let j = i + 1; j < fps.length; j++) { const a = fps[i], b = fps[j];
-    if ((a.kind === 'seat' && TUCK.has(b.type)) || (b.kind === 'seat' && TUCK.has(a.type))) continue;
+    if ((a.kind === 'seat' && (TUCK.has(b.type) || b.tuck)) || (b.kind === 'seat' && (TUCK.has(a.type) || a.tuck))) continue;
     let worst = 0; for (const ra of a.rects) for (const rb of b.rects) { const [ox, oy] = inter(ra, rb); if (ox > 0 && oy > 0) worst = Math.max(worst, Math.min(ox, oy)); }
     if (worst > .03) add(worst > .10 ? 'error' : 'warn', a.id, 'Overlaps ' + b.id, fmt(worst), '0.00', `${a.name} / ${b.name}`); }
 
