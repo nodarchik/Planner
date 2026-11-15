@@ -1,7 +1,8 @@
 import * as THREE from 'three';
 import { state } from '../scene.js';
-import { M, P, T } from '../materials.js';
+import { M, P, T, textured } from '../materials.js';
 import { fastOne } from '../fast.js';
+import { disposeMaterial } from '../dispose.js';
 import { plan } from '../plan/plan.js';
 import { rebuildPT } from '../pathtracer.js';
 import { itemGroups } from '../items/index.js';
@@ -77,7 +78,30 @@ function applyPreset(name) {
   rebuildPT();
 }
 const itemOfGroup = g => plan.items.find(i => i.id === g.userData.item);
-function paint(g, key, fin, color) { const m = makeFinish(fin, color); fastOne(m); g.traverse(o => { if (o.isMesh && o.userData.mkey === key) o.material = m; }); g.userData.custom[key] = { fin, color }; }
+function paint(g, key, fin, color) {
+  if (g.userData.custom[key]?.fin === fin) {
+    let sharedCustom = null, sameCustom = true, found = false;
+    g.traverse(o => {
+      if (o.isMesh && o.userData.mkey === key) {
+        found = true;
+        if (!o.material || o.material.userData?.shared) sameCustom = false;
+        else if (!sharedCustom) sharedCustom = o.material;
+        else if (o.material !== sharedCustom) sameCustom = false;
+      }
+    });
+    if (found && sameCustom && sharedCustom) {
+      sharedCustom.color.set(color);
+      g.userData.custom[key] = { fin, color };
+      return;
+    }
+  }
+  const old = new Set();
+  g.traverse(o => { if (o.isMesh && o.userData.mkey === key && o.material && !o.material.userData?.shared) old.add(o.material); });
+  const m = makeFinish(fin, color); fastOne(m);
+  g.traverse(o => { if (o.isMesh && o.userData.mkey === key) o.material = m; });
+  old.forEach(om => { if (om !== m) disposeMaterial(om, textured); });
+  g.userData.custom[key] = { fin, color };
+}
 // change the finish / colour of one part of an item; saved in the plan as item.look
 export function applyPart(g, key, fin, color, save = true) {
   const it = itemOfGroup(g); (it ? itemGroups.get(it.id) || [g] : [g]).forEach(gg => paint(gg, key, fin, color));
@@ -104,15 +128,15 @@ export function renderParts(g) {
     let mesh = null; g.traverse(o => { if (!mesh && o.isMesh && o.userData.mkey === key) mesh = o; });
     const fin = cur ? cur.fin : FIN_OF[key], color = '#' + mesh.material.color.getHexString();
     const wrap = document.createElement('div'); wrap.className = 'part';
-    const h = document.createElement('h3'); h.textContent = PART_NAME[key] + ' · ' + fin; wrap.appendChild(h);
-    const chips = document.createElement('div'); chips.className = 'chips';
-    FIN[cat].forEach(f => { const b = document.createElement('button'); b.textContent = f; b.setAttribute('aria-pressed', f === fin);
+    const h = document.createElement('h3'); h.id = 'part-h-' + key; h.textContent = PART_NAME[key] + ' · ' + fin; wrap.appendChild(h);
+    const chips = document.createElement('div'); chips.className = 'chips'; chips.setAttribute('role', 'group'); chips.setAttribute('aria-labelledby', h.id);
+    FIN[cat].forEach(f => { const b = document.createElement('button'); b.type = 'button'; b.textContent = f; b.setAttribute('aria-pressed', f === fin);
       b.onclick = () => { applyPart(g, key, f, FIN_COLOR[f] || color); renderParts(g); }; chips.appendChild(b); });
     wrap.appendChild(chips);
-    const sws = document.createElement('div'); sws.className = 'sws';
-    SW[cat].forEach(c => { const b = document.createElement('button'); b.className = 'sw'; b.style.background = c; b.title = c; b.setAttribute('aria-label', 'Colour ' + c);
+    const sws = document.createElement('div'); sws.className = 'sws'; sws.setAttribute('role', 'group'); sws.setAttribute('aria-labelledby', h.id);
+    SW[cat].forEach(c => { const b = document.createElement('button'); b.type = 'button'; b.className = 'sw'; b.style.background = c; b.title = c; b.setAttribute('aria-label', `${PART_NAME[key]} colour ${c}`);
       b.setAttribute('aria-pressed', c.toLowerCase() === color.toLowerCase()); b.onclick = () => { applyPart(g, key, fin, c); renderParts(g); }; sws.appendChild(b); });
-    const inp = document.createElement('input'); inp.type = 'color'; inp.value = color; inp.title = 'Custom colour'; inp.id = 'col-' + key;
+    const inp = document.createElement('input'); inp.type = 'color'; inp.value = color; inp.title = 'Custom colour'; inp.id = 'col-' + key; inp.setAttribute('aria-label', `${PART_NAME[key]} custom colour`);
     inp.oninput = () => applyPart(g, key, fin, inp.value, false);
     inp.onchange = () => { applyPart(g, key, fin, inp.value); renderParts(g); };
     sws.appendChild(inp); wrap.appendChild(sws); box.appendChild(wrap);

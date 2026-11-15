@@ -2,6 +2,7 @@
 // this endpoint only adds the system prompt and the tool definition and forwards the turn to Claude.
 // Needs ANTHROPIC_API_KEY in the Vercel project. Optional CHAT_PASSWORD: if set, requests must send it as x-chat-password.
 import Anthropic from '@anthropic-ai/sdk';
+import { createHash, timingSafeEqual } from 'node:crypto';
 import { CHAT_MODELS, DEFAULT_MODEL } from '../src/chat-models.js';
 
 const SYSTEM = `You edit the plan of one real apartment ("Palace 1", Tbilisi) inside its 3D web app. The owner types plain requests ("make the closet 1.30 m", "rotate the bed to face the balcony", "move the dining table 20 cm east"). You answer by calling apply_changes; the app rebuilds the model and returns the result of its automatic checks.
@@ -97,10 +98,19 @@ TOOLS.push({
 });
 
 const bad = (res, code, error) => res.status(code).json({ error });
+const sha = v => createHash('sha256').update(String(v ?? '')).digest();
+const sameKey = (a, b) => timingSafeEqual(sha(a), sha(b));
+const setHeaders = res => {
+  res.setHeader?.('cache-control', 'no-store');
+  res.setHeader?.('x-content-type-options', 'nosniff');
+  res.setHeader?.('x-frame-options', 'DENY');
+  res.setHeader?.('referrer-policy', 'strict-origin-when-cross-origin');
+};
 
 export const createHandler = newClient => async function handler(req, res) {
+  setHeaders(res);
   if (req.method !== 'POST') return bad(res, 405, 'POST only');
-  if (process.env.CHAT_PASSWORD && req.headers['x-chat-password'] !== process.env.CHAT_PASSWORD) return bad(res, 401, 'password required');
+  if (process.env.CHAT_PASSWORD && !sameKey(req.headers?.['x-chat-password'], process.env.CHAT_PASSWORD)) return bad(res, 401, 'password required');
   if (!process.env.ANTHROPIC_API_KEY) return bad(res, 500, 'ANTHROPIC_API_KEY is not set in the Vercel project (Settings → Environment Variables); add it and redeploy.');
   const messages = req.body && req.body.messages;
   if (!Array.isArray(messages) || !messages.length || messages.length > 200 || messages[0].role !== 'user') return bad(res, 400, 'messages must be a non-empty conversation starting with the user');
@@ -120,10 +130,10 @@ export const createHandler = newClient => async function handler(req, res) {
     if (error instanceof Anthropic.AuthenticationError) return bad(res, 500, 'The Anthropic API key was rejected.');
     if (error instanceof Anthropic.RateLimitError) return bad(res, 429, 'Rate limited by the Claude API; try again in a minute.');
     if (error instanceof Anthropic.BadRequestError && /anthropic-workspace-id/.test(error.message)) return bad(res, 400, 'This API key is not scoped to a workspace: set ANTHROPIC_WORKSPACE_ID in the Vercel project or use a workspace-scoped key.');
-    if (error instanceof Anthropic.BadRequestError) return bad(res, 400, 'Claude API rejected the request: ' + error.message);
+    if (error instanceof Anthropic.BadRequestError) return bad(res, 400, 'Claude API rejected the request.');
     if (error instanceof Anthropic.APIConnectionError) return bad(res, 502, 'Could not reach the Claude API.');
-    if (error instanceof Anthropic.APIError) return bad(res, 502, `Claude API error ${error.status}: ${error.message}`);
-    return bad(res, 500, 'Unexpected error: ' + (error && error.message));
+    if (error instanceof Anthropic.APIError) return bad(res, 502, `Claude API error ${error.status}.`);
+    return bad(res, 500, 'Unexpected assistant error.');
   }
 };
 

@@ -12,6 +12,19 @@ export const textured = []; // { material, set } for every material built on a t
 export function T(set, tile, o = {}) { const t = texFor(set, tile); const ns = o.normalScale ?? 1; delete o.normalScale;
   const material = P(Object.assign({ map: t.map, normalMap: t.normalMap, roughnessMap: t.roughnessMap, roughness: 1, normalScale: new V2(ns, ns) }, o)); textured.push({ material, set }); return material; }
 export const M = {};
+let baseEmissives = 0, baseTextured = 0;
+export function pruneMaterials(root, onDispose) {
+  const used = new Set();
+  root?.traverse(o => { const ms = o.material; if (ms) (Array.isArray(ms) ? ms : [ms]).forEach(m => used.add(m)); });
+  for (let i = emissives.length - 1; i >= baseEmissives; i--) {
+    const m = emissives[i];
+    if (!m.userData?.shared && !used.has(m)) { emissives.splice(i, 1); onDispose?.(m); }
+  }
+  for (let i = textured.length - 1; i >= baseTextured; i--) {
+    const m = textured[i].material;
+    if (!m.userData?.shared && !used.has(m)) { textured.splice(i, 1); onDispose?.(m); }
+  }
+}
 export function buildMaterials() {
   Object.assign(M, {
     wall: T('plaster', 2, { normalScale: .35 }),
@@ -82,4 +95,7 @@ export function buildMaterials() {
     rattanDark: T('wood', .3, { color: 0x8a6440 }),
     laptop: P({ color: 0x0c0f16, roughness: .1, emissive: 0x9db8e8, emissiveIntensity: .12, nightIntensity: .5 })
   });
+  Object.values(M).forEach(m => { m.userData.shared = true; });
+  baseEmissives = emissives.length;
+  baseTextured = textured.length;
 }

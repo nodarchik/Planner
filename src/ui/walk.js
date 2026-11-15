@@ -54,15 +54,15 @@ export function walkTo(x, y, yawDeg = 0) {
 export function leave(instant) {
   if (!state.walk) return; state.walk = false; document.body.classList.remove('walking'); keys.clear(); joy[0] = joy[1] = 0; controls.enabled = true; $('walk').setAttribute('aria-pressed', 'false'); if (!state.moveMode) $('hint').textContent = HINT;
   if (document.pointerLockElement === dom) document.exitPointerLock();
-  if (instant) { camera.position.copy(prev.p); controls.target.copy(prev.t); controls.update(); return; }
+  if (instant || matchMedia('(prefers-reduced-motion: reduce)').matches) { camera.position.copy(prev.p); controls.target.copy(prev.t); controls.update(); return; }
   state.anim = { from: { p: camera.position.clone(), t: controls.target.clone() }, to: { p: prev.p, t: prev.t }, t0: performance.now() };
 }
 
-$('walk').onclick = () => (state.walk ? leave() : enter());
+$('walk').onclick = e => { if (state.walk) leave(); else { enter(); e.currentTarget.blur(); } };
 state.leaveWalk = () => leave(true);
 $('view').addEventListener('change', e => { if (state.walk) e.target.blur(); });
 addEventListener('keydown', ev => { if (!state.walk || /INPUT|SELECT|TEXTAREA/.test(document.activeElement?.tagName || '')) return; if (ev.metaKey || ev.ctrlKey) { keys.clear(); return; }
-  if (ev.key === 'Escape') { leave(); return; } if (ev.code.startsWith('Key') || ev.code.startsWith('Arrow') || ev.code.startsWith('Shift')) { keys.add(ev.code); if (ev.code.startsWith('Arrow')) ev.preventDefault(); } });
+  if (ev.key === 'Escape') { leave(); $('walk').focus(); return; } if (ev.code.startsWith('Key') || ev.code.startsWith('Arrow') || ev.code.startsWith('Shift')) { keys.add(ev.code); if (ev.code.startsWith('Arrow')) ev.preventDefault(); } });
 addEventListener('keyup', ev => keys.delete(ev.code)); addEventListener('blur', () => keys.clear()); document.addEventListener('visibilitychange', () => keys.clear());
 const look = (dx, dy) => { yaw -= dx * SENS; pitch = Math.max(-PITCH, Math.min(PITCH, pitch - dy * SENS)); dirty = true; };
 dom.addEventListener('pointerdown', ev => { if (state.walk && ev.pointerType === 'mouse' && ev.button === 0 && !locked) { document.activeElement?.blur?.(); try { dom.requestPointerLock()?.catch?.(() => {}); } catch (e) { /* drag-look below */ } } });

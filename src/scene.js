@@ -23,6 +23,8 @@ renderer.shadowMap.autoUpdate = false; // sun shadows are re-rendered only when 
 export const markShadows = () => { renderer.shadowMap.needsUpdate = true; };
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.0;
+renderer.domElement.setAttribute('role', 'img');
+renderer.domElement.setAttribute('aria-label', 'Interactive 3D model of Palace 1 apartment');
 stage.appendChild(renderer.domElement);
 
 export const scene = new THREE.Scene();

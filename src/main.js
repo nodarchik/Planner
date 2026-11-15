@@ -14,6 +14,7 @@ import { step as walkStep } from './ui/walk.js';
 import { discardEdits, hasEdits, loadEdits, reselect } from './ui/editor.js';
 import { discardBroken, pullServer, start as syncStart } from './plan/sync.js';
 import { loadStyle } from './ui/style.js';
+import { showToast } from './ui/toast.js';
 import './ui/chat.js';
 import { initFast } from './fast.js';
 import { focalFov, ptCamera, ptSetScene, rebuildPT, stillTick } from './pathtracer.js';
@@ -29,8 +30,7 @@ async function build() {
   const saved = hasEdits();
   try { loadEdits(); init(); } catch (err) { // a saved edit that cannot be built or shown: drop it and start from the published plan
     if (!saved) throw err; console.error('stored edits could not be built; using the published plan', err); discardBroken(); discardEdits(); setPlan(PUBLISHED); init();
-    const n = document.createElement('div'); n.id = 'discardnote'; n.textContent = 'Saved edits were discarded because they could not be built. Click to close.'; n.onclick = () => n.remove();
-    n.style.cssText = 'position:fixed;left:50%;top:12px;transform:translateX(-50%);z-index:9;background:#c4552f;color:#fff;padding:8px 14px;border-radius:8px;font:600 12px system-ui;cursor:pointer'; document.body.appendChild(n); }
+    showToast('Saved edits were discarded because they could not be built. Click to close.', { id: 'discardnote', cls: 'toast-error' }); }
   loader.hidden = true; syncStart();
   upgradeMaterials(textured); whenIdle(() => { if (hasTints()) { buildAll(); reselect(); } }); loadSky(); whenIdle(refreshOverlays); // scanned detail maps and models arrive after the first frame
 }
@@ -39,18 +39,28 @@ window.__wallTop = () => { const b = new Box3(); let t = 0; world.updateMatrixWo
 window.__sceneTriangles = () => { let n = 0; scene.traverse(o => { if (o.isMesh && o.geometry) n += (o.geometry.index ? o.geometry.index.count : o.geometry.attributes.position.count) / 3; }); return Math.round(n); }; // budget check
 
 /* ================= loop ================= */
-const v = new V3();
+const v = new V3(), reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
 let idle = 99, last = 0; // frames since the camera last moved; time of the last frame
 function tick(now) {
   requestAnimationFrame(tick); window.__frames = (window.__frames || 0) + 1;
-  if (state.anim) { const k = Math.min(1, (now - state.anim.t0) / 900), e = k < .5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2;
-    camera.position.lerpVectors(state.anim.from.p, state.anim.to.p, e); controls.target.lerpVectors(state.anim.from.t, state.anim.to.t, e); if (k >= 1) state.anim = null; if (state.photo && state.pt) ptCamera(); }
+  if (state.anim) {
+    if (reducedMotion.matches) { camera.position.copy(state.anim.to.p); controls.target.copy(state.anim.to.t); state.anim = null; }
+    else { const k = Math.min(1, (now - state.anim.t0) / 900), e = k < .5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2;
+      camera.position.lerpVectors(state.anim.from.p, state.anim.to.p, e); controls.target.lerpVectors(state.anim.from.t, state.anim.to.t, e); if (k >= 1) state.anim = null; }
+    if (state.photo && state.pt) ptCamera();
+  }
   const dt = (now - last) / 1000; last = now;
   const moved0 = state.walk ? walkStep(dt) : controls.update() || !!state.anim;
   const inside = camera.position.y < H - .05 && camera.position.x > ROOF[0] && camera.position.x < ROOF[2] && camera.position.z > ROOF[1] && camera.position.z < ROOF[3];
-  const fov = state.photo && state.focal ? focalFov(state.focal, camera.aspect) : (inside || state.walk ? 62 : 42) + (innerWidth < 600 ? 14 : 0); if (Math.abs(camera.fov - fov) > .01) { camera.fov += (fov - camera.fov) * .15; if (Math.abs(camera.fov - fov) < .05) camera.fov = fov; camera.updateProjectionMatrix(); if (state.photo && state.pt) ptCamera(); }
+  const fov = state.photo && state.focal ? focalFov(state.focal, camera.aspect) : (inside || state.walk ? 62 : 42) + (innerWidth < 600 ? 14 : 0);
+  if (Math.abs(camera.fov - fov) > .01) {
+    if (reducedMotion.matches) camera.fov = fov;
+    else { camera.fov += (fov - camera.fov) * .15; if (Math.abs(camera.fov - fov) < .05) camera.fov = fov; }
+    camera.updateProjectionMatrix(); if (state.photo && state.pt) ptCamera();
+  }
   idle = moved0 || camera.fov !== fov ? 0 : idle + 1; if (!MOBILE) setMoving(!state.photo && idle < 8);
   window.__settled = !state.anim && camera.fov === fov && !lod.on; // camera at rest: read by tools/shot.py
+  if (document.hidden) return;
   if (state.ceiling) { state.ceiling.visible = inside; if (state.lastCeil !== inside) { state.lastCeil = inside; markShadows(); rebuildPT(); } }
   if (window.__frames < 30) markShadows(); // first frames after load
   renderer.toneMappingExposure = (state.night ? 1.25 : 1.0) * (state.photo ? (inside ? (state.night ? .75 : 6) : (state.night ? 1.3 : .5)) : 1);
@@ -64,6 +74,6 @@ function tick(now) {
     if (l.top) l.p.y = state.cutOn ? Math.min(l.top, CUT + .02) : l.top;
     if (!on) { l.el.hidden = true; continue; } v.copy(l.p).project(camera);
     if (v.z > 1 || Math.abs(v.x) > 1.2 || Math.abs(v.y) > 1.2) { l.el.hidden = true; continue; }
-    l.el.hidden = false; l.el.style.left = ((v.x + 1) / 2 * w) + 'px'; l.el.style.top = ((1 - v.y) / 2 * h) + 'px'; }
+    l.el.hidden = false; l.el.style.translate = `${((v.x + 1) / 2 * w).toFixed(2)}px ${((1 - v.y) / 2 * h).toFixed(2)}px`; }
 }
 build().then(() => requestAnimationFrame(tick)).catch(err => { console.error(err); loader.textContent = 'Could not build the 3D scene: ' + err.message; });

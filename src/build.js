@@ -1,7 +1,8 @@
 // Build pipeline: everything in the scene comes from the plan. buildAll() after structural edits, rebuildItem() after an item edit.
 import * as THREE from 'three';
 import { clampables, markShadows, movables, scene, state, world } from './scene.js';
-import { emissives } from './materials.js';
+import { emissives, pruneMaterials, textured } from './materials.js';
+import { disposeMaterial, disposeObject } from './dispose.js';
 import { coveLights, fitShadow, nightLights, syncLights } from './lighting.js';
 import { plan, refreshGeom } from './plan/plan.js';
 import { buildArchitecture } from './arch/shell.js';
@@ -15,7 +16,6 @@ import { applyBindings } from './ui/bindings.js';
 import { fastSync } from './fast.js';
 import { ptMats, rebuildPT } from './pathtracer.js';
 
-let baseEmissives = -1;
 const inScene = o => { for (; o; o = o.parent) if (o === scene) return true; return false; };
 function prune() { // forget meshes and lights that are no longer in the scene
   for (let i = clampables.length - 1; i >= 0; i--) if (!inScene(clampables[i].me)) clampables.splice(i, 1);
@@ -35,17 +35,18 @@ function dress(it) { // per-item look and resize factors [x, height, y] stored i
 }
 export function buildAll() {
   applyBindings(); // validates meta.bindings first: a bad list throws before the scene is touched
-  if (baseEmissives < 0) baseEmissives = emissives.length; else emissives.length = baseEmissives;
-  nightLights.forEach(l => l.parent && l.parent.remove(l)); coveLights.forEach(l => l.parent && l.parent.remove(l)); coveLights.length = 0; world.clear(); clearTints(); clampables.length = 0; movables.length = 0; nightLights.length = 0;
+  nightLights.forEach(l => l.parent && l.parent.remove(l)); coveLights.forEach(l => l.parent && l.parent.remove(l)); coveLights.length = 0;
+  disposeObject(world, textured); world.clear(); clearTints(); pruneMaterials(world, m => disposeMaterial(m, textured)); clampables.length = 0; movables.length = 0; nightLights.length = 0;
   refreshGeom(); state.planVer++;
   state.ceiling = buildArchitecture(); state.lastCeil = null; buildItems(); plan.items.forEach(dress);
   syncPreset(); finish(world); clearOverlays(); setupOverlays(); furnitureLabels(); renderPlanNotes(); fitShadow(); rebuildPT();
 }
 export function refreshOverlays() { clearOverlays(); setupOverlays(); furnitureLabels(); }
-export function removeItemObjects(id) { for (const o of itemObjects.get(id) || []) o.parent && o.parent.remove(o); itemObjects.delete(id); itemGroups.delete(id); prune(); markShadows(); }
+export function removeItemObjects(id) { for (const o of itemObjects.get(id) || []) { disposeObject(o, textured); o.parent && o.parent.remove(o); } itemObjects.delete(id); itemGroups.delete(id); prune(); markShadows(); }
 export function rebuildItem(id, quiet) {
-  state.planVer++; removeItemObjects(id); const it = plan.items.find(i => i.id === id); if (!it) return [];
-  const groups = buildItem(it); dress(it); finish(world); markShadows(); if (state.photo) ptMats(true); // new materials: clearcoat etc. off in Photo
+  state.planVer++; removeItemObjects(id); const it = plan.items.find(i => i.id === id);
+  if (!it) { pruneMaterials(world, m => disposeMaterial(m, textured)); return []; }
+  const groups = buildItem(it); dress(it); pruneMaterials(world, m => disposeMaterial(m, textured)); finish(world); markShadows(); if (state.photo) ptMats(true); // new materials: clearcoat etc. off in Photo
   if (!quiet) { clearOverlays(); setupOverlays(); furnitureLabels(); renderPlanNotes(); rebuildPT(); }
   return groups;
 }

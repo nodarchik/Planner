@@ -4,126 +4,152 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Palace 1 Apartment</title>
+<meta name="color-scheme" content="light dark">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<meta name="text-scale" content="scale">
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700&family=JetBrains+Mono:wght@400;600&display=swap">
 <link rel="stylesheet" href="/src/style.css">
 </head>
 <body>
 
-<div id="stage"></div>
-<div id="labels"></div>
-<div id="loader">Building materials…</div>
-<div class="bar">
+<div id="stage" role="main" aria-label="3D apartment viewport"></div>
+<div id="labels" aria-hidden="true"></div>
+<div id="loader" role="status" aria-live="polite">Building materials…</div>
+<header class="bar">
   <h1>Palace 1 · 130 m²</h1>
-  <label class="sr" for="view" hidden>Camera</label>
-  <select id="view" class="sel" aria-label="Camera">
-    <option value="overview">Overview</option>
-    <option value="entrance">Entrance view</option>
-    <option value="console">Hall console</option>
-    <option value="corridor">Corridor</option>
-    <option value="livingArea">Living area (from above)</option>
-    <option value="top">Top plan</option>
-    <option value="living">Studio living</option>
-    <option value="kitchen">Studio kitchen</option>
-    <option value="office">Office</option>
-    <option value="bed1">Bedroom 1</option>
-    <option value="closet">Walk-in closet</option>
-    <option value="bed2">Bedroom 2</option>
-    <option value="bath">Bathroom</option>
-    <option value="hall">Hall</option>
-    <option value="wc">Guest WC</option>
-    <option value="loggiaW">West balcony</option>
-    <option value="loggiaE">East balcony</option>
-  </select>
-  <div class="seg" role="group" aria-label="Walls">
-    <button id="wfull" aria-pressed="true">Walls 2.8</button>
-    <button id="wcut" aria-pressed="false">Cut 1.2</button>
+  <div class="bar-tools" role="toolbar" aria-label="View and mode controls" focusgroup="toolbar wrap">
+    <select id="view" class="sel" aria-label="Camera">
+      <option value="overview">Overview</option>
+      <option value="entrance">Entrance view</option>
+      <option value="console">Hall console</option>
+      <option value="corridor">Corridor</option>
+      <option value="livingArea">Living area (from above)</option>
+      <option value="top">Top plan</option>
+      <option value="living">Studio living</option>
+      <option value="kitchen">Studio kitchen</option>
+      <option value="office">Office</option>
+      <option value="bed1">Bedroom 1</option>
+      <option value="closet">Walk-in closet</option>
+      <option value="bed2">Bedroom 2</option>
+      <option value="bath">Bathroom</option>
+      <option value="hall">Hall</option>
+      <option value="wc">Guest WC</option>
+      <option value="loggiaW">West balcony</option>
+      <option value="loggiaE">East balcony</option>
+    </select>
+    <div class="seg" role="group" aria-label="Walls">
+      <button id="wfull" type="button" aria-pressed="true">Walls 2.8</button>
+      <button id="wcut" type="button" aria-pressed="false">Cut 1.2</button>
+    </div>
+    <div class="seg" role="group" aria-label="Lighting">
+      <button id="mday" type="button" aria-pressed="true">Day</button>
+      <button id="mnight" type="button" aria-pressed="false">Night</button>
+    </div>
+    <div class="sunctl" role="group" aria-label="Sun">
+      <select id="sunMonth" class="sel" aria-label="Month"></select>
+      <input id="sunTime" type="range" min="5" max="21" step="0.25" aria-label="Time of day">
+      <span class="status" id="sunInfo"></span>
+    </div>
+    <div class="seg" role="group" aria-label="Overlays">
+      <button id="tlab" type="button" aria-pressed="true">Rooms</button>
+      <button id="tdim" type="button" aria-pressed="false">Dims</button>
+      <button id="tfur" type="button" aria-pressed="false">Furniture</button>
+    </div>
+    <select id="style" class="sel" aria-label="Interior style">
+      <option value="warm">Style: Warm 2026</option>
+      <option value="soft">Style: Soft classic</option>
+      <option value="nordic">Style: Nordic light</option>
+      <option value="japandi">Style: Japandi</option>
+      <option value="luxe">Style: Dark luxe</option>
+      <option value="midcentury">Style: Mid-century</option>
+    </select>
+    <div class="seg" role="group" aria-label="Interaction modes"><button id="walk" type="button" aria-pressed="false" title="First-person view at eye height">Walk</button><button id="move" type="button" aria-pressed="false">Edit plan</button><button id="chatBtn" type="button" aria-pressed="false" aria-expanded="false" aria-controls="chatpanel">Assistant</button></div>
+    <div class="seg" role="group" aria-label="Performance"><button id="fast" type="button" aria-pressed="false" title="Fast: no reflections, shadows or light effects">Fast</button></div>
+    <div class="seg" role="group" aria-label="Render quality"><button id="photo" type="button" aria-pressed="false">Photo render</button><button id="still" type="button" disabled title="Path-traced 2560 × 1440 PNG of the current view">Save 2K still</button></div>
+    <div class="pcam" id="pcam" hidden>
+      <select id="focal" class="sel" aria-label="Focal length"><option value="0">Lens: Auto</option><option value="18">18 mm</option><option value="24">24 mm</option><option value="35">35 mm</option><option value="50">50 mm</option></select>
+      <select id="fstop" class="sel" aria-label="Aperture (focus on the orbit target)" title="Depth of field in Photo render; focus stays on the orbit target"><option value="0">DOF: Off</option><option value="1.4">f/1.4</option><option value="2.8">f/2.8</option><option value="5.6">f/5.6</option><option value="11">f/11</option></select>
+    </div>
   </div>
-  <div class="seg" role="group" aria-label="Lighting">
-    <button id="mday" aria-pressed="true">Day</button>
-    <button id="mnight" aria-pressed="false">Night</button>
-  </div>
-  <div class="sunctl" role="group" aria-label="Sun">
-    <select id="sunMonth" class="sel" aria-label="Month"></select>
-    <input id="sunTime" type="range" min="5" max="21" step="0.25" aria-label="Time of day">
-    <span class="status" id="sunInfo"></span>
-  </div>
-  <div class="seg" role="group" aria-label="Overlays">
-    <button id="tlab" aria-pressed="true">Rooms</button>
-    <button id="tdim" aria-pressed="false">Dims</button>
-    <button id="tfur" aria-pressed="false">Furniture</button>
-  </div>
-  <select id="style" class="sel" aria-label="Interior style">
-    <option value="warm">Style: Warm 2026</option>
-    <option value="soft">Style: Soft classic</option>
-    <option value="nordic">Style: Nordic light</option>
-    <option value="japandi">Style: Japandi</option>
-    <option value="luxe">Style: Dark luxe</option>
-    <option value="midcentury">Style: Mid-century</option>
-  </select>
-  <div class="seg"><button id="walk" aria-pressed="false" title="First-person view at eye height">Walk</button><button id="move" aria-pressed="false">Edit plan</button><button id="chatBtn" aria-pressed="false">Assistant</button></div>
-  <div class="seg"><button id="fast" aria-pressed="false" title="Fast: no reflections, shadows or light effects">Fast</button></div>
-  <div class="seg"><button id="photo" aria-pressed="false">Photo render</button><button id="still" disabled title="Path-traced 2560 × 1440 PNG of the current view">Save 2K still</button></div>
-  <div class="pcam" id="pcam" hidden>
-    <select id="focal" class="sel" aria-label="Focal length"><option value="0">Lens: Auto</option><option value="18">18 mm</option><option value="24">24 mm</option><option value="35">35 mm</option><option value="50">50 mm</option></select>
-    <select id="fstop" class="sel" aria-label="Aperture (focus on the orbit target)" title="Depth of field in Photo render; focus stays on the orbit target"><option value="0">DOF: Off</option><option value="1.4">f/1.4</option><option value="2.8">f/2.8</option><option value="5.6">f/5.6</option><option value="11">f/11</option></select>
-  </div>
-  <span class="status" id="status"></span>
-</div>
+  <span class="status" id="status" role="status" aria-live="polite"></span>
+</header>
 
-<details class="spec" id="spec">
-  <summary>Dimensions (m)</summary>
-  <div class="scroll">
-  <h2>Plan</h2>
-  <table>
-    <tr><td>Interior (plan)</td><td>107.3 m²</td></tr>
-    <tr><td>Balconies (11.0 + 12.9)</td><td>23.9 m²</td></tr>
-    <tr><td>Total incl. balconies</td><td>≈130 m²</td></tr>
-    <tr><td>Bedroom 1</td><td>4.59 × 3.98</td></tr>
-    <tr><td>Bedroom 2</td><td>5.06 × 3.05</td></tr>
-    <tr><td>Living / dining</td><td>6.45 × 4.32</td></tr>
-    <tr><td>TV wall (plan)</td><td>2.15 + 2.15</td></tr>
-    <tr><td>Kitchen counters (plan)</td><td>0.30+0.55+0.79 · 0.75+0.95+0.76+0.30</td></tr>
-    <tr><td>Bathroom</td><td>2.38 × 2.77</td></tr>
-    <tr><td>Balconies (plan)</td><td>11.0 m² · 12.9 m²</td></tr>
-  </table>
-  <h2>Rooms · length × width (this layout)</h2>
-  <table id="roomSizeTable"></table>
-  <h2>Furniture · W × D × H</h2>
-  <table id="furnTable"></table>
-  <p>Dimensions labelled on the plan are used as written; everything else is scaled from the PDF at 1:100; ceiling height 2.80 assumed. "Photo render" path-traces the current view: light bounces, soft shadows, real glass. It sharpens over 10–30 s; keep the camera still.</p>
-  </div>
-</details>
-<div class="hint" id="hint">Drag rotate · Right-drag pan · Scroll zoom</div>
-<details class="layouts" id="layouts">
-  <summary>Plan notes</summary>
-  <div class="list" id="planNotes"></div>
-</details>
-<div class="chatpanel" id="chatpanel" hidden>
-  <div class="chathead"><b>Assistant</b><select id="chatmodel" aria-label="Model" title="Model for the next request"></select><button id="chatnew" title="Clear this conversation on all devices (the plan keeps its edits)">New chat</button></div>
+<section class="contents" aria-label="Dimensions">
+  <details class="spec" id="spec">
+    <summary>Dimensions (m)</summary>
+    <div class="scroll" tabindex="0" role="region" aria-label="Dimensions tables">
+    <h2>Plan</h2>
+    <table>
+      <caption class="sr-only">Plan area and key room dimensions in meters</caption>
+      <thead><tr><th scope="col">Area or room</th><th scope="col">Dimension</th></tr></thead>
+      <tbody>
+        <tr><th scope="row">Interior (plan)</th><td>107.3 m²</td></tr>
+        <tr><th scope="row">Balconies (11.0 + 12.9)</th><td>23.9 m²</td></tr>
+        <tr><th scope="row">Total incl. balconies</th><td>≈130 m²</td></tr>
+        <tr><th scope="row">Bedroom 1</th><td>4.59 × 3.98</td></tr>
+        <tr><th scope="row">Bedroom 2</th><td>5.06 × 3.05</td></tr>
+        <tr><th scope="row">Living / dining</th><td>6.45 × 4.32</td></tr>
+        <tr><th scope="row">TV wall (plan)</th><td>2.15 + 2.15</td></tr>
+        <tr><th scope="row">Kitchen counters (plan)</th><td>0.30+0.55+0.79 · 0.75+0.95+0.76+0.30</td></tr>
+        <tr><th scope="row">Bathroom</th><td>2.38 × 2.77</td></tr>
+        <tr><th scope="row">Balconies (plan)</th><td>11.0 m² · 12.9 m²</td></tr>
+      </tbody>
+    </table>
+    <h2>Rooms · length × width (this layout)</h2>
+    <table id="roomSizeTable"></table>
+    <h2>Furniture · W × D × H</h2>
+    <table id="furnTable"></table>
+    <p>Dimensions labelled on the plan are used as written; everything else is scaled from the PDF at 1:100; ceiling height 2.80 assumed. "Photo render" path-traces the current view: light bounces, soft shadows, real glass. It sharpens over 10–30 s; keep the camera still.</p>
+    </div>
+  </details>
+</section>
+<section class="contents" aria-label="Viewport controls hint">
+  <div class="hint" id="hint">Drag rotate · Right-drag pan · Scroll zoom</div>
+</section>
+<section class="contents" aria-label="Plan notes">
+  <details class="layouts" id="layouts">
+    <summary>Plan notes</summary>
+    <div class="list" id="planNotes"></div>
+  </details>
+</section>
+<section class="chatpanel" id="chatpanel" aria-label="Assistant" hidden>
+  <div class="chathead"><h2 class="panel-title">Assistant</h2><select id="chatmodel" aria-label="Model" title="Model for the next request"></select><button id="chatnew" type="button" title="Clear this conversation on all devices (the plan keeps its edits)">New chat</button><button id="chatclose" type="button" aria-label="Close assistant" title="Close assistant (Esc)">✕</button></div>
   <div class="chatlog" id="chatlog" aria-live="polite"></div>
-  <div class="chatpw" id="chatpw" hidden><input id="chatpwinput" type="password" placeholder="Chat password" aria-label="Chat password"><button id="chatpwsave">Save</button></div>
-  <div class="chatrow"><textarea id="chatinput" rows="2" placeholder="e.g. make the B2 wardrobe 1.80 wide" aria-label="Request"></textarea><button id="chatsend">Send</button></div>
+  <form class="chatpw" id="chatpw" hidden>
+    <label class="sr-only" for="chatpwinput">Chat password</label>
+    <input id="chatpwinput" type="password" placeholder="Chat password" autocomplete="current-password">
+    <button id="chatpwtoggle" type="button" aria-pressed="false" aria-label="Show password">Show</button>
+    <button id="chatpwsave" type="submit">Save</button>
+  </form>
+  <form class="chatrow" id="chatform">
+    <label class="sr-only" for="chatinput">Request</label>
+    <textarea id="chatinput" rows="2" placeholder="e.g. make the B2 wardrobe 1.80 wide" enterkeyhint="send"></textarea>
+    <button id="chatsend" type="submit">Send</button>
+  </form>
   <div class="note">Changes are applied to the plan on this device and can be undone in Edit plan. Use Copy changes to send them to the repository.</div>
-</div>
-<div class="editbar" id="editbar" hidden>
-  <select id="addType" class="sel" aria-label="Item to add"></select><button id="addBtn">Add</button>
-  <button id="undoBtn" title="Undo (Ctrl+Z)">Undo</button><button id="redoBtn" title="Redo (Ctrl+Shift+Z)">Redo</button>
-  <button id="resetPlan">Reset to published</button>
-  <button id="exportPlan">Export JSON</button><button id="importPlan">Import JSON</button><input id="importFile" type="file" accept=".json,application/json" hidden>
-  <button id="copyChanges">Copy changes</button><span class="status" id="changeCount"></span>
-  <textarea id="changeText" rows="4" readonly hidden aria-label="Change summary"></textarea>
-</div>
-<div class="selpanel" id="selpanel" hidden>
-  <div><b id="selname">—</b></div>
+</section>
+<section class="contents" aria-label="Plan editor">
+  <div class="editbar" id="editbar" role="toolbar" aria-label="Plan editor actions" focusgroup="toolbar wrap" hidden>
+    <select id="addType" class="sel" aria-label="Item to add"></select><button id="addBtn" type="button">Add</button>
+    <button id="undoBtn" type="button" title="Undo (Ctrl+Z)">Undo</button><button id="redoBtn" type="button" title="Redo (Ctrl+Shift+Z)">Redo</button>
+    <button id="resetPlan" type="button">Reset to published</button>
+    <button id="exportPlan" type="button">Export JSON</button><button id="importPlan" type="button">Import JSON</button><input id="importFile" type="file" accept=".json,application/json" hidden>
+    <button id="copyChanges" type="button">Copy changes</button><span class="status" id="changeCount" role="status" aria-live="polite"></span>
+    <textarea id="changeText" rows="4" readonly hidden aria-label="Change summary"></textarea>
+  </div>
+</section>
+<section class="selpanel" id="selpanel" aria-label="Selected item properties" hidden>
+  <h2 id="selname" class="panel-title">—</h2>
   <div class="pos" id="selpos"></div>
   <div class="fields" id="selfields"></div>
   <div class="row" id="selactions">
-    <button id="rotL" title="Rotate left 90° (Shift: 15°)">⟲ 90°</button>
-    <button id="rotR" title="Rotate right 90° (R; Shift: 15°)">⟳ 90°</button>
-    <button id="dupBtn">Duplicate</button>
-    <button id="delBtn" title="Delete (Del)">Delete</button>
+    <button id="rotL" type="button" title="Rotate left 90° (Shift: 15°)">⟲ 90°</button>
+    <button id="rotR" type="button" title="Rotate right 90° (R; Shift: 15°)">⟳ 90°</button>
+    <button id="dupBtn" type="button">Duplicate</button>
+    <button id="delBtn" type="button" title="Delete (Del)">Delete</button>
   </div>
   <div class="sizebox" id="sizebox">
     <h3>Size (m) · scales the design</h3>
@@ -132,13 +158,13 @@
       <label for="szD">Depth<input id="szD" type="number" step="0.01" min="0.05" inputmode="decimal"></label>
       <label for="szH">Height<input id="szH" type="number" step="0.01" min="0.05" inputmode="decimal"></label>
     </div>
-    <div class="row"><label class="lock" for="szLock"><input id="szLock" type="checkbox"> Keep proportions</label><button id="szReset">Original size</button></div>
+    <div class="row"><label class="lock" for="szLock"><input id="szLock" type="checkbox"> Keep proportions</label><button id="szReset" type="button">Original size</button></div>
   </div>
   <div class="parts" id="selparts"></div>
-  <div class="row"><button id="lookReset">Original look</button><button id="selDone">Done</button></div>
+  <div class="row"><button id="lookReset" type="button">Original look</button><button id="selDone" type="button">Done</button></div>
   <div class="note">Type a value to change it · drag to move · arrow keys nudge 1 cm (Shift = 10 cm) · R rotates · Del deletes · Esc deselects · Ctrl+Z undo</div>
-</div>
-<div class="joy" id="joy" aria-label="Move"><div class="knob" id="knob"></div></div>
+</section>
+<div class="joy" id="joy" role="region" aria-label="Move"><div class="knob" id="knob" aria-hidden="true"></div></div>
 
 <script type="module" src="/src/main.js"></script>
 </body>

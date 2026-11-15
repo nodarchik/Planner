@@ -56,11 +56,36 @@ addEventListener('resize', resize); resize();
 /* ================= sun: month + time of day ================= */
 const SUNKEY = 'palace1-sun-v1', MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const sunTime = document.getElementById('sunTime'), sunMonth = document.getElementById('sunMonth'), sunInfo = document.getElementById('sunInfo');
+const fmtHour = h => { const hh = Math.floor(h), mm = Math.round((h - hh) * 60); return `${hh}:${String(mm).padStart(2, '0')}`; };
 MONTHS.forEach((m, i) => sunMonth.add(new Option(m, i + 1)));
-export function applySun(save) { const month = +sunMonth.value, hour = +sunTime.value, s = setSun(month, hour), hh = Math.floor(hour), mm = Math.round((hour - hh) * 60);
-  sunInfo.textContent = `${hh}:${String(mm).padStart(2, '0')} · sun ${s.el > 0 ? `${Math.round(s.az)}° / ${Math.round(s.el)}° up` : 'down'}${plan.meta.north === null ? ' · north not set' : ''}`;
+export function applySun(save) { const month = +sunMonth.value, hour = +sunTime.value, s = setSun(month, hour), t = fmtHour(hour);
+  sunTime.setAttribute('aria-valuetext', t);
+  sunInfo.textContent = `${t} · sun ${s.el > 0 ? `${Math.round(s.az)}° / ${Math.round(s.el)}° up` : 'down'}${plan.meta.north === null ? ' · north not set' : ''}`;
   if (save) { try { localStorage.setItem(SUNKEY, JSON.stringify({ month, hour })); } catch (e) {} }
   setMood(state.night); }
-{ let d = plan.meta.sun; try { d = JSON.parse(localStorage.getItem(SUNKEY) || 'null') || d; } catch (e) {} sunMonth.value = d.month; sunTime.value = d.hour; setSun(d.month, d.hour); }
+{ let d = plan.meta.sun; try { d = JSON.parse(localStorage.getItem(SUNKEY) || 'null') || d; } catch (e) {} sunMonth.value = d.month; sunTime.value = d.hour; sunTime.setAttribute('aria-valuetext', fmtHour(d.hour)); setSun(d.month, d.hour); }
 sunTime.oninput = () => applySun(true); sunMonth.onchange = () => applySun(true);
 export function loadSky() { loadSkyHDR().then(t => { useHDRI(t); applySun(false); }).catch(() => {}); } // without the HDRI the procedural sky stays
+
+if (!('focusGroup' in HTMLElement.prototype)) {
+  const activeButtons = bar => [...bar.querySelectorAll('button')].filter(b => !b.disabled && !b.hidden);
+  for (const bar of document.querySelectorAll('[role="toolbar"]')) {
+    const syncRoving = current => {
+      const list = activeButtons(bar), keep = current && list.includes(current) ? current : list[0];
+      for (const b of bar.querySelectorAll('button')) b.tabIndex = b === keep ? 0 : -1;
+    };
+    syncRoving();
+    bar.addEventListener('focusin', ev => { if (ev.target.tagName === 'BUTTON') syncRoving(ev.target); });
+    bar.addEventListener('keydown', ev => {
+      if (/INPUT|SELECT|TEXTAREA/.test(document.activeElement?.tagName || '')) return;
+      const list = activeButtons(bar); if (!list.length) return;
+      const i = list.indexOf(document.activeElement); if (i < 0) return;
+      let next = -1;
+      if (ev.key === 'ArrowRight' || ev.key === 'ArrowDown') next = (i + 1) % list.length;
+      else if (ev.key === 'ArrowLeft' || ev.key === 'ArrowUp') next = (i - 1 + list.length) % list.length;
+      else if (ev.key === 'Home') next = 0;
+      else if (ev.key === 'End') next = list.length - 1;
+      if (next >= 0) { ev.preventDefault(); syncRoving(list[next]); list[next].focus(); }
+    });
+  }
+}
