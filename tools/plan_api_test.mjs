@@ -10,12 +10,12 @@ const check = (name, ok, extra = '') => { console.log((ok ? 'ok   ' : 'FAIL ') +
 let stored = null, etag = 0, raceOnce = false, throwOnGet = null; // stored = JSON text
 const stub = {
   BlobPreconditionFailedError, BlobStoreNotFoundError,
-  async get() { if (throwOnGet) throw throwOnGet; return stored === null ? null : { statusCode: 200, stream: new Response(stored).body, blob: { etag: 'e' + etag } }; },
+  async get() { if (throwOnGet) throw throwOnGet; return stored === null ? null : { statusCode: 200, stream: new Response(stored).body, blob: { etag: (stored.length > 1000 ? 'W/' : '') + '"e' + etag + '"' } }; }, // real CDN: weak etag for compressed (larger) bodies
   async put(path, body, o) {
     if (raceOnce) { raceOnce = false; stored = JSON.stringify({ rev: 9, patch: { x: 1 }, base: 'b' }); etag++; }
-    if (o.ifMatch && o.ifMatch !== 'e' + etag) throw new BlobPreconditionFailedError();
+    if (o.ifMatch && o.ifMatch !== '"e' + etag + '"') throw new BlobPreconditionFailedError();
     if (o.access !== 'private' || !o.allowOverwrite) throw new Error('bad options');
-    stored = body; etag++; return { etag: 'e' + etag };
+    stored = body; etag++; return { etag: '"e' + etag + '"' };
   }
 };
 const handler = createHandler(stub);
@@ -27,16 +27,17 @@ r = await call('PUT', { rev: 0, patch: { a: 1 }, base: 'b' }); check('PUT first 
 r = await call('GET'); check('GET returns what was stored', r.json.rev === 1 && r.json.base === 'b');
 r = await call('PUT', { rev: 0, patch: { a: 2 }, base: 'b' }); check('stale rev gives 409 with the current copy', r.code === 409 && r.json.rev === 1 && r.json.patch.a === 1);
 raceOnce = true; r = await call('PUT', { rev: 1, patch: { a: 3 }, base: 'b' }); check('etag mismatch gives 409 with the new copy', r.code === 409 && r.json.rev === 9);
-r = await call('PUT', { rev: 9, patch: null, base: 'b' }); check('patch null (discard) is accepted', r.code === 200 && r.json.rev === 10 && r.json.patch === null);
-r = await call('PUT', { rev: 10, patch: { big: 'x'.repeat(260 * 1024) }, base: 'b' }); check('over 256 KB gives 413', r.code === 413);
-r = await call('PUT', { rev: 10, patch: { big: 'é'.repeat(140 * 1024) }, base: 'b' }); check('256 KB cap counts bytes, not characters', r.code === 413);
+r = await call('PUT', { rev: 9, patch: { pad: 'x'.repeat(2000) }, base: 'b' }); check('PUT after a large (weak-etag) copy succeeds', r.code === 200 && r.json.rev === 10);
+r = await call('PUT', { rev: 10, patch: null, base: 'b' }); check('patch null (discard) is accepted', r.code === 200 && r.json.rev === 11 && r.json.patch === null);
+r = await call('PUT', { rev: 11, patch: { big: 'x'.repeat(260 * 1024) }, base: 'b' }); check('over 256 KB gives 413', r.code === 413);
+r = await call('PUT', { rev: 11, patch: { big: 'é'.repeat(140 * 1024) }, base: 'b' }); check('256 KB cap counts bytes, not characters', r.code === 413);
 { const out = {}; await handler({ method: 'PUT', headers: {}, get body() { throw new SyntaxError('bad json'); } }, { setHeader() {}, status(c) { out.code = c; return this; }, json() { return this; } }); check('invalid JSON body gives 400', out.code === 400); }
 r = await call('PUT', { rev: 'x', patch: {} }); check('bad body gives 400', r.code === 400);
 r = await call('POST', {}); check('other methods give 405', r.code === 405);
 process.env.CHAT_PASSWORD = 'pw';
-r = await call('PUT', { rev: 10, patch: {}, base: 'b' }); check('PUT needs the password when set', r.code === 401);
-r = await call('PUT', { rev: 10, patch: {}, base: 'b' }, { 'x-chat-password': 'pw' }); check('PUT with the password works', r.code === 200);
-r = await call('PUT', { rev: 10, patch: {}, base: 'b' }, { 'x-chat-password': 'p' }); check('wrong password of another length gives 401', r.code === 401);
+r = await call('PUT', { rev: 11, patch: {}, base: 'b' }); check('PUT needs the password when set', r.code === 401);
+r = await call('PUT', { rev: 11, patch: {}, base: 'b' }, { 'x-chat-password': 'pw' }); check('PUT with the password works', r.code === 200);
+r = await call('PUT', { rev: 11, patch: {}, base: 'b' }, { 'x-chat-password': 'p' }); check('wrong password of another length gives 401', r.code === 401);
 r = await call('GET'); check('GET stays open', r.code === 200);
 delete process.env.CHAT_PASSWORD;
 throwOnGet = new BlobStoreNotFoundError(); r = await call('GET'); check('missing store gives 503', r.code === 503 && r.json.error === 'storage not configured'); throwOnGet = null;
