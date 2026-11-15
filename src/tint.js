@@ -1,6 +1,7 @@
 // Material lookup and tinted clones of materials, shared by the architecture and `parts` items. Cleared on every full rebuild.
 import { M } from './materials.js';
-import { fastInherit } from './fast.js';
+import { fastInherit, forgetMaterial } from './fast.js';
+import { forgetPtMaterial } from './pathtracer.js';
 
 export const HEX = /^#[0-9a-f]{6}$/i;
 export const isMat = k => typeof k === 'string' && Object.prototype.hasOwnProperty.call(M, k) && !!M[k].isMaterial;
@@ -10,5 +11,5 @@ export function mat(key) { if (!isMat(key)) throw new Error(`unknown material "$
 export function tinted(key, hex) { const m = mat(key); if (hex === undefined || hex === null || hex === '') return m;
   if (!HEX.test(hex)) throw new Error(`colour "${hex}" must look like #e9ddcc`); const id = key + hex.toLowerCase();
   if (!clones.has(id)) { const c = m.clone(); fastInherit(m, c); c.color.set(hex); clones.set(id, c); } return clones.get(id); }
-export function clearTints() { clones.forEach(c => c.dispose()); clones.clear(); }
+export function clearTints() { clones.forEach(c => { forgetMaterial(c); forgetPtMaterial(c); c.dispose(); }); clones.clear(); }
 export const hasTints = () => clones.size > 0;

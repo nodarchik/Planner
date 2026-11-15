@@ -19,10 +19,13 @@ export function createHandler(b, cfg = PLAN) {
   }
   const pub = o => ({ rev: o.rev, ...fields(o) });
   return async function handler(req, res) {
+    res.setHeader?.('cache-control', 'no-store');
+    res.setHeader?.('x-content-type-options', 'nosniff');
+    res.setHeader?.('x-frame-options', 'DENY');
+    res.setHeader?.('referrer-policy', 'strict-origin-when-cross-origin');
     if (req.method !== 'GET' && req.method !== 'PUT') return bad(res, 405, 'GET or PUT only');
     if (!process.env.BLOB_READ_WRITE_TOKEN && !process.env.BLOB_STORE_ID) return bad(res, 503, NOT_CONFIGURED);
     try {
-      res.setHeader('cache-control', 'no-store');
       if (process.env.CHAT_PASSWORD && (req.method === 'PUT' || cfg.protectGet) && !pwOk(req.headers['x-chat-password'])) return bad(res, 401, 'password required');
       if (req.method === 'GET') return res.status(200).json(pub(await read()));
       let body; try { body = req.body; if (typeof body === 'string') body = JSON.parse(body); } catch (e) { return bad(res, 400, 'invalid JSON'); }
@@ -40,7 +43,7 @@ export function createHandler(b, cfg = PLAN) {
       return res.status(200).json(next);
     } catch (e) {
       if (e instanceof b.BlobStoreNotFoundError || /no blob credentials|no read-write token/i.test(String(e && e.message))) return bad(res, 503, NOT_CONFIGURED);
-      return bad(res, 500, 'Unexpected error: ' + (e && e.message));
+      return bad(res, 500, 'Unexpected storage error');
     }
   };
 }

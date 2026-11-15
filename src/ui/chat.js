@@ -36,7 +36,7 @@ const context = () => ['Furniture catalog (type → variant index: design; opts 
   'item.look = { partKey: { fin, color } } recolours one part of an item. Part keys and finishes:', ...styleInfo(),
   'Part keys found on the built items, by item type (other designs of a type may differ; a key an item does not have is ignored): ' + Object.entries(keysByType()).map(([t, k]) => `${t}: ${[...k].join(' ')}`).join('; ')].join('\n');
 
-function add(cls, text, by) { const d = document.createElement('div'); d.className = 'msg ' + cls; d.textContent = text; if (by) d.dataset.model = by; log.appendChild(d); log.scrollTop = log.scrollHeight; return d; }
+function add(cls, text, by) { const d = document.createElement('div'); d.className = 'msg ' + cls; d.textContent = text; if (by) d.dataset.model = by; log.appendChild(d); while (log.children.length > MAX_LOG) log.firstElementChild.remove(); log.scrollTop = log.scrollHeight; return d; }
 function say(cls, text, keep = true, by = '') { if (keep) entries = [...entries, by ? [cls, text, by] : [cls, text]].slice(-MAX_LOG); return add(cls, text, by); } // by = model label, display data only (never sent to the API)
 // stored or adopted conversation: the next request carries the full current plan again (synced = null)
 function restore(d) { history = d ? d.messages : []; entries = d ? d.log : []; synced = null; log.textContent = ''; entries.forEach(([c, t, by]) => add(c, t, by)); }
@@ -111,7 +111,7 @@ async function post(messages) {
   let r; try { r = await fetch('/api/chat', { method: 'POST', headers, body: JSON.stringify({ messages, model }) }); } catch (e) { throw new Error('Could not reach the assistant.'); }
   if (r.status === 404) throw new Error('The assistant runs only on the deployed site (Vercel), not in this build.');
   const data = await r.json().catch(() => ({ error: `HTTP ${r.status}` }));
-  if (r.status === 401) { try { localStorage.removeItem(PWKEY); } catch (e) {} $('chatpw').hidden = false; throw new Error('Enter the chat password below, then send again.'); }
+  if (r.status === 401) { try { localStorage.removeItem(PWKEY); } catch (e) {} $('chatpw').hidden = false; $('chatpwinput').focus(); throw new Error('Enter the chat password below, then send again.'); }
   if (!r.ok) throw new Error(data.error || `HTTP ${r.status}`); return data;
 }
 async function send() { const text = input.value.trim(); if (!text || busy) return; await ready; if (busy) return; busy = true; sendBtn.disabled = $('chatmodel').disabled = true; input.value = '';
@@ -139,12 +139,24 @@ async function send() { const text = input.value.trim(); if (!text || busy) retu
   } catch (e) { say('note error', e.message); if (history.length > base.length + 1) say('note', 'This request was left out of the conversation; the plan keeps the edits already applied.'); history = base; }
   wait.remove(); persist(); busy = false; sendBtn.disabled = $('chatmodel').disabled = false; input.focus(); }
 
-if ($('chatBtn')) { const off = !!import.meta.env.VITE_NO_ASSETS; $('chatBtn').hidden = off;
+function setChatOpen(open) {
+  panel.hidden = !open;
+  const btn = $('chatBtn');
+  if (btn) { btn.setAttribute('aria-pressed', String(open)); btn.setAttribute('aria-expanded', String(open)); }
+  if (open) input.focus();
+}
+
+if ($('chatBtn')) { const off = !!import.meta.env.VITE_NO_ASSETS; $('chatBtn').hidden = off; $('chatBtn').setAttribute('aria-controls', 'chatpanel'); $('chatBtn').setAttribute('aria-expanded', String(!panel.hidden));
   const pick = $('chatmodel'); CHAT_MODELS.forEach(m => pick.add(new Option(m.label, m.id))); pick.value = model;
   pick.onchange = () => { model = pick.value; try { localStorage.setItem(MODELKEY, model); } catch (e) {} };
   ready = load().then(d => { if (d && !busy) restore(d); }); watch(() => busy, d => restore(d));
-  $('chatBtn').onclick = () => { panel.hidden = !panel.hidden; $('chatBtn').setAttribute('aria-pressed', !panel.hidden); if (!panel.hidden) input.focus(); };
-  sendBtn.onclick = send; input.onkeydown = ev => { ev.stopPropagation(); if (ev.key === 'Enter' && !ev.shiftKey) { ev.preventDefault(); send(); } };
+  $('chatBtn').onclick = () => setChatOpen(panel.hidden);
+  if ($('chatclose')) $('chatclose').onclick = () => { setChatOpen(false); $('chatBtn').focus(); };
+  panel.onkeydown = ev => { if (ev.key === 'Escape' && !ev.isComposing && ev.keyCode !== 229) { ev.stopPropagation(); setChatOpen(false); $('chatBtn').focus(); } };
+  if ($('chatform')) $('chatform').onsubmit = ev => { ev.preventDefault(); send(); }; else sendBtn.onclick = send;
+  input.onkeydown = ev => { if (ev.key !== 'Escape') ev.stopPropagation(); if (ev.isComposing || ev.keyCode === 229) return; if (ev.key === 'Enter' && !ev.shiftKey) { ev.preventDefault(); send(); } };
   $('chatnew').onclick = () => { if (busy || !(history.length || entries.length) || !confirm('Clear this conversation on all devices? The plan keeps its edits.')) return; restore(null); persist(); };
-  $('chatpwsave').onclick = () => { try { localStorage.setItem(PWKEY, $('chatpwinput').value); } catch (e) {} $('chatpw').hidden = true; $('chatpwinput').value = ''; };
-  $('chatpwinput').onkeydown = ev => ev.stopPropagation(); }
+  const savePw = () => { try { localStorage.setItem(PWKEY, $('chatpwinput').value); } catch (e) {} $('chatpw').hidden = true; $('chatpwinput').value = ''; $('chatpwinput').type = 'password'; if ($('chatpwtoggle')) { $('chatpwtoggle').setAttribute('aria-pressed', 'false'); $('chatpwtoggle').setAttribute('aria-label', 'Show password'); $('chatpwtoggle').textContent = 'Show'; } input.focus(); };
+  if ($('chatpw').tagName === 'FORM') $('chatpw').onsubmit = ev => { ev.preventDefault(); savePw(); }; else $('chatpwsave').onclick = savePw;
+  if ($('chatpwtoggle')) $('chatpwtoggle').onclick = () => { const inp = $('chatpwinput'), show = inp.type === 'password'; inp.type = show ? 'text' : 'password'; $('chatpwtoggle').setAttribute('aria-pressed', String(show)); $('chatpwtoggle').setAttribute('aria-label', show ? 'Hide password' : 'Show password'); $('chatpwtoggle').textContent = show ? 'Hide' : 'Show'; };
+  $('chatpwinput').onkeydown = ev => { if (ev.key !== 'Escape') ev.stopPropagation(); }; }

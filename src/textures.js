@@ -37,7 +37,7 @@ function makeSet(size, strength, fn) {
   const tex = (data, srgb) => { const c = document.createElement('canvas'); c.width = c.height = size;
     c.getContext('2d').putImageData(new ImageData(data, size, size), 0, 0);
     const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8;
-    t.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace; return t; };
+    t.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace; t.userData = { shared: true }; return t; };
   return { map: tex(col, true), normalMap: tex(nrm, false), roughnessMap: tex(rgh, false) };
 }
 const clamp01 = v => v < 0 ? 0 : v > 1 ? 1 : v;
@@ -130,13 +130,26 @@ const texCache = {};
 export function texFor(set, tile) {
   const k = set + '@' + tile; if (texCache[k]) return texCache[k];
   const s = SETS[set], r = {};
-  for (const n of ['map', 'normalMap', 'roughnessMap']) { const t = s[n].clone(); t.repeat.set(1 / tile, 1 / tile); t.needsUpdate = true; r[n] = t; }
+  for (const n of ['map', 'normalMap', 'roughnessMap']) {
+    if (s.scanned?.[n]) { r[n] = s.scanned[n]; continue; }
+    const t = s[n].clone(); t.repeat.set(1 / tile, 1 / tile); t.needsUpdate = true; t.userData = { shared: true }; r[n] = t;
+  }
   return (texCache[k] = r);
+}
+export function replaceScannedTexture(set, slot, tex) {
+  const s = SETS[set]; if (!s) return;
+  (s.scanned ||= {})[slot] = tex;
+  const old = new Set();
+  if (s[slot] && s[slot] !== tex) { old.add(s[slot]); s[slot] = tex; }
+  for (const [k, r] of Object.entries(texCache)) {
+    if (k.startsWith(set + '@') && r[slot] && r[slot] !== tex) { old.add(r[slot]); r[slot] = tex; }
+  }
+  old.forEach(t => t.dispose());
 }
 
 /* ================= canvas images: TV, art, hob ================= */
 function canvasTex(w, h, draw) { const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'), w, h);
-  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return t; }
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; t.userData = { shared: true }; return t; }
 export const tvTex = canvasTex(1280, 720, (g, w, h) => {
   const sky = g.createLinearGradient(0, 0, 0, h * .7); sky.addColorStop(0, '#2b3a6b'); sky.addColorStop(.45, '#c96b5a'); sky.addColorStop(1, '#f5b77a');
   g.fillStyle = sky; g.fillRect(0, 0, w, h);
@@ -164,5 +177,5 @@ export const hobTex = canvasTex(700, 400, (g, w, h) => {
   [[.25, .3, .2], [.25, .72, .14], [.72, .3, .14], [.72, .7, .2]].forEach(([x, y, r]) => { g.beginPath(); g.arc(x * w, y * h, r * h, 0, 7); g.stroke(); });
   g.fillStyle = 'rgba(255,255,255,.35)'; for (let i = 0; i < 6; i++) { g.beginPath(); g.arc(w * (.38 + i * .045), h * .93, 3, 0, 7); g.fill(); }
 });
-export function planar(tex, u0, v0, w, h, flipU = false) { const t = tex.clone(); t.needsUpdate = true; t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping;
+export function planar(tex, u0, v0, w, h, flipU = false) { const t = tex.clone(); t.needsUpdate = true; t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping; t.userData = { planarClone: true };
   if (flipU) { t.repeat.set(-1 / w, 1 / h); t.offset.set((u0 + w) / w, -v0 / h); } else { t.repeat.set(1 / w, 1 / h); t.offset.set(-u0 / w, -v0 / h); } return t; }

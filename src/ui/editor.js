@@ -17,6 +17,7 @@ const PKEY = 'palace1-plan-patch-v1', GRID = .05, SNAP = .08;
 try { Object.keys(localStorage).filter(k => /^palace1-(pos|style-v2|types|layout)/.test(k)).forEach(k => localStorage.removeItem(k)); } catch (e) {}
 const $ = id => document.getElementById(id), selPanel = $('selpanel'), hintEl = $('hint'), bar = $('editbar');
 const undoStack = [], redoStack = [], snapshot = () => JSON.stringify(plan);
+const pushUndo = s => { undoStack.push(s); if (undoStack.length > 100) undoStack.shift(); };
 const itemOf = id => plan.items.find(i => i.id === id), wallOf = id => plan.walls.find(w => w.id === id);
 const r2 = v => Math.round(v * 100) / 100;
 
@@ -30,15 +31,15 @@ setApplier(patch => { const before = snapshot(); try { undoStack.length = redoSt
 function updateBar() { const n = describe(PUBLISHED, plan).length; $('changeCount').textContent = n ? `${n} change${n > 1 ? 's' : ''} vs published` : 'no changes';
   $('undoBtn').disabled = !undoStack.length; $('redoBtn').disabled = !redoStack.length; }
 // run a change: opts.item = rebuild only that item, opts.none = already applied to the scene, otherwise rebuild everything
-export function edit(fn, opts = {}) { undoStack.push(snapshot()); if (undoStack.length > 100) undoStack.shift(); redoStack.length = 0; const nb = JSON.stringify(plan.meta.bindings); fn(); if (JSON.stringify(plan.meta.bindings) !== nb) validateBindings(); persist(); // strict check only when the edit touched the bindings
+export function edit(fn, opts = {}) { pushUndo(snapshot()); redoStack.length = 0; const nb = JSON.stringify(plan.meta.bindings); fn(); if (JSON.stringify(plan.meta.bindings) !== nb) validateBindings(); persist(); // strict check only when the edit touched the bindings
   if (opts.none) return; if (opts.item) rebuildItem(opts.item); else buildAll(); reselect(); }
 // like edit(), for changes that may be invalid: on any error the plan is put back and the message is returned
 export function tryEdit(fn) { const before = snapshot(); try { edit(fn); return null; } catch (e) { if (undoStack[undoStack.length - 1] === before) undoStack.pop(); try { restore(before); } catch (e2) { console.error(e2); } return String((e && e.message) || e); } }
 function restore(json) { setPlan(JSON.parse(json)); persist(); buildAll(); reselect(); }
 function undo() { if (!undoStack.length) return; redoStack.push(snapshot()); restore(undoStack.pop()); }
-function redo() { if (!redoStack.length) return; undoStack.push(snapshot()); restore(redoStack.pop()); }
+function redo() { if (!redoStack.length) return; pushUndo(snapshot()); restore(redoStack.pop()); }
 // reset every edit back to the published plan (one undo step); false when there is nothing to reset
-export function resetPlan() { if (isEmpty(diffPlan(PUBLISHED, plan))) return false; undoStack.push(snapshot()); redoStack.length = 0; sel = null; restore(JSON.stringify(PUBLISHED)); return true; }
+export function resetPlan() { if (isEmpty(diffPlan(PUBLISHED, plan))) return false; pushUndo(snapshot()); redoStack.length = 0; sel = null; restore(JSON.stringify(PUBLISHED)); return true; }
 // undo / redo up to `steps` times, or reset; returns how many steps ran and what changed
 export function history(action, steps = 1) {
   const before = JSON.parse(snapshot()); let n = 0;
@@ -49,9 +50,9 @@ export function history(action, steps = 1) {
 /* ---------- selection ---------- */
 let sel = null; const boxes = []; // sel = { kind: 'item' | 'wall', id }
 const objectsOf = s => s.kind === 'item' ? (itemObjects.get(s.id) || []) : world.children.filter(o => o.userData.wall === s.id);
-function drawBoxes() { boxes.splice(0).forEach(b => { scene.remove(b); b.geometry.dispose(); }); if (!sel) return;
+function drawBoxes() { boxes.splice(0).forEach(b => { scene.remove(b); b.geometry.dispose(); b.material.dispose(); }); if (!sel) return;
   for (const o of objectsOf(sel)) { if (o.isLight) continue; const b = new THREE.BoxHelper(o, sel.kind === 'wall' ? 0xc4552f : 0x2f6fd8); b.material.depthTest = false; b.material.transparent = true; b.renderOrder = 10; scene.add(b); boxes.push(b); } }
-export function select(s) { sel = s; state.sel = s; selPanel.hidden = !s; drawBoxes(); if (s) renderPanel(); rebuildPT(); }
+export function select(s) { sel = s; state.sel = s; selPanel.hidden = !s; drawBoxes(); if (s) renderPanel(); else { $('selfields').textContent = ''; $('selparts').textContent = ''; } rebuildPT(); }
 export function reselect() { if (sel && !(sel.kind === 'item' ? itemOf(sel.id) : wallOf(sel.id))) sel = null; select(sel); }
 
 addEventListener('modelswap', () => drawBoxes()); // a model replaced its placeholder: selection outlines follow
@@ -103,22 +104,24 @@ function renderPanel() { const isItem = sel.kind === 'item', obj = isItem ? item
   const list = fields(obj); const catalog = isItem && DESIGNS[obj.type];
   if (catalog) { if (!('variant' in obj)) list.unshift({ p: ['variant'], v: 0, kind: 'num' }); if (!('rot' in obj) && !obj.lookAt) list.push({ p: ['rot'], v: 0, kind: 'num' }); }
   const apply = (p, v) => edit(() => { setAt(obj, p, v); if (p[0] === 'rot') delete obj.lookAt; }, isItem ? { item: sel.id } : {});
-  for (const f of list) { const row = document.createElement('label'); row.className = 'fld'; const name = document.createElement('span'); name.textContent = f.p.join('.'); row.appendChild(name);
-    const mk = (type, val, on) => { const i = document.createElement('input'); i.type = type; if (type === 'number') { i.step = '0.01'; i.inputMode = 'decimal'; } i.value = val; i.onchange = () => on(i); i.onkeydown = ev => ev.stopPropagation(); row.appendChild(i); return i; };
+  for (const f of list) { const fname = f.p.join('.'), row = document.createElement(f.kind === 'nums' ? 'div' : 'label'); row.className = 'fld'; const name = document.createElement('span'); name.textContent = fname; row.appendChild(name);
+    if (f.kind === 'nums') { const lid = 'fld-' + fname.replace(/[^a-zA-Z0-9_-]/g, '-'); name.id = lid; row.setAttribute('role', 'group'); row.setAttribute('aria-labelledby', lid); }
+    const stopNonEsc = ev => { if (ev.key !== 'Escape') ev.stopPropagation(); };
+    const mk = (type, val, on, parent = row) => { const i = document.createElement('input'); i.type = type; if (type === 'number') { i.step = '0.01'; i.inputMode = 'decimal'; } i.value = val; i.onchange = () => on(i); i.onkeydown = stopNonEsc; parent.appendChild(i); return i; };
     if (catalog && f.p.join() === 'variant') { const s = document.createElement('select'); catalog.items.forEach((d, i) => s.add(new Option(`${d.name} · ${d.info}`, i))); s.value = f.v; s.onchange = () => apply(f.p, +s.value); row.appendChild(s); }
     else if (f.kind === 'num') mk('number', f.v, i => { const v = parseFloat(i.value); if (!isNaN(v)) apply(f.p, v); });
-    else if (f.kind === 'nums') { const w = document.createElement('span'); w.className = 'nums'; row.appendChild(w); f.v.forEach((n, k) => { const i = mk('number', n, el => { const v = parseFloat(el.value); if (!isNaN(v)) { const a = [...getAt(obj, f.p)]; a[k] = v; apply(f.p, a); } }); w.appendChild(i); }); }
+    else if (f.kind === 'nums') { const w = document.createElement('span'); w.className = 'nums'; row.appendChild(w); const axes = f.v.length === 3 ? ['x', 'y', 'z'] : ['x', 'y', 'x2', 'y2']; f.v.forEach((n, k) => { const i = mk('number', n, el => { const v = parseFloat(el.value); if (!isNaN(v)) { const a = [...getAt(obj, f.p)]; a[k] = v; apply(f.p, a); } }, w); i.setAttribute('aria-label', `${fname} ${axes[k] || k + 1}`); }); }
     else if (f.kind === 'bool') { const i = document.createElement('input'); i.type = 'checkbox'; i.checked = f.v; i.onchange = () => apply(f.p, i.checked); row.appendChild(i); }
     else if (f.kind === 'wall' || f.kind === 'enum') { const s = document.createElement('select'); (f.kind === 'wall' ? [...plan.walls, ...plan.blocks].map(w => w.id) : f.opts).forEach(o => s.add(new Option(o, o))); s.value = f.v; s.onchange = () => apply(f.p, s.value); row.appendChild(s); }
     else if (f.kind === 'text') mk('text', f.v, i => apply(f.p, i.value));
-    else { const t = document.createElement('textarea'); t.rows = 2; t.value = JSON.stringify(f.v); t.onkeydown = ev => ev.stopPropagation(); t.onchange = () => { try { apply(f.p, JSON.parse(t.value)); } catch (e) { t.value = JSON.stringify(f.v); } }; row.appendChild(t); }
+    else { const t = document.createElement('textarea'); t.rows = 2; t.value = JSON.stringify(f.v); t.onkeydown = stopNonEsc; t.onchange = () => { try { apply(f.p, JSON.parse(t.value)); } catch (e) { t.value = JSON.stringify(f.v); } }; row.appendChild(t); }
     box.appendChild(row); }
   $('selactions').hidden = !isItem; $('selparts').textContent = '';
   if (isItem) { const g = (itemGroups.get(sel.id) || [])[0]; if (g) { renderParts(g, sel.id); renderSize(g, obj); } $('sizebox').hidden = !g || !catalog;
     $('rotL').disabled = $('rotR').disabled = !(catalog || (obj.type === 'bed' && obj.pos)); } else $('sizebox').hidden = true; }
 // catalog pieces have fixed designs: W × D × H scales them
 function renderSize(g, it) { const s = g.userData.size, sc = it.resize || [1, 1, 1]; [['szW', s.x * sc[0]], ['szD', s.z * sc[2]], ['szH', s.y * sc[1]]].forEach(([id, v]) => { $(id).value = v.toFixed(2); }); }
-[['szW', 0, 'x'], ['szD', 2, 'z'], ['szH', 1, 'y']].forEach(([id, k, ax]) => { const el = $(id); el.onkeydown = ev => ev.stopPropagation();
+[['szW', 0, 'x'], ['szD', 2, 'z'], ['szH', 1, 'y']].forEach(([id, k, ax]) => { const el = $(id); el.onkeydown = ev => { if (ev.key !== 'Escape') ev.stopPropagation(); };
   el.onchange = () => { if (!sel || sel.kind !== 'item') return; const it = itemOf(sel.id), g = (itemGroups.get(sel.id) || [])[0], v = parseFloat(el.value); if (!g || !(v > .04)) return;
     const ratio = Math.min(4, Math.max(.2, v / g.userData.size[ax])); edit(() => { const sc = it.resize ? [...it.resize] : [1, 1, 1]; if ($('szLock').checked) { const f = ratio / sc[k]; sc[0] *= f; sc[1] *= f; sc[2] *= f; } else sc[k] = ratio; it.resize = sc.map(n => +n.toFixed(4)); }, { item: it.id }); }; });
 $('szReset').onclick = () => { if (sel && sel.kind === 'item' && itemOf(sel.id).resize) edit(() => { delete itemOf(sel.id).resize; }, { item: sel.id }); };
@@ -138,16 +141,21 @@ function addItem() { const key = $('addType').value, x = r2(controls.target.x), 
   if (key.startsWith('catalog:')) it = { type: key.slice(8), variant: 0, pos: [x, y] }; else { it = structuredClone(ADD[key]); if (it.type === 'rug') it.rect = [x - .8, y - .5, x + .8, y + .5]; else it.pos = [x, y]; }
   it.id = freshId(it.type.toLowerCase()); edit(() => plan.items.push(it), { item: it.id }); select({ kind: 'item', id: it.id }); }
 function download(name, text) { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], { type: 'application/json' })); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000); }
+let copyTick = 0;
 async function copyChanges() { const lines = describe(PUBLISHED, plan), text = lines.length ? lines.join('\n') : 'no changes'; let ok = false;
-  try { await navigator.clipboard.writeText(text); ok = true; } catch (e) {} const out = $('changeText'); out.hidden = false; out.value = text; out.select(); $('changeCount').textContent = ok ? 'copied' : 'select and copy'; }
+  try { await navigator.clipboard.writeText(text); ok = true; } catch (e) {}
+  const out = $('changeText'); out.hidden = false; out.value = text;
+  if (!ok) out.select();
+  const base = ok ? 'copied' : 'select and copy';
+  $('changeCount').textContent = (copyTick++ % 2) ? base + '\u00A0' : base; }
 $('rotL').onclick = ev => rotate(ev.shiftKey ? -15 : -90); $('rotR').onclick = ev => rotate(ev.shiftKey ? 15 : 90);
-$('dupBtn').onclick = duplicate; $('delBtn').onclick = remove; $('selDone').onclick = () => select(null); $('addBtn').onclick = addItem;
+$('dupBtn').onclick = duplicate; $('delBtn').onclick = remove; $('selDone').onclick = () => { select(null); $('move')?.focus(); }; $('addBtn').onclick = addItem;
 $('undoBtn').onclick = undo; $('redoBtn').onclick = redo;
 $('resetPlan').onclick = () => { if (isEmpty(diffPlan(PUBLISHED, plan))) return; if (syncActive() && !confirm('Reset to the published plan? This resets the plan on all devices.')) return; resetPlan(); };
 $('exportPlan').onclick = () => download('palace1.json', JSON.stringify(plan, null, 1));
 $('importPlan').onclick = () => $('importFile').click();
 $('importFile').onchange = async ev => { const f = ev.target.files[0]; if (!f) return; try { const next = JSON.parse(await f.text()); if (!next.items || !next.walls || !next.rooms) throw new Error('not a plan file');
-  const before = snapshot(); try { undoStack.push(before); restore(JSON.stringify(next)); } catch (e) { undoStack.pop(); restore(before); throw e; } } catch (e) { alert('Import failed: ' + e.message); } ev.target.value = ''; };
+  const before = snapshot(); try { pushUndo(before); restore(JSON.stringify(next)); } catch (e) { undoStack.pop(); restore(before); throw e; } } catch (e) { alert('Import failed: ' + e.message); } ev.target.value = ''; };
 $('copyChanges').onclick = copyChanges;
 
 window.__editor = { plan, select, edit, tryEdit, undo, redo, moveWall, describe: () => describe(PUBLISHED, plan) }; // for tools/ scripts and the console
@@ -184,10 +192,13 @@ function endDrag(ev) { if (!drag || ev.pointerId !== drag.id) return; const d = 
   else { d.objs.forEach((o, i) => o.position.copy(d.home[i])); markShadows(); }
   if (photoWasOn) { photoWasOn = false; setPhoto(true); } }
 renderer.domElement.addEventListener('pointerup', endDrag); renderer.domElement.addEventListener('pointercancel', endDrag);
-addEventListener('keydown', ev => { if (!state.moveMode || /INPUT|SELECT|TEXTAREA/.test(document.activeElement?.tagName || '')) return;
+addEventListener('keydown', ev => { if (!state.moveMode || ev.isComposing || ev.keyCode === 229) return;
+  if (ev.key === 'Escape' && sel) { ev.preventDefault(); select(null); $('move')?.focus(); return; }
+  const act = document.activeElement, tag = act?.tagName || '';
+  if (/INPUT|SELECT|TEXTAREA|BUTTON|SUMMARY|A/.test(tag) || act?.isContentEditable) return;
   if ((ev.ctrlKey || ev.metaKey) && ev.key.toLowerCase() === 'z') { ev.preventDefault(); ev.shiftKey ? redo() : undo(); return; }
   if ((ev.ctrlKey || ev.metaKey) && ev.key.toLowerCase() === 'y') { ev.preventDefault(); redo(); return; }
-  if (!sel) return; if (ev.key === 'Escape') { select(null); return; } if (sel.kind !== 'item') return;
+  if (!sel) return; if (sel.kind !== 'item') return;
   const st = ev.shiftKey ? .1 : .01, dir = { ArrowLeft: [-st, 0], ArrowRight: [st, 0], ArrowUp: [0, -st], ArrowDown: [0, st] }[ev.key], it = itemOf(sel.id);
   if (dir) { const mv = mover(it); if (!mv) return; ev.preventDefault(); const dx = mv.axis === 'y' ? 0 : dir[0], dy = mv.axis === 'x' ? 0 : dir[1]; if (dx || dy) edit(() => mv.move(dx, dy), { item: it.id }); }
   else if (ev.key === 'r' || ev.key === 'R') rotate(ev.shiftKey ? 15 : 90); else if (ev.key === 'Delete' || ev.key === 'Backspace') { ev.preventDefault(); remove(); } });

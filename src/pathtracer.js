@@ -16,6 +16,20 @@ export function ptCamera() { lens(); if (state.pt) state.pt.updateCamera(); }
 // transmissive window glass blocks the path tracer's shadow rays (black rooms): fully clear alpha glass lets light through; clearcoat renders black patches or whole objects, so it is off in Photo
 const GLASS = { glassWin: 0, glassRail: 0, glassShower: .1 }, glassKept = new Map(), matKept = new Map(); // key → opacity in Photo
 // partly transmissive opal (lamp shades) renders black: opaque white in Photo (its emissive still glows at night)
+export function forgetPtMaterial(m) { matKept.delete(m); }
+export function disposePT() {
+  if (!state.pt) return;
+  const pt = state.pt;
+  state.pt = null;
+  pt._quad?.dispose();
+  pt._quad?.material?.dispose();
+  pt._pathTracer?.dispose();
+  pt._lowResPathTracer?.dispose();
+  pt._internalBackground?.dispose();
+  pt._colorBackground?.dispose();
+}
+window.__disposePT = disposePT;
+addEventListener('pagehide', disposePT);
 export function ptMats(on) { if (on) scene.traverse(o => { for (const m of [].concat(o.material || [])) if (!matKept.has(m) && (m.clearcoat > 0 || (m.transmission > 0 && m.transmission < 1))) {
       matKept.set(m, [m.clearcoat, m.transmission]); m.clearcoat = 0; if (m.transmission < 1) m.transmission = 0; m.needsUpdate = true; } });
   else { for (const [m, [c, t]] of matKept) { m.clearcoat = c; m.transmission = t; m.needsUpdate = true; } matKept.clear(); } }

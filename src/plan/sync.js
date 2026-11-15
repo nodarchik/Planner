@@ -1,5 +1,6 @@
 // Shared plan edits: the patch is also kept on the server (api/plan.js, one rev-checked copy) so every device sees the same apartment. localStorage stays the fallback.
 import { PUBLISHED } from './plan.js';
+import { showToast, toggleBadge } from '../ui/toast.js';
 
 const PKEY = 'palace1-plan-patch-v1', PWKEY = 'palace1-chat-password', UNSENT = 'palace1-plan-unsent', REVKEY = 'palace1-plan-rev', URL = '/api/plan', DEBOUNCE = 2000, OFF = !!import.meta.env.VITE_NO_ASSETS; // PKEY: same key as ui/editor.js
 const hash = s => { let h = 2166136261; for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619); return (h >>> 0).toString(36); };
@@ -9,9 +10,8 @@ let rev = +ls.get(REVKEY) || 0, latest = null, dirty = false, seq = 0, timer = 0
 export const setApplier = fn => { apply = fn; };
 export const active = () => !OFF && !(badge && !badge.hidden);
 
-const css = 'position:fixed;z-index:9;font:600 12px system-ui;border-radius:8px;padding:6px 12px;';
-function note(text, sticky) { if (OFF) return; const n = document.createElement('div'); n.textContent = text; n.style.cssText = css + 'left:50%;top:12px;transform:translateX(-50%);background:#2f2a24;color:#fff;cursor:pointer'; n.onclick = () => n.remove(); document.body.appendChild(n); if (!sticky) setTimeout(() => n.remove(), 4000); }
-function setLocalOnly(on) { if (OFF) return; if (!badge) { badge = document.createElement('div'); badge.id = 'localbadge'; badge.textContent = 'Saved on this device only'; badge.style.cssText = css + 'left:12px;bottom:12px;background:#6b6258;color:#fff;pointer-events:none'; document.body.appendChild(badge); } badge.hidden = !on; }
+const note = (text, sticky) => { if (!OFF) showToast(text, { ms: sticky ? 0 : 4000 }); };
+const setLocalOnly = on => { if (!OFF) badge = toggleBadge(badge, 'localbadge', 'Saved on this device only', on); };
 const readLocal = () => { try { const raw = ls.get(PKEY); return raw ? JSON.parse(raw) : null; } catch (e) { return null; } };
 const backup = p => ls.set(PKEY + '-backup', JSON.stringify(p));
 const same = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);

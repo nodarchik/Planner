@@ -1,4 +1,5 @@
 // Assistant chat history: kept in localStorage and, where the server has storage, in api/history.js (one rev-checked copy shared by all devices).
+import { showToast, toggleBadge } from './toast.js';
 const KEY = 'palace1-chat-history-v1', REVKEY = 'palace1-chat-rev', PWKEY = 'palace1-chat-password', UNSENT = 'palace1-chat-unsent', MAX_PUT = 1.9e6, URL = '/api/history', OFF = !!import.meta.env.VITE_NO_ASSETS;
 export const STOP_TEXT = '(Stopped after 30 steps. Say "continue" to go on.)';
 export const MAX_MSGS = 120, MAX_BYTES = 1e6, KEEP_MSGS = 80, KEEP_BYTES = 6e5, MAX_LOG = 300, MAX_TEXT = 3000, CLASSES = ['user', 'bot', 'note', 'note error'];
@@ -44,9 +45,8 @@ export const cleanData = d => d && typeof d === 'object' ? { messages: repair(d.
 const bytes = d => new TextEncoder().encode(JSON.stringify(d)).length;
 // keep one PUT under the server cap (2 MB): the oldest transcript lines go first
 const fit = d => { const out = { messages: d.messages, log: cleanLog(d.log) }; while (out.log.length && bytes(out) > MAX_PUT) out.log.shift(); return out; };
-const css = 'position:fixed;z-index:9;font:600 12px system-ui;border-radius:8px;padding:6px 12px;background:#2f2a24;color:#fff;';
-function note(text) { if (OFF) return; const n = document.createElement('div'); n.textContent = text; n.style.cssText = css + 'left:50%;top:12px;transform:translateX(-50%);cursor:pointer'; n.onclick = () => n.remove(); document.body.appendChild(n); setTimeout(() => n.remove(), 5000); }
-function setLocalOnly(on) { if (OFF) return; if (!badge) { badge = document.createElement('div'); badge.id = 'chatlocalbadge'; badge.textContent = 'Chat saved on this device only'; badge.style.cssText = css + 'left:12px;bottom:48px;pointer-events:none'; document.body.appendChild(badge); } badge.hidden = !on; }
+const note = text => { if (!OFF) showToast(text, { ms: 5000 }); };
+const setLocalOnly = on => { if (!OFF) badge = toggleBadge(badge, 'chatlocalbadge', 'Chat saved on this device only', on, 'chat-local'); };
 
 // at start: server copy first (short timeout), else the local one; a local copy the server never confirmed is pushed first
 export async function load() {

@@ -24,6 +24,7 @@ function flatten(m) {
   if (prog(m) !== before) m.needsUpdate = true;
 }
 export function fastInherit(src, dst) { const r = kept.get(src); if (r) kept.set(dst, { ...r }); }
+export function forgetMaterial(m) { kept.delete(m); }
 export const fastOne = m => { if (state.fast) flatten(m); }; // a material made while Fast is on (finish change)
 export function fastSync() { if (state.fast) for (const m of mats()) flatten(m); }
 // called at the end of syncLights: lamps and sun off, flat light on (dimmer at night)
