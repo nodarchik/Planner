@@ -37,12 +37,13 @@ document.getElementById('wfull').onclick = () => applyCut(false);
 document.getElementById('wcut').onclick = () => applyCut(true);
 document.getElementById('mday').onclick = () => setMood(false);
 document.getElementById('mnight').onclick = () => setMood(true);
-const tog = (id, fn) => document.getElementById(id).onclick = e => e.currentTarget.setAttribute('aria-pressed', fn());
+const tog = (id, fn) => document.getElementById(id).onclick = e => { state.dirty = true; e.currentTarget.setAttribute('aria-pressed', fn()); };
 tog('tlab', () => state.showRooms = !state.showRooms);
 tog('tdim', () => { state.showDims = !state.showDims; dimGroup.visible = state.showDims; return state.showDims; });
 tog('tfur', () => state.showFurn = !state.showFurn);
 
 function resize() {
+  state.dirty = true;
   const w = innerWidth, h = innerHeight;
   renderer.setSize(w, h); composer.setPixelRatio(renderer.getPixelRatio()); composer.setSize(w, h);
   camera.aspect = w / h; camera.updateProjectionMatrix();

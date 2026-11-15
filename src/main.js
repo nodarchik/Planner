@@ -58,11 +58,13 @@ function tick(now) {
     else { camera.fov += (fov - camera.fov) * .15; if (Math.abs(camera.fov - fov) < .05) camera.fov = fov; }
     camera.updateProjectionMatrix(); if (state.photo && state.pt) ptCamera();
   }
-  idle = moved0 || camera.fov !== fov ? 0 : idle + 1; if (!MOBILE) setMoving(!state.photo && idle < 8);
+  const dirty = state.dirty; state.dirty = false;
+  idle = moved0 || dirty || camera.fov !== fov ? 0 : idle + 1; if (!MOBILE) setMoving(!state.photo && idle < 8);
   window.__settled = !state.anim && camera.fov === fov && !lod.on; // camera at rest: read by tools/shot.py
   if (document.hidden) return;
   if (state.ceiling) { state.ceiling.visible = inside; if (state.lastCeil !== inside) { state.lastCeil = inside; markShadows(); rebuildPT(); } }
   if (window.__frames < 30) markShadows(); // first frames after load
+  if (!state.photo && !state.walk && window.__settled && idle > 30) return;
   renderer.toneMappingExposure = (state.night ? 1.25 : 1.0) * (state.photo ? (inside ? (state.night ? .75 : 6) : (state.night ? 1.3 : .5)) : 1);
   if (state.photo && state.pt) {
     if (state.ptDirty) { state.ptDirty = false; ptSetScene(); }

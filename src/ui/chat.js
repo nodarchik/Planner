@@ -127,12 +127,18 @@ async function send() { const text = input.value.trim(); if (!text || busy) retu
   history = [...base, { role: 'user', content }];
   const wait = say('note', 'Thinking…', false);
   try {
-    let last = ''; for (let turn = 0; turn < 30; turn++) { const r = await post(history); last = r.stop_reason; history.push({ role: 'assistant', content: r.content }); // content goes back unchanged (thinking blocks included)
+    let last = ''; for (let turn = 0; turn < 30; turn++) {
+      wait.textContent = turn > 0 ? `Thinking · step ${turn + 1}…` : 'Thinking…';
+      log.appendChild(wait); log.scrollTop = log.scrollHeight;
+      const r = await post(history); last = r.stop_reason; history.push({ role: 'assistant', content: r.content }); // content goes back unchanged (thinking blocks included)
       for (const b of r.content) if (b.type === 'text' && b.text.trim()) say('bot', b.text.trim(), true, labelOf(r.model || model));
       if (r.stop_reason === 'refusal') { say('note error', 'The request was declined.'); break; }
       if (r.stop_reason === 'max_tokens') { say('note error', 'The answer was cut off; say "continue" to get the rest.'); break; }
       if (r.stop_reason !== 'tool_use') break;
-      history.push({ role: 'user', content: r.content.filter(b => b.type === 'tool_use').map(runTool) }); } // all results of one turn in a single message
+      const tools = r.content.filter(b => b.type === 'tool_use');
+      wait.textContent = `Applying ${tools.map(t => t.name).join(', ')}…`;
+      log.appendChild(wait); log.scrollTop = log.scrollHeight;
+      history.push({ role: 'user', content: tools.map(runTool) }); } // all results of one turn in a single message
     if (last === 'tool_use') { say('note', STOP_TEXT); history.push({ role: 'assistant', content: [{ type: 'text', text: STOP_TEXT }] }); } // close the turn: the stored conversation ends with an assistant message
     history = repair(history); // never keep an unanswered tool_use
     if (history.length > base.length) synced = JSON.stringify(plan);
@@ -156,6 +162,7 @@ if ($('chatBtn')) { const off = !!import.meta.env.VITE_NO_ASSETS; $('chatBtn').h
   if ($('chatform')) $('chatform').onsubmit = ev => { ev.preventDefault(); send(); }; else sendBtn.onclick = send;
   input.onkeydown = ev => { if (ev.key !== 'Escape') ev.stopPropagation(); if (ev.isComposing || ev.keyCode === 229) return; if (ev.key === 'Enter' && !ev.shiftKey) { ev.preventDefault(); send(); } };
   $('chatnew').onclick = () => { if (busy || !(history.length || entries.length) || !confirm('Clear this conversation on all devices? The plan keeps its edits.')) return; restore(null); persist(); };
+  if ($('chatundo')) $('chatundo').onclick = () => { if (!busy) editHistory('undo', 1); };
   const savePw = () => { try { localStorage.setItem(PWKEY, $('chatpwinput').value); } catch (e) {} $('chatpw').hidden = true; $('chatpwinput').value = ''; $('chatpwinput').type = 'password'; if ($('chatpwtoggle')) { $('chatpwtoggle').setAttribute('aria-pressed', 'false'); $('chatpwtoggle').setAttribute('aria-label', 'Show password'); $('chatpwtoggle').textContent = 'Show'; } input.focus(); };
   if ($('chatpw').tagName === 'FORM') $('chatpw').onsubmit = ev => { ev.preventDefault(); savePw(); }; else $('chatpwsave').onclick = savePw;
   if ($('chatpwtoggle')) $('chatpwtoggle').onclick = () => { const inp = $('chatpwinput'), show = inp.type === 'password'; inp.type = show ? 'text' : 'password'; $('chatpwtoggle').setAttribute('aria-pressed', String(show)); $('chatpwtoggle').setAttribute('aria-label', show ? 'Hide password' : 'Show password'); $('chatpwtoggle').textContent = show ? 'Hide' : 'Show'; };
