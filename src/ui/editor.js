@@ -13,7 +13,7 @@ import { renderParts } from './style.js';
 import { validateBindings } from './bindings.js';
 import { active as syncActive, save as syncSave, setApplier } from '../plan/sync.js';
 
-const PKEY = 'palace1-plan-patch-v1', GRID = .05, SNAP = .08;
+const PKEY = 'palace1-plan-patch-v1', VKEY = 'palace1-plan-variants-v1', GRID = .05, SNAP = .08;
 try { Object.keys(localStorage).filter(k => /^palace1-(pos|style-v2|types|layout)/.test(k)).forEach(k => localStorage.removeItem(k)); } catch (e) {}
 const $ = id => document.getElementById(id), selPanel = $('selpanel'), hintEl = $('hint'), bar = $('editbar');
 const undoStack = [], redoStack = [], snapshot = () => JSON.stringify(plan);
@@ -29,7 +29,8 @@ function persist() { let p; try { p = diffPlan(PUBLISHED, plan); if (isEmpty(p))
 // edits from another session (sync.js): replaces the plan without a new save; false = the patch could not be built and the plan is unchanged
 setApplier(patch => { const before = snapshot(); try { undoStack.length = redoStack.length = 0; setPlan(applyPatch(PUBLISHED, patch || {})); buildAll(); try { patch ? localStorage.setItem(PKEY, JSON.stringify(patch)) : localStorage.removeItem(PKEY); } catch (e) {} reselect(); updateBar(); return true; } catch (e) { console.error(e); try { setPlan(JSON.parse(before)); buildAll(); reselect(); } catch (e2) { console.error(e2); } return false; } });
 function updateBar() { const n = describe(PUBLISHED, plan).length; $('changeCount').textContent = n ? `${n} change${n > 1 ? 's' : ''} vs published` : 'no changes';
-  $('undoBtn').disabled = !undoStack.length; $('redoBtn').disabled = !redoStack.length; }
+  $('undoBtn').disabled = !undoStack.length; $('redoBtn').disabled = !redoStack.length;
+  if ($('chatundo')) $('chatundo').disabled = !undoStack.length; }
 // run a change: opts.item = rebuild only that item, opts.none = already applied to the scene, otherwise rebuild everything
 export function edit(fn, opts = {}) { pushUndo(snapshot()); redoStack.length = 0; const nb = JSON.stringify(plan.meta.bindings); fn(); if (JSON.stringify(plan.meta.bindings) !== nb) validateBindings(); persist(); // strict check only when the edit touched the bindings
   if (opts.none) return; if (opts.item) rebuildItem(opts.item); else buildAll(); reselect(); }
@@ -50,7 +51,7 @@ export function history(action, steps = 1) {
 /* ---------- selection ---------- */
 let sel = null; const boxes = []; // sel = { kind: 'item' | 'wall', id }
 const objectsOf = s => s.kind === 'item' ? (itemObjects.get(s.id) || []) : world.children.filter(o => o.userData.wall === s.id);
-function drawBoxes() { boxes.splice(0).forEach(b => { scene.remove(b); b.geometry.dispose(); b.material.dispose(); }); if (!sel) return;
+function drawBoxes() { boxes.splice(0).forEach(b => { scene.remove(b); b.geometry.dispose(); b.material.dispose(); }); state.dirty = true; if (!sel) return;
   for (const o of objectsOf(sel)) { if (o.isLight) continue; const b = new THREE.BoxHelper(o, sel.kind === 'wall' ? 0xc4552f : 0x2f6fd8); b.material.depthTest = false; b.material.transparent = true; b.renderOrder = 10; scene.add(b); boxes.push(b); } }
 export function select(s) { sel = s; state.sel = s; selPanel.hidden = !s; drawBoxes(); if (s) renderPanel(); else { $('selfields').textContent = ''; $('selparts').textContent = ''; } rebuildPT(); }
 export function reselect() { if (sel && !(sel.kind === 'item' ? itemOf(sel.id) : wallOf(sel.id))) sel = null; select(sel); }
@@ -118,7 +119,30 @@ function renderPanel() { const isItem = sel.kind === 'item', obj = isItem ? item
     box.appendChild(row); }
   $('selactions').hidden = !isItem; $('selparts').textContent = '';
   if (isItem) { const g = (itemGroups.get(sel.id) || [])[0]; if (g) { renderParts(g, sel.id); renderSize(g, obj); } $('sizebox').hidden = !g || !catalog;
-    $('rotL').disabled = $('rotR').disabled = !(catalog || (obj.type === 'bed' && obj.pos)); } else $('sizebox').hidden = true; }
+    $('rotL').disabled = $('rotR').disabled = !(catalog || (obj.type === 'bed' && obj.pos)); }
+  else { $('sizebox').hidden = true; renderWallControls(obj); } }
+function renderWallControls(w) {
+  const openings = Array.isArray(w?.openings) ? w.openings : [];
+  if (!openings.length) return;
+  const flipSwing = { N: 'S', S: 'N', E: 'W', W: 'E' };
+  const host = $('selparts');
+  openings.forEach((op, idx) => {
+    const leaf = op.leaf && typeof op.leaf === 'object' ? op.leaf : op;
+    if (!leaf.hinge && !leaf.swing && typeof op.at !== 'number') return;
+    const grp = document.createElement('div'); grp.className = 'part';
+    const h = document.createElement('h3');
+    h.textContent = `${op.id || `${op.type || 'opening'} #${idx + 1}`}${typeof op.at === 'number' ? ` · ${op.at.toFixed(2)} m` : ''}`;
+    const chips = document.createElement('div'); chips.className = 'chips';
+    const addBtn = (label, fn) => { const b = document.createElement('button'); b.type = 'button'; b.textContent = label; b.onclick = () => edit(fn); chips.appendChild(b); };
+    if (leaf.hinge) addBtn(`Flip hinge (${leaf.hinge})`, () => { leaf.hinge = leaf.hinge === 'start' ? 'end' : 'start'; });
+    if (leaf.swing) addBtn(`Flip swing (${leaf.swing})`, () => { leaf.swing = flipSwing[leaf.swing] || leaf.swing; });
+    if (typeof op.at === 'number') {
+      addBtn('−5 cm', () => { op.at = r2(Math.max(0.05, op.at - 0.05)); });
+      addBtn('+5 cm', () => { op.at = r2(op.at + 0.05); });
+    }
+    grp.append(h, chips); host.appendChild(grp);
+  });
+}
 // catalog pieces have fixed designs: W × D × H scales them
 function renderSize(g, it) { const s = g.userData.size, sc = it.resize || [1, 1, 1]; [['szW', s.x * sc[0]], ['szD', s.z * sc[2]], ['szH', s.y * sc[1]]].forEach(([id, v]) => { $(id).value = v.toFixed(2); }); }
 [['szW', 0, 'x'], ['szD', 2, 'z'], ['szH', 1, 'y']].forEach(([id, k, ax]) => { const el = $(id); el.onkeydown = ev => { if (ev.key !== 'Escape') ev.stopPropagation(); };
@@ -158,41 +182,152 @@ $('importFile').onchange = async ev => { const f = ev.target.files[0]; if (!f) r
   const before = snapshot(); try { pushUndo(before); restore(JSON.stringify(next)); } catch (e) { undoStack.pop(); restore(before); throw e; } } catch (e) { alert('Import failed: ' + e.message); } ev.target.value = ''; };
 $('copyChanges').onclick = copyChanges;
 
+/* ---------- layout variant slots ---------- */
+function loadVariants() { try { return JSON.parse(localStorage.getItem(VKEY) || '{}') || {}; } catch (e) { return {}; } }
+function saveVariants(v) { try { localStorage.setItem(VKEY, JSON.stringify(v)); } catch (e) {} }
+function refreshSlotOptions() {
+  const s = $('planSlot'); if (!s) return;
+  const v = loadVariants();
+  for (const o of s.options) if (o.value) o.textContent = `Variant ${o.value.toUpperCase()}${v[o.value] ? ' (saved)' : ''}`;
+}
+function storeSlot(slot) {
+  const v = loadVariants();
+  v[slot] = { patch: diffPlan(PUBLISHED, plan), savedAt: Date.now() };
+  saveVariants(v); refreshSlotOptions();
+  $('changeCount').textContent = `saved Variant ${slot.toUpperCase()}`;
+}
+refreshSlotOptions();
+if ($('saveSlot')) $('saveSlot').onclick = () => { const s = $('planSlot'), slot = (s && s.value) || 'a'; if (s) s.value = slot; storeSlot(slot); };
+if ($('planSlot')) $('planSlot').onchange = () => {
+  const slot = $('planSlot').value; if (!slot) return;
+  const v = loadVariants();
+  if (!v[slot]) { storeSlot(slot); return; }
+  const before = snapshot();
+  try {
+    const next = applyPatch(PUBLISHED, v[slot].patch);
+    pushUndo(before); redoStack.length = 0; sel = null; restore(JSON.stringify(next));
+    $('changeCount').textContent = `loaded Variant ${slot.toUpperCase()}`;
+  } catch (e) {
+    if (undoStack[undoStack.length - 1] === before) undoStack.pop();
+    alert('Could not load variant: ' + e.message);
+  }
+};
+
 window.__editor = { plan, select, edit, tryEdit, undo, redo, moveWall, describe: () => describe(PUBLISHED, plan) }; // for tools/ scripts and the console
 
+/* ---------- shared 3D guides & tape measure (pre-allocated to avoid buffer/VAO churn) ---------- */
+function makeGuideLine(color, order) {
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(6), 3));
+  const m = new THREE.LineBasicMaterial({ color, depthTest: false, transparent: true, opacity: .88 });
+  const l = new THREE.Line(g, m);
+  l.renderOrder = order; l.frustumCulled = false; l.visible = false; l.userData.shared = true;
+  return l;
+}
+function setGuideLine(line, x1, y1, z1, x2, y2, z2) {
+  const p = line.geometry.attributes.position;
+  p.setXYZ(0, x1, y1, z1); p.setXYZ(1, x2, y2, z2);
+  p.needsUpdate = true; line.geometry.computeBoundingSphere(); line.visible = true;
+}
+const guideX = makeGuideLine(0x1f56b5, 12), guideZ = makeGuideLine(0x1f56b5, 12);
+scene.add(guideX, guideZ);
+const measureGroup = new THREE.Group(); measureGroup.visible = false; measureGroup.userData.shared = true;
+const measureLine = makeGuideLine(0xab3d18, 13);
+const markerGeo = new THREE.SphereGeometry(.035, 12, 8), markerMat = new THREE.MeshBasicMaterial({ color: 0xab3d18, depthTest: false });
+const m0 = new THREE.Mesh(markerGeo, markerMat), m1 = new THREE.Mesh(markerGeo, markerMat);
+m0.renderOrder = m1.renderOrder = 13; m0.frustumCulled = m1.frustumCulled = false; m0.userData.shared = m1.userData.shared = true;
+measureGroup.add(measureLine, m0, m1); scene.add(measureGroup);
+let measureMode = false, measureStart = null;
+function setMeasure(on) {
+  measureMode = !!on; measureStart = null;
+  if ($('measureBtn')) $('measureBtn').setAttribute('aria-pressed', String(measureMode));
+  if (!measureMode) { measureGroup.visible = false; updateBar(); }
+  else $('changeCount').textContent = 'Measure: click 1st point…';
+  renderer.domElement.style.cursor = measureMode ? 'crosshair' : '';
+  state.dirty = true;
+}
+if ($('measureBtn')) $('measureBtn').onclick = () => setMeasure(!measureMode);
+function pickPoint(ev) {
+  aim(ev);
+  for (const h of ray.intersectObject(world, true)) {
+    if (!h.object.isMesh || h.object.material === M.sheer) continue;
+    let o = h.object, vis = true; for (let p = o; p; p = p.parent) if (!p.visible) vis = false;
+    if (vis) return h.point.clone();
+  }
+  dragPlane.set(new V3(0, 1, 0), 0);
+  return ray.ray.intersectPlane(dragPlane, hitP) ? hitP.clone() : null;
+}
+
 /* ---------- edit mode, dragging with snapping, keyboard ---------- */
-export function setMove(on) { if (on) state.leaveWalk?.(); state.moveMode = on; $('move').setAttribute('aria-pressed', on); bar.hidden = !on; updateBar();
+export function setMove(on) { if (on) state.leaveWalk?.(); state.moveMode = on; $('move').setAttribute('aria-pressed', on); bar.hidden = !on;
   hintEl.textContent = on ? 'Click an item or wall to edit its values · drag to move (snaps to walls, items, 5 cm; Shift = free) · drag empty space to orbit' : 'Drag rotate · Right-drag pan · Scroll zoom';
-  if (!on) select(null); renderer.domElement.style.cursor = ''; }
+  if (!on) { setMeasure(false); select(null); } updateBar(); renderer.domElement.style.cursor = ''; }
 $('move').onclick = () => setMove(!state.moveMode);
 let drag = null, photoWasOn = false;
-function snapAxis(lo, hi, d, faces, free) { if (free) return r2(d);
-  let best = null; for (const f of faces) for (const e of [lo, hi]) { const c = f - (e + d); if (Math.abs(c) < SNAP && (best === null || Math.abs(c) < Math.abs(best))) best = c; }
-  return best !== null ? d + best : Math.round((lo + d) / GRID) * GRID - lo; }
-stage.addEventListener('pointerdown', ev => { if (!state.moveMode || ev.button !== 0) return; const h = pick(ev); if (!h) return;
+function snapAxis(lo, hi, d, faces, free) { if (free) return { d: r2(d), snap: null };
+  let best = null, snap = null; for (const f of faces) for (const e of [lo, hi]) { const c = f - (e + d); if (Math.abs(c) < SNAP && (best === null || Math.abs(c) < Math.abs(best))) { best = c; snap = f; } }
+  return best !== null ? { d: d + best, snap } : { d: Math.round((lo + d) / GRID) * GRID - lo, snap: null }; }
+function overlap2d(a, b) {
+  const ox = Math.min(a[2], b[2]) - Math.max(a[0], b[0]), oz = Math.min(a[3], b[3]) - Math.max(a[1], b[1]);
+  return [ox, oz];
+}
+stage.addEventListener('pointerdown', ev => { if (!state.moveMode || ev.button !== 0) return;
+  if (measureMode) { const pt = pickPoint(ev); if (!pt) return; ev.stopPropagation();
+    if (!measureStart) { measureStart = pt; m0.position.copy(pt); m0.visible = true; m1.visible = false; measureLine.visible = false; measureGroup.visible = true; $('changeCount').textContent = 'Measure: click 2nd point…'; }
+    else { m1.position.copy(pt); m1.visible = true; setGuideLine(measureLine, measureStart.x, measureStart.y + .01, measureStart.z, pt.x, pt.y + .01, pt.z);
+      const dx = Math.abs(pt.x - measureStart.x), dz = Math.abs(pt.z - measureStart.z), dist = pt.distanceTo(measureStart);
+      measureStart = null; $('changeCount').textContent = `Measured: ${dist.toFixed(2)} m (Δx ${dx.toFixed(2)} · Δz ${dz.toFixed(2)} m)`; }
+    state.dirty = true; return; }
+  const h = pick(ev); if (!h) return;
   ev.stopPropagation(); select({ kind: h.kind, id: h.id });
   const objs = objectsOf(sel), bb = new THREE.Box3(); objs.forEach(o => { if (!o.isLight) bb.expandByObject(o); });
   let mv = null, axis = null; if (h.kind === 'item') { mv = mover(itemOf(h.id)); if (!mv) return; axis = mv.axis || null; } else axis = wallAxis(wallOf(h.id)) === 'x' ? 'y' : 'x';
-  // faces to snap to: walls and blocks, other items' bounding boxes
-  const fx = [], fy = []; if (h.kind === 'item') { for (const w of plan.walls) { const r = wallRect(w); fx.push(r[0], r[2]); fy.push(r[1], r[3]); } for (const b of plan.blocks) { fx.push(b.rect[0], b.rect[2]); fy.push(b.rect[1], b.rect[3]); }
-    for (const [id, gs] of itemGroups) { if (id === h.id) continue; for (const g of gs) { const b = new THREE.Box3().setFromObject(g); if (b.max.z < bb.min.z - .5 || b.min.z > bb.max.z + .5 || b.max.x < bb.min.x - .5 || b.min.x > bb.max.x + .5) continue; fx.push(b.min.x, b.max.x); fy.push(b.min.z, b.max.z); } } }
+  // faces to snap to and solid obstacles for live collision & clearance readout
+  const fx = [], fy = [], obs = [], bb2 = [bb.min.x, bb.min.z, bb.max.x, bb.max.z];
+  if (h.kind === 'item') {
+    const addOb = (id, rect) => { const [ox, oz] = overlap2d(bb2, rect); if (ox <= .02 || oz <= .02) obs.push({ id, rect }); };
+    for (const w of plan.walls) { const r = wallRect(w); fx.push(r[0], r[2]); fy.push(r[1], r[3]); addOb(w.id, r); }
+    for (const b of plan.blocks) { fx.push(b.rect[0], b.rect[2]); fy.push(b.rect[1], b.rect[3]); addOb(b.id, b.rect); }
+    for (const [id, gs] of itemGroups) { if (id === h.id) continue; for (const g of gs) { const b = new THREE.Box3().setFromObject(g);
+      if (b.max.z >= bb.min.z - .5 && b.min.z <= bb.max.z + .5 && b.max.x >= bb.min.x - .5 && b.min.x <= bb.max.x + .5) { fx.push(b.min.x, b.max.x); fy.push(b.min.z, b.max.z); }
+      if (bb.max.y >= .08 && bb.min.y <= 1.8 && b.max.y >= .08 && b.min.y <= 1.8) addOb(id, [b.min.x, b.min.z, b.max.x, b.max.z]); } } }
   controls.enabled = false; dragPlane.set(new V3(0, 1, 0), -h.point.y); ray.ray.intersectPlane(dragPlane, hitP);
-  drag = { id: ev.pointerId, start: hitP.clone(), objs, home: objs.map(o => o.position.clone()), bb, mv, axis, fx, fy, dx: 0, dy: 0, moved: false };
+  drag = { id: ev.pointerId, start: hitP.clone(), objs, home: objs.map(o => o.position.clone()), bb, mv, axis, fx, fy, obs, dx: 0, dy: 0, moved: false };
   if (state.photo) { photoWasOn = true; setPhoto(false); } renderer.domElement.setPointerCapture(ev.pointerId); renderer.domElement.style.cursor = 'grabbing'; }, { capture: true });
 renderer.domElement.addEventListener('pointermove', ev => {
   if (drag && ev.pointerId === drag.id) { aim(ev); if (!ray.ray.intersectPlane(dragPlane, hitP)) return;
     let dx = hitP.x - drag.start.x, dy = hitP.z - drag.start.z; if (Math.hypot(dx, dy) > .02) drag.moved = true;
-    dx = drag.axis === 'y' ? 0 : snapAxis(drag.bb.min.x, drag.bb.max.x, dx, drag.fx, ev.shiftKey); dy = drag.axis === 'x' ? 0 : snapAxis(drag.bb.min.z, drag.bb.max.z, dy, drag.fy, ev.shiftKey);
-    drag.dx = dx; drag.dy = dy; drag.objs.forEach((o, i) => { o.position.x = drag.home[i].x + dx; o.position.z = drag.home[i].z + dy; }); boxes.forEach(b => b.update()); markShadows(); $('selpos').textContent = `${sel.id} · moved ${dx.toFixed(2)}, ${dy.toFixed(2)} m`; return; }
-  if (state.moveMode && ev.pointerType === 'mouse' && !ev.buttons) renderer.domElement.style.cursor = pick(ev) ? 'grab' : ''; });
-function endDrag(ev) { if (!drag || ev.pointerId !== drag.id) return; const d = drag; drag = null; controls.enabled = true; renderer.domElement.style.cursor = 'grab';
+    const sx = drag.axis === 'y' ? { d: 0, snap: null } : snapAxis(drag.bb.min.x, drag.bb.max.x, dx, drag.fx, ev.shiftKey);
+    const sz = drag.axis === 'x' ? { d: 0, snap: null } : snapAxis(drag.bb.min.z, drag.bb.max.z, dy, drag.fy, ev.shiftKey);
+    dx = sx.d; dy = sz.d;
+    drag.dx = dx; drag.dy = dy; drag.objs.forEach((o, i) => { o.position.x = drag.home[i].x + dx; o.position.z = drag.home[i].z + dy; }); boxes.forEach(b => b.update());
+    if (sx.snap !== null) setGuideLine(guideX, sx.snap, .02, drag.bb.min.z + dy - 1.2, sx.snap, .02, drag.bb.max.z + dy + 1.2); else guideX.visible = false;
+    if (sz.snap !== null) setGuideLine(guideZ, drag.bb.min.x + dx - 1.2, .02, sz.snap, drag.bb.max.x + dx + 1.2, .02, sz.snap); else guideZ.visible = false;
+    let hit = '', clearMin = Infinity;
+    if (drag.obs.length) {
+      const cur = [drag.bb.min.x + dx, drag.bb.min.z + dy, drag.bb.max.x + dx, drag.bb.max.z + dy];
+      for (const o of drag.obs) {
+        const [ox, oz] = overlap2d(cur, o.rect);
+        if (ox > .03 && oz > .03) { hit = o.id; break; }
+        const gap = Math.hypot(Math.max(0, o.rect[0] - cur[2], cur[0] - o.rect[2]), Math.max(0, o.rect[1] - cur[3], cur[1] - o.rect[3]));
+        if (gap < clearMin) clearMin = gap;
+      }
+      boxes.forEach(b => b.material.color.setHex(hit ? 0xd0342c : 0x2f6fd8));
+    }
+    markShadows();
+    const extra = hit ? ` · overlaps ${hit}` : (clearMin < 2.5 ? ` · clear ${clearMin.toFixed(2)} m` : '');
+    $('selpos').textContent = `${sel.id} · moved ${dx.toFixed(2)}, ${dy.toFixed(2)} m${extra}`; return; }
+  if (state.moveMode && ev.pointerType === 'mouse' && !ev.buttons) renderer.domElement.style.cursor = measureMode ? 'crosshair' : (pick(ev) ? 'grab' : ''); });
+function endDrag(ev) { if (!drag || ev.pointerId !== drag.id) return; const d = drag; drag = null; controls.enabled = true; renderer.domElement.style.cursor = measureMode ? 'crosshair' : 'grab';
+  guideX.visible = guideZ.visible = false; state.dirty = true;
   try { renderer.domElement.releasePointerCapture(ev.pointerId); } catch (e) {}
   const dx = r2(d.dx), dy = r2(d.dy);
   if (d.moved && (dx || dy)) { if (sel.kind === 'item') edit(() => d.mv.move(dx, dy), { item: sel.id }); else edit(() => moveWall(wallOf(sel.id), d.axis === 'x' ? dx : dy)); }
-  else { d.objs.forEach((o, i) => o.position.copy(d.home[i])); markShadows(); }
+  else { d.objs.forEach((o, i) => o.position.copy(d.home[i])); boxes.forEach(b => b.material.color.setHex(sel?.kind === 'wall' ? 0xc4552f : 0x2f6fd8)); markShadows(); }
   if (photoWasOn) { photoWasOn = false; setPhoto(true); } }
 renderer.domElement.addEventListener('pointerup', endDrag); renderer.domElement.addEventListener('pointercancel', endDrag);
 addEventListener('keydown', ev => { if (!state.moveMode || ev.isComposing || ev.keyCode === 229) return;
+  if (ev.key === 'Escape' && measureMode) { ev.preventDefault(); setMeasure(false); return; }
   if (ev.key === 'Escape' && sel) { ev.preventDefault(); select(null); $('move')?.focus(); return; }
   const act = document.activeElement, tag = act?.tagName || '';
   if (/INPUT|SELECT|TEXTAREA|BUTTON|SUMMARY|A/.test(tag) || act?.isContentEditable) return;

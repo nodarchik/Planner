@@ -20,7 +20,7 @@ renderer.setPixelRatio(DPR);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.shadowMap.autoUpdate = false; // sun shadows are re-rendered only when markShadows() says the scene or sun changed
-export const markShadows = () => { renderer.shadowMap.needsUpdate = true; };
+export const markShadows = () => { renderer.shadowMap.needsUpdate = true; state.dirty = true; };
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.0;
 renderer.domElement.setAttribute('role', 'img');
@@ -32,6 +32,7 @@ export const camera = new PhysicalCamera(40, 1, 0.05, 200); camera.filmGauge = 3
 export const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.dampingFactor = 0.08;
+controls.addEventListener('change', () => { state.dirty = true; });
 
 // root group for everything in the apartment; movables = named furniture groups (drag, resize, restyle)
 export const world = new THREE.Group(); scene.add(world);
@@ -61,4 +62,5 @@ export const state = {
   leaveWalk: null, // set by ui/walk.js: Photo, Cut and Edit plan switching on call it
   planVer: 0, // bumped on every rebuild; walk collision data follows it
   sel: null,
+  dirty: true,
 };

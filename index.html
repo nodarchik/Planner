@@ -116,7 +116,7 @@
   </details>
 </section>
 <section class="chatpanel" id="chatpanel" aria-label="Assistant" hidden>
-  <div class="chathead"><h2 class="panel-title">Assistant</h2><select id="chatmodel" aria-label="Model" title="Model for the next request"></select><button id="chatnew" type="button" title="Clear this conversation on all devices (the plan keeps its edits)">New chat</button><button id="chatclose" type="button" aria-label="Close assistant" title="Close assistant (Esc)">✕</button></div>
+  <div class="chathead"><h2 class="panel-title">Assistant</h2><select id="chatmodel" aria-label="Model" title="Model for the next request"></select><button id="chatundo" type="button" disabled title="Undo the last plan edit">Undo</button><button id="chatnew" type="button" title="Clear this conversation on all devices (the plan keeps its edits)">New chat</button><button id="chatclose" type="button" aria-label="Close assistant" title="Close assistant (Esc)">✕</button></div>
   <div class="chatlog" id="chatlog" aria-live="polite"></div>
   <form class="chatpw" id="chatpw" hidden>
     <label class="sr-only" for="chatpwinput">Chat password</label>
@@ -136,6 +136,8 @@
     <select id="addType" class="sel" aria-label="Item to add"></select><button id="addBtn" type="button">Add</button>
     <button id="undoBtn" type="button" title="Undo (Ctrl+Z)">Undo</button><button id="redoBtn" type="button" title="Redo (Ctrl+Shift+Z)">Redo</button>
     <button id="resetPlan" type="button">Reset to published</button>
+    <select id="planSlot" class="sel" aria-label="Layout variant"><option value="">Slot: Current</option><option value="a">Variant A</option><option value="b">Variant B</option><option value="c">Variant C</option></select><button id="saveSlot" type="button" title="Save current plan into variant slot">Save slot</button>
+    <button id="measureBtn" type="button" aria-pressed="false" title="Click two points in 3D to measure distance">Measure</button>
     <button id="exportPlan" type="button">Export JSON</button><button id="importPlan" type="button">Import JSON</button><input id="importFile" type="file" accept=".json,application/json" hidden>
     <button id="copyChanges" type="button">Copy changes</button><span class="status" id="changeCount" role="status" aria-live="polite"></span>
     <textarea id="changeText" rows="4" readonly hidden aria-label="Change summary"></textarea>

@@ -39,7 +39,7 @@ function ptGlass(on) { for (const [k, op] of Object.entries(GLASS)) { const m = 
   ptMats(on); }
 // day sky 3x stronger in Photo: the room is lit only through the windows, the raster view gets unoccluded sky light everywhere
 export function ptSetScene() { ptMats(true); lens(); scene.environmentIntensity = state.night ? 1 : 3; state.pt.setScene(scene, camera); }
-export function rebuildPT() { if (state.photo) state.ptDirty = true; }
+export function rebuildPT() { state.dirty = true; if (state.photo) state.ptDirty = true; }
 // 2560 × 1440 still of the current view: path-trace off the page size to `samples`, then download a PNG (or resolve a data URL for window.__still)
 const STILL = { w: 2560, h: 1440, samples: 96 }, stillBtn = document.getElementById('still');
 let still = null;
@@ -48,9 +48,10 @@ function startStill(o = {}) { if (!state.photo || !state.pt || still) return fal
   still = { pr: renderer.getPixelRatio(), size: renderer.getSize(new V2()), aspect: camera.aspect, scale: state.pt.renderScale, w: o.w || STILL.w, h: o.h || STILL.h, samples: o.samples || STILL.samples, resolve: o.resolve, reject: o.reject };
   renderer.setPixelRatio(1); renderer.setSize(still.w, still.h, false); camera.aspect = still.w / still.h; camera.updateProjectionMatrix(); state.pt.renderScale = 1; if (state.focal) { camera.fov = focalFov(state.focal, camera.aspect); camera.updateProjectionMatrix(); } ptCamera(); stillBtn.textContent = 'Rendering…'; return true; }
 // called by the render loop right after a path-traced sample, while the frame is still in the canvas
-export function stillTick() { if (!still) return false; window.__stillSamples = Math.floor(state.pt.samples); statusEl.textContent = `Still · ${window.__stillSamples} / ${still.samples} samples`; if (state.pt.samples < still.samples) return true;
-  const s = still, url = renderer.domElement.toDataURL('image/png'); endStill();
-  if (s.resolve) s.resolve(url); else { const a = document.createElement('a'); a.href = url; a.download = `palace1-${document.getElementById('view').value}-${s.w}x${s.h}.png`; a.click(); }
+export function stillTick() { if (!still) return false; if (still.saving) return true; window.__stillSamples = Math.floor(state.pt.samples); statusEl.textContent = `Still · ${window.__stillSamples} / ${still.samples} samples`; if (state.pt.samples < still.samples) return true;
+  const s = still, view = document.getElementById('view').value;
+  if (s.resolve) { const url = renderer.domElement.toDataURL('image/png'); endStill(); s.resolve(url); }
+  else { s.saving = true; renderer.domElement.toBlob(blob => { if (still === s) endStill(); if (!blob) return; const url = URL.createObjectURL(blob), a = document.createElement('a'); a.href = url; a.download = `palace1-${view}-${s.w}x${s.h}.png`; a.click(); setTimeout(() => URL.revokeObjectURL(url), 5000); }, 'image/png'); }
   return true; }
 stillBtn.onclick = () => startStill();
 // scripted still (tools/stills.py): resolves with a PNG data URL, then restores view, mood and Photo state

@@ -59,7 +59,9 @@ canvas{display:block;touch-action:none}
 .panel-title{margin:0;font:700 0.75rem var(--f-display);letter-spacing:.02em}
 .selpanel .pos{font:0.75rem var(--f-mono);color:var(--muted);font-variant-numeric:tabular-nums}
 .selpanel .row{display:flex;flex-wrap:wrap;gap:6px}
-.selpanel button,.editbar button,.chatpanel button{font:600 0.6875rem var(--f-mono);letter-spacing:.04em;min-height:28px;padding:6px 10px;border:1px solid var(--line);border-radius:999px;background:var(--panel);color:var(--fg);cursor:pointer}
+.selpanel button,.editbar button,.chatpanel button,.fix-btn{font:600 0.6875rem var(--f-mono);letter-spacing:.04em;min-height:28px;padding:6px 10px;border:1px solid var(--line);border-radius:999px;background:var(--panel);color:var(--fg);cursor:pointer}
+.fix-btn{justify-self:start}
+#measureBtn[aria-pressed="true"]{background:var(--dim);color:var(--accent-fg);border-color:var(--dim)}
 .selpanel .note{font:0.6875rem var(--f-mono);color:var(--muted)}
 .parts{display:grid;gap:12px;border-top:1px solid var(--line);padding-top:10px}
 .sizebox{display:grid;gap:6px;border-top:1px solid var(--line);padding-top:10px}
@@ -79,6 +81,7 @@ canvas{display:block;touch-action:none}
 .sws input[type=color]{width:32px;height:28px;min-width:24px;min-height:24px;padding:0;border:1px solid var(--line);border-radius:6px;background:none;cursor:pointer}
 .layouts{position:fixed;z-index:4;right:max(16px,env(safe-area-inset-right,0px));top:calc(112px + env(safe-area-inset-top,0px));width:min(300px,calc(100dvw - 32px));
   max-height:calc(100dvh - 200px);overflow:auto;overscroll-behavior:contain;background:color-mix(in srgb,var(--panel) 94%,transparent);border:1px solid var(--line);border-radius:14px;padding:12px 14px;backdrop-filter:blur(10px);font:0.75rem/1.4 var(--f-mono);contain:layout style}
+@media (min-width:1220px){body:has(.selpanel:not([hidden])) .layouts{right:calc(max(16px,env(safe-area-inset-right,0px)) + 312px)}}
 .layouts .list{display:grid;gap:8px;margin-top:10px}
 .layouts .note{display:grid;gap:3px}
 .layouts tr.chk{cursor:pointer}
@@ -106,8 +109,8 @@ canvas{display:block;touch-action:none}
 .sunctl input[type=range]{width:120px;min-height:24px}
 .chatpanel{position:fixed;z-index:6;left:max(16px,env(safe-area-inset-left,0px));bottom:calc(72px + env(safe-area-inset-bottom,0px));width:min(360px,calc(100dvw - 32px));max-height:min(60dvh,560px);display:grid;grid-template-rows:auto 1fr auto auto auto;gap:8px;
   background:color-mix(in srgb,var(--panel) 95%,transparent);border:1px solid var(--line);border-radius:14px;padding:12px 14px;backdrop-filter:blur(10px);font:0.75rem/1.45 var(--f-mono);contain:layout style}
-.chathead{display:flex;align-items:center;gap:6px}
-.chathead select{font:inherit;font-size:0.6875rem;margin-left:auto;max-width:150px;min-height:28px;border:1px solid var(--line);border-radius:999px;background:var(--panel);color:var(--fg);padding:4px 8px}
+.chathead{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.chathead select{font:inherit;font-size:0.6875rem;margin-left:auto;max-width:124px;min-height:28px;border:1px solid var(--line);border-radius:999px;background:var(--panel);color:var(--fg);padding:4px 8px}
 #chatclose{min-width:28px;min-height:28px;padding:4px 8px}
 .chatlog{overflow:auto;overscroll-behavior:contain;display:grid;gap:6px;align-content:start;min-height:80px}
 .msg{white-space:pre-wrap;overflow-wrap:anywhere;padding:6px 8px;border-radius:10px}
@@ -126,11 +129,11 @@ canvas{display:block;touch-action:none}
 .local-badge.chat-local{bottom:3rem}
 
 /* focus states across all controls */
-.seg button:focus-visible,.sel:focus-visible,.selpanel button:focus-visible,.editbar button:focus-visible,.chatpanel button:focus-visible,.chathead select:focus-visible,.sws .sw:focus-visible,.sws input[type=color]:focus-visible,.sizerow input:focus-visible,.fld input:focus-visible,.fld select:focus-visible,.fld textarea:focus-visible,.chatpanel textarea:focus-visible,.chatpanel input:focus-visible,.sunctl input[type=range]:focus-visible,summary:focus-visible,.spec .scroll:focus-visible,.chk-btn:focus-visible,.toast-btn:focus-visible{outline:2px solid var(--fg);outline-offset:2px}
+.seg button:focus-visible,.sel:focus-visible,.selpanel button:focus-visible,.editbar button:focus-visible,.chatpanel button:focus-visible,.chathead select:focus-visible,.fix-btn:focus-visible,.sws .sw:focus-visible,.sws input[type=color]:focus-visible,.sizerow input:focus-visible,.fld input:focus-visible,.fld select:focus-visible,.fld textarea:focus-visible,.chatpanel textarea:focus-visible,.chatpanel input:focus-visible,.sunctl input[type=range]:focus-visible,summary:focus-visible,.spec .scroll:focus-visible,.chk-btn:focus-visible,.toast-btn:focus-visible{outline:2px solid var(--fg);outline-offset:2px}
 summary:focus-visible,.spec .scroll:focus-visible,.chk-btn:focus-visible{border-radius:6px}
 
 @media (hover:hover){
-  .selpanel button:not(:disabled):hover,.editbar button:not(:disabled):hover,.chatpanel button:not(:disabled):hover{border-color:var(--fg)}
+  .selpanel button:not(:disabled):hover,.editbar button:not(:disabled):hover,.chatpanel button:not(:disabled):hover,.fix-btn:not(:disabled):hover{border-color:var(--fg)}
   .layouts tr.chk:hover td{background:color-mix(in srgb,var(--fg) 6%,transparent)}
 }
 
@@ -159,7 +162,7 @@ summary:focus-visible,.spec .scroll:focus-visible,.chk-btn:focus-visible{border-
 
 /* editor & touch devices: bottom sheet, >=44px hit targets */
 @media (max-width:700px),(pointer:coarse){
-  .seg button,.sel,.selpanel button,.editbar button,.chatpanel button,.chathead select,#chatclose,.chips button,.spec summary,.layouts summary,.chk-btn,.toast-btn,.lock{min-height:44px}
+  .seg button,.sel,.selpanel button,.editbar button,.chatpanel button,.chathead select,#chatclose,.chips button,.spec summary,.layouts summary,.chk-btn,.fix-btn,.toast-btn,.lock{min-height:44px}
   .sunctl input[type=range]{min-height:44px}
   .sws .sw{width:44px;height:44px;min-width:44px;min-height:44px}
   .sws input[type=color]{min-width:44px;min-height:44px}
@@ -179,7 +182,7 @@ summary:focus-visible,.spec .scroll:focus-visible,.chk-btn:focus-visible{border-
 @media (max-width:700px),(pointer:coarse){body.walking .joy{display:block}body.walking .spec,body.walking .layouts{display:none}body:has(.chatpanel:not([hidden])) .joy,body:has(.selpanel:not([hidden])) .joy{display:none}}
 
 @media (forced-colors:active){
-  .seg button[aria-pressed="true"],.chips button[aria-pressed="true"],#photo[aria-pressed="true"],#chatBtn[aria-pressed="true"],#move[aria-pressed="true"]{forced-color-adjust:none;background:Highlight;color:HighlightText}
+  .seg button[aria-pressed="true"],.chips button[aria-pressed="true"],#photo[aria-pressed="true"],#chatBtn[aria-pressed="true"],#move[aria-pressed="true"],#measureBtn[aria-pressed="true"]{forced-color-adjust:none;background:Highlight;color:HighlightText}
   .sws .sw{forced-color-adjust:none}
   .sws .sw[aria-pressed="true"]{border:3px solid CanvasText}
   :focus-visible{outline:2px solid Highlight!important;outline-offset:2px}
