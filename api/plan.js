@@ -15,7 +15,7 @@ export function createHandler(b, cfg = PLAN) {
     const r = await b.get(PATH, { access: 'private', useCache: false });
     if (!r || r.statusCode !== 200) return { rev: 0, ...fields({}), etag: null };
     const data = JSON.parse(await new Response(r.stream).text());
-    return { rev: data.rev | 0, ...fields(data), etag: r.blob.etag };
+    return { rev: data.rev | 0, ...fields(data), etag: r.blob.etag.replace(/^W\//, '') }; // the CDN sends a weak W/".." etag for compressed bodies; ifMatch needs the strong one
   }
   const pub = o => ({ rev: o.rev, ...fields(o) });
   return async function handler(req, res) {
