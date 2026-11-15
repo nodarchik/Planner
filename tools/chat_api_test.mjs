@@ -1,5 +1,5 @@
 // Unit check of api/chat.js with a stubbed Anthropic client (no network, no API key). Usage: node tools/chat_api_test.mjs  (exit 1 on failure)
-import { createHandler } from '../api/chat.js';
+import { createHandler, clientOptions } from '../api/chat.js';
 import { CHAT_MODELS, DEFAULT_MODEL } from '../src/chat-models.js';
 
 let fails = 0, sent = null;
@@ -18,4 +18,7 @@ r = await call({ messages: msgs, model: 'claude-opus-4-1' }); check('unknown mod
 r = await call({ messages: msgs, model: 5 }); check('non-string model gives 400', r.code === 400);
 r = await call({ messages: msgs, model: null }); check('null model falls to the default', r.code === 200 && sent.model === DEFAULT_MODEL);
 r = await call({ messages: [] }); check('empty conversation still gives 400', r.code === 400);
+delete process.env.ANTHROPIC_WORKSPACE_ID; check('no workspace header when ANTHROPIC_WORKSPACE_ID is unset', Object.keys(clientOptions()).length === 0);
+process.env.ANTHROPIC_WORKSPACE_ID = ' wrkspc_test '; check('workspace header is sent (trimmed) when ANTHROPIC_WORKSPACE_ID is set', clientOptions().defaultHeaders['anthropic-workspace-id'] === 'wrkspc_test');
+process.env.ANTHROPIC_WORKSPACE_ID = '  '; check('blank ANTHROPIC_WORKSPACE_ID adds no header', Object.keys(clientOptions()).length === 0);
 process.exit(fails ? 1 : 0);

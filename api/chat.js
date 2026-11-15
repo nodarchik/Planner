@@ -119,6 +119,7 @@ export const createHandler = newClient => async function handler(req, res) {
   } catch (error) {
     if (error instanceof Anthropic.AuthenticationError) return bad(res, 500, 'The Anthropic API key was rejected.');
     if (error instanceof Anthropic.RateLimitError) return bad(res, 429, 'Rate limited by the Claude API; try again in a minute.');
+    if (error instanceof Anthropic.BadRequestError && /anthropic-workspace-id/.test(error.message)) return bad(res, 400, 'This API key is not scoped to a workspace: set ANTHROPIC_WORKSPACE_ID in the Vercel project or use a workspace-scoped key.');
     if (error instanceof Anthropic.BadRequestError) return bad(res, 400, 'Claude API rejected the request: ' + error.message);
     if (error instanceof Anthropic.APIConnectionError) return bad(res, 502, 'Could not reach the Claude API.');
     if (error instanceof Anthropic.APIError) return bad(res, 502, `Claude API error ${error.status}: ${error.message}`);
@@ -126,4 +127,7 @@ export const createHandler = newClient => async function handler(req, res) {
   }
 };
 
-export default createHandler(() => new Anthropic());
+// Keys not scoped to a workspace need this header on every request (optional ANTHROPIC_WORKSPACE_ID).
+export const clientOptions = () => { const id = (process.env.ANTHROPIC_WORKSPACE_ID || '').trim(); return id ? { defaultHeaders: { 'anthropic-workspace-id': id } } : {}; };
+
+export default createHandler(() => new Anthropic(clientOptions()));
