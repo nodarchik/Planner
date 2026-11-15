@@ -11,8 +11,9 @@ import { storage } from './storage.js';
 import { bath } from './bath.js';
 import { living } from './living.js';
 import { parts } from './parts.js';
+import { product } from './product.js';
 
-export const BUILDERS = { ...loose, ...hall, ...kitchen, ...storage, ...bath, ...living, ...parts };
+export const BUILDERS = { ...loose, ...hall, ...kitchen, ...storage, ...bath, ...living, ...parts, ...product };
 export const itemGroups = new Map();  // item id → movable groups built for it
 export const itemObjects = new Map(); // item id → every object it added (groups, loose meshes, lights)
 

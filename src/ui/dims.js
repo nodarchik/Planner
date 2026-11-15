@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { V3, scene } from '../scene.js';
 import { H, plan, bbox, area, fmt } from '../plan/plan.js';
 import { itemGroups } from '../items/index.js';
+import { productLabel } from '../plan/products.js';
 
 export const labelsEl = document.getElementById('labels'), labels = [];
 export const dimGroup = new THREE.Group(); scene.add(dimGroup); dimGroup.visible = false;
@@ -51,9 +52,9 @@ export function setupOverlays() {
 // call after the items are built: one label per item that has a "label", size measured from what was built
 export function furnitureLabels() {
   const rows = [];
-  for (const it of plan.items) { if (!it.label) continue; const groups = itemGroups.get(it.id) || []; if (!groups.length) continue;
+  for (const it of plan.items) { const label = it.label || productLabel(it); if (!label) continue; const groups = itemGroups.get(it.id) || []; if (!groups.length) continue;
     const bb = new THREE.Box3(); groups.forEach(g => bb.expandByObject(g)); const s = bb.getSize(new V3()), c = bb.getCenter(new V3()), size = `${fmt(s.x)} × ${fmt(s.z)} × ${fmt(s.y)}`;
-    const L = addLabel(c.x, c.z, bb.max.y + .05, [it.label, elTag('i', size)], 'furn', 'furn'); L.top = bb.max.y + .05; L.grp = groups[0]; L.local = groups[0].worldToLocal(L.p.clone());
-    rows.push([it.label, size]); }
+    const L = addLabel(c.x, c.z, bb.max.y + .05, [label, elTag('i', size)], 'furn', 'furn'); L.top = bb.max.y + .05; L.grp = groups[0]; L.local = groups[0].worldToLocal(L.p.clone());
+    rows.push([label, size]); }
   fillTable('furnTable', ['Item', 'W × D × H (m)'], rows, 'Furniture dimensions');
 }

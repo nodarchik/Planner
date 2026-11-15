@@ -17,6 +17,7 @@ import { discardBroken, pullServer, start as syncStart } from './plan/sync.js';
 import { loadStyle } from './ui/style.js';
 import { showToast } from './ui/toast.js';
 import './ui/chat.js';
+import './products-hook.js';
 import { initFast } from './fast.js';
 import { focalFov, ptCamera, ptSetScene, rebuildPT, stillTick } from './pathtracer.js';
 

@@ -17,6 +17,7 @@ import { setPhoto } from '../pathtracer.js';
 import { CHAT_MODELS, DEFAULT_MODEL } from '../chat-models.js';
 import { load, save, fresh, watch, trim, repair, MAX_LOG, STOP_TEXT } from './chathistory.js';
 import { bindingsInfo } from './bindings.js';
+import { PRODUCTS, productSize } from '../plan/products.js';
 import { setFast } from '../fast.js';
 
 const $ = id => document.getElementById(id), panel = $('chatpanel'), log = $('chatlog'), input = $('chatinput'), sendBtn = $('chatsend');
@@ -32,6 +33,7 @@ const context = () => ['Furniture catalog (type → variant index: design; opts 
   'Built-in item types: ' + Object.keys(BUILDERS).join(', '),
   'Shapes of a "parts" item (size length): ' + Object.entries(SHAPES).map(([k, n]) => `${k} (${n})`).join(', '),
   'Material keys for parts[].material (a part with "color" clones the material and tints it): ' + Object.keys(M).join(', '),
+  'Shop products (item type "product": { id, type:"product", product:<id>, pos:[x,y], rot, color?:"#rrggbb", chaise?:"L"|"R" (cornerSofa), extended?:true (build at the larger width) }; the size comes from the catalog and the label is the title). One line each, metres, "-" = unknown: id|kind|title|w×d×h|color\n' + [...PRODUCTS.values()].map(p => { const s = productSize({ product: p.id }), n = v => v == null ? '-' : v.toFixed(2); return `${p.id}|${p.kind}|${p.title}|${n(s.w)}×${n(s.d)}×${n(p.h)}|${p.color || '-'}`; }).join('\n'),
   'Model ids for items of type "model" or planter.model: ' + Object.entries(MODELS).map(([k, m]) => `${k} (${m.size.map(n => n.toFixed(2)).join(' × ')})`).join(', '),
   'item.look = { partKey: { fin, color } } recolours one part of an item. Part keys and finishes:', ...styleInfo(),
   'Part keys found on the built items, by item type (other designs of a type may differ; a key an item does not have is ignored): ' + Object.entries(keysByType()).map(([t, k]) => `${t}: ${[...k].join(' ')}`).join('; ')].join('\n');
