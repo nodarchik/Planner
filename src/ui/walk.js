@@ -7,7 +7,7 @@ import { setPhoto } from '../pathtracer.js';
 import { applyCut } from './toolbar.js';
 import { setMove } from './editor.js';
 
-const $ = id => document.getElementById(id), EYE = 1.6, RADIUS = .25, SPEED = 1.4, RUN = 2.5, SENS = .0022, PITCH = 1.4, HINT = 'Drag rotate · Right-drag pan · Scroll zoom';
+const $ = id => document.getElementById(id), EYE = 1.6, RADIUS = .25, SPEED = 1.4, RUN = 2.5, SENS = .0022, PITCH = 1.4, HINT = 'W A S D move · Drag rotate · Right-drag pan · Scroll zoom';
 const dom = renderer.domElement, keys = new Set(), joy = [0, 0]; // joy = stick x (right), y (down), each -1..1
 let pos = [0, 0], yaw = 0, pitch = 0, prev = null, rects = [], ver = -1, dirty = false, locked = false;
 

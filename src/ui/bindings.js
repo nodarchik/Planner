@@ -96,9 +96,45 @@ export function runKey(b, repeat) {
   const [k, v] = b.action.split(/:(.*)/s), n = (k === 'pan' ? 40 : 30) * b.speed, d = { left: [-1, 0], right: [1, 0], up: [0, -1], down: [0, 1] }[v];
   if (k === 'pan') pan(d[0] * n, -d[1] * n); else if (k === 'orbit') orbit(d[0] * n, d[1] * n); else if (k === 'zoom') dolly(.9 ** (v === 'in' ? b.speed : -b.speed));
   else if (!repeat && k === 'view') setView(v); else if (!repeat && k === 'toggle') TOGGLE[v](); }
+const WASD = new Set(['KeyW', 'KeyA', 'KeyS', 'KeyD']), wasdHeld = new Set(), wasdPending = new Set(), fwd = new V3();
+let shiftHeld = false;
+const matchKey = (e, ev) => ['shift', 'ctrl', 'alt', 'meta'].every(m => e.mods.includes(m) === ev[m + 'Key']) && (ev.code === e.key || ev.key.toLowerCase() === e.key.toLowerCase());
+const clearWasd = () => { wasdHeld.clear(); wasdPending.clear(); shiftHeld = false; };
+export function orbitKeyStep(dt) {
+  if (state.walk || !controls.enabled || (!wasdHeld.size && !wasdPending.size)) { wasdPending.clear(); return false; }
+  const active = k => wasdHeld.has(k) || wasdPending.has(k);
+  const f = (active('KeyW') ? 1 : 0) - (active('KeyS') ? 1 : 0), s = (active('KeyD') ? 1 : 0) - (active('KeyA') ? 1 : 0);
+  const tapOnly = !wasdHeld.size && wasdPending.size > 0;
+  wasdPending.clear();
+  if (!f && !s) return false;
+  const stepDt = tapOnly ? Math.max(dt, .08) : Math.min(dt, .1);
+  const speed = Math.max(3, camera.position.distanceTo(controls.target) * .7) * (shiftHeld ? 1.8 : 1);
+  const v = speed * stepDt / Math.hypot(f, s);
+  fwd.copy(controls.target).sub(camera.position); fwd.y = 0;
+  if (fwd.lengthSq() < 1e-6) { fwd.copy(camera.up); fwd.y = 0; }
+  if (fwd.lengthSq() < 1e-6) fwd.set(0, 0, -1);
+  fwd.normalize();
+  const dx = (fwd.x * f - fwd.z * s) * v, dz = (fwd.z * f + fwd.x * s) * v;
+  camera.position.x += dx; camera.position.z += dz;
+  controls.target.x += dx; controls.target.z += dz;
+  state.anim = null; state.dirty = true;
+  return true;
+}
 on(window, 'keydown', ev => {
-  if (!keys.length || safe || state.walk || /INPUT|SELECT|TEXTAREA/.test(document.activeElement?.tagName || '') || (state.moveMode && state.sel)) return;
-  const b = keys.find(e => ['shift', 'ctrl', 'alt', 'meta'].every(m => e.mods.includes(m) === ev[m + 'Key']) && (ev.code === e.key || ev.key.toLowerCase() === e.key.toLowerCase())); if (!b || b.action === 'none') return;
-  ev.preventDefault(); runKey(b, ev.repeat); });
+  if (state.walk || ev.isComposing || ev.keyCode === 229) return;
+  const act = document.activeElement;
+  if (/INPUT|SELECT|TEXTAREA/.test(act?.tagName || '') || act?.isContentEditable) return;
+  shiftHeld = ev.shiftKey;
+  const b = !safe && keys.length ? keys.find(e => matchKey(e, ev)) : null;
+  if (b && !(state.moveMode && state.sel)) { if (b.action !== 'none') { ev.preventDefault(); runKey(b, ev.repeat); } return; }
+  if (WASD.has(ev.code) && !ev.ctrlKey && !ev.metaKey && !ev.altKey) {
+    ev.preventDefault(); wasdHeld.add(ev.code);
+    if (!ev.repeat) wasdPending.add(ev.code);
+    state.dirty = true;
+  }
+});
+on(window, 'keyup', ev => { wasdHeld.delete(ev.code); shiftHeld = ev.shiftKey; });
+on(window, 'blur', clearWasd);
+on(document, 'visibilitychange', clearWasd);
 
 window.__bindings = { get table() { return table; }, get safe() { return safe; }, get listeners() { return nListeners; }, get cam() { return camera.position.toArray(); }, get target() { return controls.target.toArray(); }, get native() { return { mouse: { ...controls.mouseButtons }, touch: { ...controls.touches }, zoom: controls.enableZoom }; } }; // test hook

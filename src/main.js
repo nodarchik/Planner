@@ -11,6 +11,7 @@ import { labels } from './ui/dims.js';
 import { applySun, loadSky } from './ui/toolbar.js';
 import { setView } from './ui/views.js';
 import { step as walkStep } from './ui/walk.js';
+import { orbitKeyStep } from './ui/bindings.js';
 import { discardEdits, hasEdits, loadEdits, reselect } from './ui/editor.js';
 import { discardBroken, pullServer, start as syncStart } from './plan/sync.js';
 import { loadStyle } from './ui/style.js';
@@ -50,7 +51,9 @@ function tick(now) {
     if (state.photo && state.pt) ptCamera();
   }
   const dt = (now - last) / 1000; last = now;
-  const moved0 = state.walk ? walkStep(dt) : controls.update() || !!state.anim;
+  const keysMoved = !state.walk && orbitKeyStep(dt);
+  if (keysMoved && state.photo && state.pt) ptCamera();
+  const moved0 = state.walk ? walkStep(dt) : controls.update() || keysMoved || !!state.anim;
   const inside = camera.position.y < H - .05 && camera.position.x > ROOF[0] && camera.position.x < ROOF[2] && camera.position.z > ROOF[1] && camera.position.z < ROOF[3];
   const fov = state.photo && state.focal ? focalFov(state.focal, camera.aspect) : (inside || state.walk ? 62 : 42) + (innerWidth < 600 ? 14 : 0);
   if (Math.abs(camera.fov - fov) > .01) {

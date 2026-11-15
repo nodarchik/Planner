@@ -260,7 +260,7 @@ function pickPoint(ev) {
 
 /* ---------- edit mode, dragging with snapping, keyboard ---------- */
 export function setMove(on) { if (on) state.leaveWalk?.(); state.moveMode = on; $('move').setAttribute('aria-pressed', on); bar.hidden = !on;
-  hintEl.textContent = on ? 'Click an item or wall to edit its values · drag to move (snaps to walls, items, 5 cm; Shift = free) · drag empty space to orbit' : 'Drag rotate · Right-drag pan · Scroll zoom';
+  hintEl.textContent = on ? 'Click an item or wall to edit its values · drag to move (snaps to walls, items, 5 cm; Shift = free) · drag empty space to orbit' : 'W A S D move · Drag rotate · Right-drag pan · Scroll zoom';
   if (!on) { setMeasure(false); select(null); } updateBar(); renderer.domElement.style.cursor = ''; }
 $('move').onclick = () => setMove(!state.moveMode);
 let drag = null, photoWasOn = false;
