@@ -100,11 +100,13 @@ function runTool(block) {
     const r = editHistory(action, steps), msg = r.steps ? `${action}: ${r.steps} step${r.steps > 1 ? 's' : ''}\n${r.lines.join('\n') || 'no net change'}` : `Nothing to ${action === 'reset' ? 'reset: the plan equals the published one' : action}.`;
     say('note', msg); return { type: 'tool_result', tool_use_id: block.id, content: JSON.stringify({ steps_done: r.steps, changes: r.lines, undo_left: r.left.undo, redo_left: r.left.redo, note: r.steps ? undefined : msg }) }; }
   if (block.name !== 'apply_changes') return { type: 'tool_result', tool_use_id: block.id, is_error: true, content: 'unknown tool' };
-  const before = JSON.parse(JSON.stringify(plan)), err = tryEdit(() => applyBatch(block.input.changes || []));
+  const fmtCheck = c => `${c.severity}: ${c.item} — ${c.check}: ${c.value} (required ${c.required})`;
+  const before = JSON.parse(JSON.stringify(plan)), beforeChecks = new Set(runChecks(before).filter(c => c.severity !== 'ok').map(fmtCheck));
+  const err = tryEdit(() => applyBatch(block.input.changes || []));
   if (err) { say('note error', 'Rejected: ' + err); return { type: 'tool_result', tool_use_id: block.id, is_error: true, content: 'Batch rejected, plan unchanged: ' + err }; }
-  const lines = describe(before, plan), findings = runChecks(plan).filter(c => c.severity !== 'ok').map(c => `${c.severity}: ${c.item} — ${c.check}: ${c.value} (required ${c.required})`);
+  const lines = describe(before, plan), findings = runChecks(plan).filter(c => c.severity !== 'ok').map(fmtCheck), newFindings = findings.filter(f => !beforeChecks.has(f));
   say('note', lines.length ? lines.join('\n') : 'No change.');
-  return { type: 'tool_result', tool_use_id: block.id, content: JSON.stringify({ applied: lines, checks_not_passing: findings }) };
+  return { type: 'tool_result', tool_use_id: block.id, content: JSON.stringify({ applied: lines, checks_not_passing: findings, new_checks_not_passing: newFindings }) };
 }
 async function post(messages) {
   const headers = { 'content-type': 'application/json' }; let pw = null; try { pw = localStorage.getItem(PWKEY); } catch (e) {} if (pw) headers['x-chat-password'] = pw;

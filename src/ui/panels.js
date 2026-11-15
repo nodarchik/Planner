@@ -28,13 +28,22 @@ function resolveWarnings() {
     const basin = byId('basin-wc');
     if (basin && basin.depth > 0.30) basin.depth = 0.30;
     const coffee = byId('coffee-living');
-    if (coffee && Array.isArray(coffee.pos) && coffee.pos[0] > 12.40) {
-      const dx = 12.40 - coffee.pos[0];
-      coffee.pos = [12.40, coffee.pos[1]];
+    if (coffee && Array.isArray(coffee.pos) && (coffee.pos[0] > 12.40 || coffee.pos[1] > 1.50)) {
+      const nx = Math.min(coffee.pos[0], 12.40), ny = Math.min(coffee.pos[1], 1.50);
+      const dx = nx - coffee.pos[0], dy = ny - coffee.pos[1];
+      coffee.pos = [r2(nx), r2(ny)];
       for (const decoId of ['bowl-coffee', 'books-coffee']) {
         const d = byId(decoId);
-        if (d && Array.isArray(d.pos)) d.pos = [r2(d.pos[0] + dx), d.pos[1]];
+        if (d && Array.isArray(d.pos)) d.pos = [r2(d.pos[0] + dx), r2(d.pos[1] + dy)];
       }
+    }
+    const armchair = byId('armchair-living');
+    if (armchair && Array.isArray(armchair.pos) && armchair.pos[1] < 3.15) {
+      armchair.pos = [armchair.pos[0], 3.15];
+    }
+    const plant = byId('plant-fig');
+    if (plant && Array.isArray(plant.pos) && plant.pos[1] < 3.75) {
+      plant.pos = [plant.pos[0], 3.75];
     }
     const closet = byId('closet-b1');
     if (closet && closet.unitDepth > 0.30) closet.unitDepth = 0.30;
