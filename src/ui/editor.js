@@ -185,7 +185,7 @@ async function copyChanges() { const lines = describe(PUBLISHED, plan), text = l
   const base = ok ? 'copied' : 'select and copy';
   $('changeCount').textContent = (copyTick++ % 2) ? base + '\u00A0' : base; }
 $('rotL').onclick = ev => rotate(ev.shiftKey ? -15 : -90); $('rotR').onclick = ev => rotate(ev.shiftKey ? 15 : 90);
-$('dupBtn').onclick = duplicate; $('delBtn').onclick = remove; $('selDone').onclick = () => { select(null); $('move')?.focus(); }; $('addBtn').onclick = addItem;
+$('dupBtn').onclick = duplicate; $('delBtn').onclick = remove; $('selDone').onclick = () => { select(null); $('move')?.focus(); }; $('addBtn').onclick = addItem; $('shopBtn').onclick = () => openPicker(addProduct);
 $('undoBtn').onclick = undo; $('redoBtn').onclick = redo;
 $('resetPlan').onclick = () => { if (isEmpty(diffPlan(PUBLISHED, plan))) return; if (syncActive() && !confirm('Reset to the published plan? This resets the plan on all devices.')) return; resetPlan(); };
 $('exportPlan').onclick = () => download('palace1.json', JSON.stringify(plan, null, 1));

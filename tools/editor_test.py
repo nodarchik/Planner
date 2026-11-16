@@ -67,6 +67,7 @@ async def main():
         await pg.fill('#pickQ', 'NIGHTSTAND montana'); rows = await ev("document.querySelectorAll('#pickList .pick-row').length"); check('search matches while typing', 0 < rows < 30, rows)
         await pg.select_option('#pickKind', 'sofa'); check('kind filter combines with search', await ev("document.querySelectorAll('#pickList .pick-row').length") == 0)
         await pg.select_option('#pickKind', ''); await pg.keyboard.press('Escape'); check('Esc closes the picker', await ev("document.getElementById('picker').hidden") and await ev("__editor.plan.items.length") == n1)
+        await pg.click('#shopBtn'); check('Shop product button opens the picker', await ev("!document.getElementById('picker').hidden")); await pg.keyboard.press('Escape')
         await pg.click('#addBtn'); await pg.fill('#pickQ', 'nightstand montana'); first = await ev("+document.querySelector('#pickList .pick-row').dataset.id"); await pg.press('#pickQ', 'Enter')
         it = await ev("__editor.plan.items[__editor.plan.items.length - 1]"); check('Enter adds the first result', it['type'] == 'product' and it['product'] == first and await ev("__editor.plan.items.length") == n1 + 1, it)
         check('product panel shows title and Change', await ev("!!document.getElementById('prodChange') && document.getElementById('selfields').textContent.includes('Nightstand Montana')"))
