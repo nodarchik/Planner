@@ -35,11 +35,11 @@ export const MODELS = {
   modern_ceiling_lamp_01: { name: 'Ceiling lamp', size: [.43, .43, .95] }
 };
 const draco = new DRACOLoader().setDecoderPath(BASE + 'draco/'), gltf = new GLTFLoader().setDRACOLoader(draco), cache = new Map();
-function template(id) {
+function template(id, path = `assets/models/${id}.glb`) {
   if (OFF) return Promise.reject(new Error('assets are disabled in this build'));
-  if (!cache.has(id)) {
+  if (!cache.has(path)) {
     begin();
-    cache.set(id, gltf.loadAsync(`${BASE}assets/models/${id}.glb`).then(g => {
+    cache.set(path, gltf.loadAsync(BASE + path).then(g => {
       g.scene.traverse(o => {
         if (o.geometry) o.geometry.userData.shared = true;
         if (o.material) [].concat(o.material).forEach(m => { m.userData.shared = true; });
@@ -47,20 +47,20 @@ function template(id) {
       return g.scene;
     }).finally(end));
   }
-  return cache.get(id);
+  return cache.get(path);
 }
 // a fresh instance standing on y = 0, centred on its footprint, front towards −z; width (m) rescales it uniformly
-export async function instance(id, width) {
-  const src = await template(id), obj = src.clone(true), box = new THREE.Box3().setFromObject(obj), c = box.getCenter(new THREE.Vector3()), wrap = new THREE.Group();
+export async function instance(id, width, o = {}) { // o.path: other glb file, o.rot: yaw degrees, o.size [w, d, h]: exact box (per-axis scale)
+  const src = await template(id, o.path), obj = src.clone(true); if (o.rot) obj.rotation.y = o.rot * Math.PI / 180; const box = new THREE.Box3().setFromObject(obj), c = box.getCenter(new THREE.Vector3()), wrap = new THREE.Group();
   obj.position.sub(new THREE.Vector3(c.x, box.min.y, c.z)); wrap.add(obj); wrap.rotation.y = Math.PI;
-  const k = width ? width / (box.max.x - box.min.x) : 1, out = new THREE.Group(); wrap.scale.setScalar(k); out.add(wrap);
+  const k = width ? width / (box.max.x - box.min.x) : 1, out = new THREE.Group(); wrap.scale.setScalar(k); if (o.size) wrap.scale.set(o.size[0] / (box.max.x - box.min.x), o.size[2] / (box.max.y - box.min.y), o.size[1] / (box.max.z - box.min.z)); out.add(wrap);
   out.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
   return out;
 }
 // replace the placeholder content of a group with a model once it has loaded; the group keeps its position, rotation and name
 export function swapIn(g, id, opts = {}) {
-  instance(id, opts.width).then(obj => { if (!g.parent) return; // the item was rebuilt or deleted meanwhile
-    disposeObject(g, textured); g.clear(); if (opts.pos) g.position.set(opts.pos[0], 0, opts.pos[1]); obj.position.y = opts.h || 0; g.add(obj); g.updateMatrixWorld(true);
+  instance(id, opts.width, opts).then(obj => { if (!g.parent) return; // the item was rebuilt or deleted meanwhile
+    disposeObject(g, textured); g.clear(); if (opts.size) g.scale.set(1, 1, 1); if (opts.pos) g.position.set(opts.pos[0], 0, opts.pos[1]); obj.position.y = opts.h || 0; g.add(obj); g.updateMatrixWorld(true);
     const bb = new THREE.Box3().setFromObject(obj); g.userData.size = bb.getSize(new THREE.Vector3()); g.userData.minY0 = bb.min.y; g.userData.model = id;
     g.traverse(o => { if (o.isMesh) { const b = new THREE.Box3().setFromObject(o); o.userData.minY = b.min.y; o.userData.maxY = b.max.y; } });
     markShadows(); fastSync(); window.dispatchEvent(new CustomEvent('modelswap', { detail: g })); }).catch(err => { if (!OFF) console.warn(`model ${id} not loaded; keeping the placeholder`, err); });

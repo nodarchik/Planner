@@ -4,6 +4,7 @@ import { camera, controls, markShadows, scene, state } from './scene.js';
 import { plan } from './plan/plan.js';
 import { rebuildItem } from './build.js';
 import { itemGroups } from './items/index.js';
+import MODELS from './plan/comforter-models.json';
 import { PRODUCTS, ensureProducts, productSize } from './plan/products.js';
 
 const ids = new Set(); let ground = null, bg = null;
@@ -17,7 +18,7 @@ window.__products = {
   list: () => (PRODUCTS.size ? mapList() : ensureProducts().then(mapList)),
   // build one product at the origin, return its measured box [w, d, h] and remove it
   async build(product, extra = {}) { await ensureProducts(); const it = mk('b', product, [0, 0], extra); plan.items.push(it); ids.add(it.id);
-    try { rebuildItem(it.id, true); const r = measure(it.id); return r; } finally { drop(); } },
+    try { const sw = MODELS[product] && new Promise(r => { window.addEventListener('modelswap', r, { once: true }); setTimeout(r, 5000); }); rebuildItem(it.id, true); if (sw) await sw; const r = measure(it.id); return { ...r, hasModel: !!MODELS[product], modelLoaded: (itemGroups.get(it.id) || [])[0]?.userData.model === product }; } finally { drop(); } },
   // contact sheet: products in one row outside the apartment on a neutral floor, camera in front
   async sheet(list, gap = .35) { await ensureProducts(); drop(); const X0 = 400, items = list.map(id => ({ id, s: productSize({ product: id }) }));
     const total = items.reduce((a, o) => a + o.s.w + gap, -gap); let x = X0 - total / 2, deep = 0;
