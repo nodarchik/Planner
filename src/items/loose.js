@@ -13,7 +13,7 @@ import { artAt, curtain, diningDecor, livingRug } from '../furniture/decor.js';
 import { faceCoord, frameSpec } from '../plan/plan.js';
 import { framed, group, mat } from './util.js';
 
-const PLANTS = { fig, olive, snake }, ART = { art1: art1Tex, art2: art2Tex };
+const PLANTS = { fig, olive, snake }, artTex = k => (k === 'art2' ? art2Tex : art1Tex);
 
 export const loose = {
   curtain(it) { const sp = frameSpec(it), [h1, h2] = it.h || [.02, 2.74]; curtain(sp.axis, sp.back, it.from, it.to, h1, h2, mat(it.material, 'sheer')); },
@@ -31,7 +31,7 @@ export const loose = {
   nightstand(it) { group(it, () => nightstand(...it.pos), it.name || 'Nightstand'); },
   wallArt(it) { const { F, L } = framed(it), [h1, h2] = it.h, dp = it.depth || .035, flipU = it.side === 'N' || it.side === 'E';
     group(it, () => { F.B(0, 0, L, dp, h1, h2, M.oakFurn); F.B(.03, dp, L - .03, dp + .002, h1 + .03, h2 - .03, M.paper);
-      F.B(.09, dp + .002, L - .09, dp + .003, h1 + .09, h2 - .09, artAt(ART[it.image], it.from + .09, h1 + .09, L - .18, h2 - h1 - .18, flipU)); }); },
+      F.B(.09, dp + .002, L - .09, dp + .003, h1 + .09, h2 - .09, artAt(artTex(it.image), it.from + .09, h1 + .09, L - .18, h2 - h1 - .18, flipU)); }); },
   rug(it) { const [h1, h2] = it.h || [0, .012]; group(it, () => RB(...it.rect, h1, h2, it.radius ?? .05, mat(it.material, 'rug'), { cast: false })); },
   organicRug(it) { livingRug(...it.center, it.rx, it.ry); },
   light(it) { lamp(it.pos[0], it.pos[1], it.h, itemLight(it)); },

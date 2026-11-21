@@ -17,7 +17,7 @@ import { setPhoto } from '../pathtracer.js';
 import { CHAT_MODELS, DEFAULT_MODEL } from '../chat-models.js';
 import { load, save, fresh, watch, trim, repair, MAX_LOG, STOP_TEXT } from './chathistory.js';
 import { bindingsInfo } from './bindings.js';
-import { PRODUCTS, productSize } from '../plan/products.js';
+import { PRODUCTS, ensureProducts, productSize } from '../plan/products.js';
 import { setFast } from '../fast.js';
 
 const $ = id => document.getElementById(id), panel = $('chatpanel'), log = $('chatlog'), input = $('chatinput'), sendBtn = $('chatsend');
@@ -121,7 +121,7 @@ async function post(messages) {
 }
 async function send() { const text = input.value.trim(); if (!text || busy) return; await ready; if (busy) return; busy = true; sendBtn.disabled = $('chatmodel').disabled = true; input.value = '';
   const pre = [add('user', text), add('note', 'Thinking…')]; // shown at once; the check below can take up to 2 s
-  const other = await fresh(); pre.forEach(n => n.remove()); if (other) { other.commit(); restore(other.data); say('note', 'Chat updated from another device.', false); } // another device changed the chat since this one loaded
+  const [other] = await Promise.all([fresh(), ensureProducts()]); pre.forEach(n => n.remove()); if (other) { other.commit(); restore(other.data); say('note', 'Chat updated from another device.', false); } // another device changed the chat since this one loaded
   say('user', text);
   const cut = trim(history); if (cut !== history) { history = cut; synced = null; } // oldest turns dropped near the server limits
   let content = text;
@@ -154,7 +154,7 @@ function setChatOpen(open) {
   panel.hidden = !open;
   const btn = $('chatBtn');
   if (btn) { btn.setAttribute('aria-pressed', String(open)); btn.setAttribute('aria-expanded', String(open)); }
-  if (open) input.focus();
+  if (open) { ensureProducts(); input.focus(); }
 }
 
 if ($('chatBtn')) { const off = !!import.meta.env.VITE_NO_ASSETS; $('chatBtn').hidden = off; $('chatBtn').setAttribute('aria-controls', 'chatpanel'); $('chatBtn').setAttribute('aria-expanded', String(!panel.hidden));

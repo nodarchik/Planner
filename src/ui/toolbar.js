@@ -5,7 +5,10 @@ import { plan } from '../plan/plan.js';
 import { emissives } from '../materials.js';
 import { bloom, composer } from '../post.js';
 import { dimGroup } from './dims.js';
-import { rebuildPT } from '../pathtracer.js';
+import { ptCamera, rebuildPT } from '../pathtracer.js';
+
+const gf = document.getElementById('gfonts');
+if (gf) { const on = () => { gf.media = 'all'; }; if (gf.sheet) on(); else gf.addEventListener('load', on, { once: true }); }
 
 /* ================= modes ================= */
 
@@ -48,7 +51,7 @@ function resize() {
   const w = innerWidth, h = innerHeight;
   renderer.setSize(w, h); composer.setPixelRatio(renderer.getPixelRatio()); composer.setSize(w, h);
   camera.aspect = w / h; camera.updateProjectionMatrix();
-  if (state.photo && state.pt) state.pt.updateCamera();
+  if (state.photo && state.pt) ptCamera();
 }
 addEventListener('resize', resize); resize();
 { const sp = document.getElementById('spec'), ly = document.getElementById('layouts'), narrow = () => innerWidth <= 700;
@@ -59,13 +62,13 @@ addEventListener('resize', resize); resize();
 const SUNKEY = 'palace1-sun-v1', MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const sunTime = document.getElementById('sunTime'), sunMonth = document.getElementById('sunMonth'), sunInfo = document.getElementById('sunInfo');
 const fmtHour = h => { const hh = Math.floor(h), mm = Math.round((h - hh) * 60); return `${hh}:${String(mm).padStart(2, '0')}`; };
-MONTHS.forEach((m, i) => sunMonth.add(new Option(m, i + 1)));
+if (!sunMonth.options.length) MONTHS.forEach((m, i) => sunMonth.add(new Option(m, i + 1)));
 export function applySun(save) { const month = +sunMonth.value, hour = +sunTime.value, s = setSun(month, hour), t = fmtHour(hour);
   sunTime.setAttribute('aria-valuetext', t);
   sunInfo.textContent = `${t} · sun ${s.el > 0 ? `${Math.round(s.az)}° / ${Math.round(s.el)}° up` : 'down'}${plan.meta.north === null ? ' · north not set' : ''}`;
   if (save) { try { localStorage.setItem(SUNKEY, JSON.stringify({ month, hour })); } catch (e) {} }
   setMood(state.night); }
-{ let d = plan.meta.sun; try { d = JSON.parse(localStorage.getItem(SUNKEY) || 'null') || d; } catch (e) {} sunMonth.value = d.month; sunTime.value = d.hour; sunTime.setAttribute('aria-valuetext', fmtHour(d.hour)); setSun(d.month, d.hour); }
+{ let d = plan.meta.sun; try { d = JSON.parse(localStorage.getItem(SUNKEY) || 'null') || d; } catch (e) {} sunMonth.value = d.month; sunTime.value = d.hour; sunTime.setAttribute('aria-valuetext', fmtHour(d.hour)); }
 sunTime.oninput = () => applySun(true); sunMonth.onchange = () => applySun(true);
 export function loadSky() { loadSkyHDR().then(t => { useHDRI(t); applySun(false); }).catch(() => {}); } // without the HDRI the procedural sky stays
 

@@ -1,7 +1,6 @@
 import * as THREE from 'three';
 import { H, bbox, plan } from './plan/plan.js';
 import { MOBILE, V3, markShadows, scene, state, world } from './scene.js';
-import { RectAreaLightUniformsLib } from 'three/examples/jsm/lights/RectAreaLightUniformsLib.js';
 import { fastLights } from './fast.js';
 import { isWindowless, kelvin, kindOf, pointCd, stripNits } from './lights.js';
 
@@ -22,23 +21,33 @@ export function sunDirection(month, hour) { const { az, el } = solar(plan.meta.s
   return { az, el, dir: new V3(Math.sin(t) * Math.cos(e), Math.sin(e), -Math.cos(t) * Math.cos(e)) }; }
 
 /* ================= sky (equirectangular, shared by raster + path tracer) ================= */
-const SUN_DIR = new V3(0, 1, 0);
+const SUN_DIR = new V3(0, 1, 0), SKY_W = 512, SKY_H = 256;
+const COS_PHI = Float32Array.from({ length: SKY_W }, (_, i) => Math.cos(((i + .5) / SKY_W - .5) * 2 * Math.PI));
+const SIN_PHI = Float32Array.from({ length: SKY_W }, (_, i) => Math.sin(((i + .5) / SKY_W - .5) * 2 * Math.PI));
 function makeSky(night) {
-  const W = 512, Hh = 256, data = new Float32Array(W * Hh * 4), up = Math.max(0, Math.min(1, SUN_DIR.y * 4)); // sun glow fades out at the horizon
-  for (let j = 0; j < Hh; j++) for (let i = 0; i < W; i++) {
-    const u = (i + .5) / W, v = (j + .5) / Hh, phi = (u - .5) * 2 * Math.PI, e = (v - .5) * Math.PI;
-    const d = new V3(Math.cos(phi) * Math.cos(e), Math.sin(e), Math.sin(phi) * Math.cos(e));
-    let r, g, b;
+  const W = SKY_W, Hh = SKY_H, data = new Float32Array(W * Hh * 4), up = Math.max(0, Math.min(1, SUN_DIR.y * 4)); // sun glow fades out at the horizon
+  const sx = SUN_DIR.x, sy = SUN_DIR.y, sz = SUN_DIR.z;
+  for (let j = 0; j < Hh; j++) {
+    const e = ((j + .5) / Hh - .5) * Math.PI, ce = Math.cos(e), se = Math.sin(e), base = j * W * 4;
     if (!night) {
-      if (e > 0) { const t = Math.pow(e / (Math.PI / 2), .45);
-        r = 1.15 * (1 - t) + .42 * t; g = 1.12 * (1 - t) + .56 * t; b = 1.06 * (1 - t) + .82 * t;
-        const s = Math.max(0, d.dot(SUN_DIR)) * (up > 0 ? 1 : 0); r += up * (4.0 * Math.pow(s, 300) + .35 * Math.pow(s, 10)); g += up * (3.6 * Math.pow(s, 300) + .28 * Math.pow(s, 10)); b += up * (3.0 * Math.pow(s, 300) + .18 * Math.pow(s, 10));
-      } else { const t = Math.min(1, -e * 6); r = 1.1 * (1 - t) + .42 * t; g = 1.07 * (1 - t) + .39 * t; b = 1.02 * (1 - t) + .35 * t; }
+      if (e > 0) {
+        const t = Math.pow(e / (Math.PI / 2), .45), r0 = 1.15 * (1 - t) + .42 * t, g0 = 1.12 * (1 - t) + .56 * t, b0 = 1.06 * (1 - t) + .82 * t;
+        for (let i = 0; i < W; i++) {
+          const dot = COS_PHI[i] * ce * sx + se * sy + SIN_PHI[i] * ce * sz;
+          let r = r0, g = g0, b = b0;
+          if (up > 0 && dot > 0) { const s10 = Math.pow(dot, 10), s300 = Math.pow(dot, 300); r += up * (4.0 * s300 + .35 * s10); g += up * (3.6 * s300 + .28 * s10); b += up * (3.0 * s300 + .18 * s10); }
+          const k = base + i * 4; data[k] = r; data[k + 1] = g; data[k + 2] = b; data[k + 3] = 1;
+        }
+      } else {
+        const t = Math.min(1, -e * 6), r = 1.1 * (1 - t) + .42 * t, g = 1.07 * (1 - t) + .39 * t, b = 1.02 * (1 - t) + .35 * t;
+        for (let i = 0; i < W; i++) { const k = base + i * 4; data[k] = r; data[k + 1] = g; data[k + 2] = b; data[k + 3] = 1; }
+      }
     } else {
+      let r, g, b;
       if (e > 0) { const t = Math.pow(e / (Math.PI / 2), .5); r = .045 * (1 - t) + .006 * t; g = .04 * (1 - t) + .009 * t; b = .045 * (1 - t) + .02 * t; }
       else { const t = Math.min(1, -e * 6); r = .04 * (1 - t) + .01 * t; g = .035 * (1 - t) + .009 * t; b = .03 * (1 - t) + .008 * t; }
+      for (let i = 0; i < W; i++) { const k = base + i * 4; data[k] = r; data[k + 1] = g; data[k + 2] = b; data[k + 3] = 1; }
     }
-    const k = (j * W + i) * 4; data[k] = r; data[k + 1] = g; data[k + 2] = b; data[k + 3] = 1;
   }
   const t = new THREE.DataTexture(data, W, Hh, THREE.RGBAFormat, THREE.FloatType);
   t.mapping = THREE.EquirectangularReflectionMapping; t.magFilter = t.minFilter = THREE.LinearFilter; t.needsUpdate = true; return t;
@@ -57,15 +66,20 @@ scene.add(sun, sun.target);
 
 // SKY.day lights the rooms (procedural, tuned for the interiors, sun at the computed position). SKY.back is what is seen outside:
 // the scanned HDRI turned so its sun sits at the computed azimuth, or the procedural sky until it has loaded.
-export const SKY = { day: null, back: null, night: makeSky(true), sunUp: true, info: null };
-let hdr = null; // { data: Uint16Array (half floats, exposure-matched, sun clamped), w, h, sunCol }
+let nightSky = null;
+export const SKY = { day: null, back: null, get night() { return (nightSky ||= makeSky(true)); }, sunUp: true, info: null };
+let hdr = null, hdrOut = null, hdrTex = null; // { data: Uint16Array (half floats, exposure-matched, sun clamped), w, h, sunCol }
 export function useHDRI(tex) { const src = tex.image.data, w = tex.image.width, h = tex.image.height, f = THREE.DataUtils, lum = new Float32Array(w * h); let sum = 0, n = 0, best = -1, sunCol = 0;
   for (let i = 0; i < w * h; i++) { const l = .2126 * f.fromHalfFloat(src[i * 4]) + .7152 * f.fromHalfFloat(src[i * 4 + 1]) + .0722 * f.fromHalfFloat(src[i * 4 + 2]); lum[i] = l; if (l > best) { best = l; sunCol = i % w; } }
   const rows = tex.flipY ? [h / 2, h] : [0, h / 2]; // upper hemisphere
   for (let j = rows[0]; j < rows[1]; j++) for (let i = 0; i < w; i += 4) { sum += Math.min(lum[j * w + i], 20); n++; }
   const k = .95 / (sum / n), cap = 6, data = new Uint16Array(src.length); // exposure close to the procedural sky; the sun disc is clamped
   for (let i = 0; i < w * h; i++) { for (let c = 0; c < 3; c++) data[i * 4 + c] = f.toHalfFloat(Math.min(cap, f.fromHalfFloat(src[i * 4 + c]) * k)); data[i * 4 + 3] = src[i * 4 + 3]; }
-  hdr = { data, w, h, sunCol, flipY: tex.flipY }; }
+  hdr = { data, w, h, sunCol, flipY: tex.flipY };
+  hdrOut = new Uint16Array(data.length);
+  hdrTex?.dispose();
+  hdrTex = new THREE.DataTexture(hdrOut, w, h, THREE.RGBAFormat, THREE.HalfFloatType);
+  hdrTex.flipY = tex.flipY; hdrTex.mapping = THREE.EquirectangularReflectionMapping; hdrTex.magFilter = hdrTex.minFilter = THREE.LinearFilter; hdrTex.colorSpace = THREE.LinearSRGBColorSpace; }
 // fit the sun's orthographic shadow frustum to the apartment box (room extents + margin, floor to just above the ceiling) as seen along the sun
 export function fitShadow() {
   const [x0, y0, x1, y1] = bbox(plan.rooms.flatMap(r => r.poly)), m = .5, z = SUN_DIR, x = new V3(0, 0, 1).cross(z).normalize(), y = z.clone().cross(x), v = new V3(), c = sun.shadow.camera;
@@ -79,11 +93,12 @@ export function setSun(month, hour) {
   const s = sunDirection(month, hour), up = s.el > 0; SKY.info = s; SKY.sunUp = up; SUN_DIR.copy(up ? s.dir : new V3(s.dir.x, .001, s.dir.z).normalize());
   sun.position.copy(TARGET).addScaledVector(SUN_DIR, 25); fitShadow(); const k = Math.max(0, Math.min(1, Math.sin(s.el * Math.PI / 180) * 2.6));
   sun.intensity = 3.2 * k; sun.color.setRGB(1, .86 + .085 * k, .62 + .25 * k);
-  const old = [SKY.day, SKY.back]; SKY.day = makeSky(false); SKY.back = SKY.day;
-  if (hdr && up) { const { data, w, h, sunCol } = hdr, phi = Math.atan2(SUN_DIR.z, SUN_DIR.x), col = Math.round((phi / (2 * Math.PI) + .5) * w), sh = ((col - sunCol) % w + w) % w, out = new Uint16Array(data.length);
-    for (let j = 0; j < h; j++) { const r = j * w * 4; out.set(data.subarray(r, r + (w - sh) * 4), r + sh * 4); out.set(data.subarray(r + (w - sh) * 4, r + w * 4), r); }
-    const t = new THREE.DataTexture(out, w, h, THREE.RGBAFormat, THREE.HalfFloatType); t.flipY = hdr.flipY; t.mapping = THREE.EquirectangularReflectionMapping; t.magFilter = t.minFilter = THREE.LinearFilter; t.colorSpace = THREE.LinearSRGBColorSpace; t.needsUpdate = true; SKY.back = t; }
-  old.forEach(t => t && t.dispose());
+  const oldDay = SKY.day, oldBack = SKY.back; SKY.day = makeSky(false); SKY.back = SKY.day;
+  if (hdr && up) { const { data, w, h, sunCol } = hdr, phi = Math.atan2(SUN_DIR.z, SUN_DIR.x), col = Math.round((phi / (2 * Math.PI) + .5) * w), sh = ((col - sunCol) % w + w) % w;
+    for (let j = 0; j < h; j++) { const r = j * w * 4; hdrOut.set(data.subarray(r, r + (w - sh) * 4), r + sh * 4); hdrOut.set(data.subarray(r + (w - sh) * 4, r + w * 4), r); }
+    hdrTex.needsUpdate = true; SKY.back = hdrTex; }
+  if (oldDay) oldDay.dispose();
+  if (oldBack && oldBack !== oldDay && oldBack !== hdrTex) oldBack.dispose();
   return s;
 }
 export const nightLights = [];
@@ -93,9 +108,8 @@ export function lamp(x, y, h, spec, n = 1) {
   l.position.set(x, h, y); l.visible = false; l.userData.lm = lm * n; l.userData.k = k || 2700; (state.CUR === world ? scene : state.CUR).add(l); nightLights.push(l); return l;
 }
 // LED cove as an area light (Photo night only; the raster view keeps the emissive tube): a straight strip from (x1, y1) to (x2, y2) at height h facing down
-export const coveLights = []; let rectInit = false;
+export const coveLights = [];
 export function coveLight(x1, y1, x2, y2, h) {
-  if (!rectInit) { RectAreaLightUniformsLib.init(); rectInit = true; }
   const len = Math.hypot(x2 - x1, y2 - y1), { lm, k } = kindOf('coveStrip'), W = .05, l = new THREE.RectAreaLight(kelvin(k || 3000), stripNits(lm * len, len * W), len, W);
   const ex = new V3((x2 - x1) / len, 0, (y2 - y1) / len), up = new V3(0, 1, 0);
   l.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(ex, up.clone().cross(ex), up));

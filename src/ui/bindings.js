@@ -121,7 +121,7 @@ export function orbitKeyStep(dt) {
   return true;
 }
 on(window, 'keydown', ev => {
-  if (state.walk || ev.isComposing || ev.keyCode === 229) return;
+  if (state.walk || ev.isComposing || ev.keyCode === 229 || document.querySelector('dialog:modal')) return;
   const act = document.activeElement;
   if (/INPUT|SELECT|TEXTAREA/.test(act?.tagName || '') || act?.isContentEditable) return;
   shiftHeld = ev.shiftKey;

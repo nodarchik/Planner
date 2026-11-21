@@ -10,7 +10,7 @@ import { buildItem, buildItems, itemGroups, itemObjects } from './items/index.js
 import { applyLook, syncPreset } from './ui/style.js';
 import { clearTints } from './tint.js';
 import { applyCut } from './ui/toolbar.js';
-import { clearOverlays, furnitureLabels, setupOverlays } from './ui/dims.js';
+import { clearOverlays, furnitureLabels, refreshFurnitureLabels, setupOverlays } from './ui/dims.js';
 import { renderPlanNotes } from './ui/panels.js';
 import { applyBindings } from './ui/bindings.js';
 import { fastSync } from './fast.js';
@@ -41,7 +41,7 @@ export function buildAll() {
   state.ceiling = buildArchitecture(); state.lastCeil = null; buildItems(); plan.items.forEach(dress);
   syncPreset(); finish(world); clearOverlays(); setupOverlays(); furnitureLabels(); renderPlanNotes(); fitShadow(); rebuildPT();
 }
-export function refreshOverlays() { clearOverlays(); setupOverlays(); furnitureLabels(); }
+export function refreshOverlays() { refreshFurnitureLabels(); }
 export function removeItemObjects(id) { for (const o of itemObjects.get(id) || []) { disposeObject(o, textured); o.parent && o.parent.remove(o); } itemObjects.delete(id); itemGroups.delete(id); prune(); markShadows(); }
 export function rebuildItem(id, quiet) {
   state.planVer++; removeItemObjects(id); const it = plan.items.find(i => i.id === id);

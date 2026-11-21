@@ -4,8 +4,10 @@ import { planar, texFor, tvTex } from './textures.js';
 
 /* ================= materials ================= */
 export const emissives = [];
+const PHYS_KEYS = ['clearcoat', 'clearcoatRoughness', 'sheen', 'sheenColor', 'sheenRoughness', 'transmission', 'thickness', 'ior', 'specularIntensity', 'iridescence'];
 export function P(o) { const ni = o.nightIntensity; delete o.nightIntensity;
-  const m = new THREE.MeshPhysicalMaterial(Object.assign({ roughness: .8, metalness: 0 }, o));
+  const Ctor = PHYS_KEYS.some(k => k in o) ? THREE.MeshPhysicalMaterial : THREE.MeshStandardMaterial;
+  const m = new Ctor(Object.assign({ roughness: .8, metalness: 0 }, o));
   if (o.emissive !== undefined) { m.userData.night = ni ?? 3; m.userData.day = o.emissiveIntensity ?? 0; emissives.push(m); }
   return m; }
 export const textured = []; // { material, set } for every material built on a texture set (scanned maps replace the procedural ones when loaded)
@@ -60,17 +62,17 @@ export function buildMaterials() {
     steelDark: P({ color: 0x8c8c8c, metalness: 1, roughness: .38 }),
     blackMetal: P({ color: 0x1a1918, metalness: .7, roughness: .45 }),
     frame: P({ color: 0x302c28, metalness: .6, roughness: .42 }),
-    glass: P({ color: 0xffffff, roughness: 0, transmission: 1, thickness: .008, ior: 1.5, specularIntensity: 1 }),
-    glassShower: P({ color: 0xffffff, roughness: 0, transmission: 1, thickness: .008, ior: 1.5, specularIntensity: 1 }),
-    glassWin: P({ color: 0xffffff, roughness: 0, transmission: 1, thickness: .008, ior: 1.5, specularIntensity: 1 }),
-    glassRail: P({ color: 0xe2ecea, roughness: .02, transmission: 1, thickness: .012, ior: 1.5 }),
-    glassTint: P({ color: 0xdfe6df, roughness: .03, transmission: 1, thickness: .012, ior: 1.5 }),
-    opal: P({ color: 0xfff8ef, roughness: .45, transmission: .55, thickness: .02, emissive: 0xffd6a2, emissiveIntensity: 0, nightIntensity: 2.2 }),
+    glass: P({ color: 0xffffff, roughness: .04, metalness: .05, clearcoat: 1, clearcoatRoughness: .04, transparent: true, opacity: .14, depthWrite: false, envMapIntensity: 1.4 }),
+    glassShower: P({ color: 0xffffff, roughness: .04, metalness: .05, clearcoat: 1, clearcoatRoughness: .04, transparent: true, opacity: .14, depthWrite: false, envMapIntensity: 1.4 }),
+    glassWin: P({ color: 0xffffff, roughness: .04, metalness: .05, clearcoat: 1, clearcoatRoughness: .04, transparent: true, opacity: .14, depthWrite: false, envMapIntensity: 1.4 }),
+    glassRail: P({ color: 0xe2ecea, roughness: .04, metalness: .05, clearcoat: 1, clearcoatRoughness: .04, transparent: true, opacity: .18, depthWrite: false, envMapIntensity: 1.4 }),
+    glassTint: P({ color: 0xdfe6df, roughness: .05, metalness: .05, clearcoat: 1, clearcoatRoughness: .04, transparent: true, opacity: .22, depthWrite: false, envMapIntensity: 1.4 }),
+    opal: P({ color: 0xfff8ef, roughness: .45, emissive: 0xffd6a2, emissiveIntensity: 0, nightIntensity: 2.2 }),
     ceramic: P({ color: 0xf6f3ee, roughness: .14, clearcoat: .6, clearcoatRoughness: .05 }),
     stoneware: T('micro', .4, { color: 0xd7cbbd, normalScale: .8 }),
     stonewareDark: T('micro', .4, { color: 0x6b5a4d, normalScale: .8 }),
     resin: P({ color: 0xf4f2ee, roughness: .28, clearcoat: .4, clearcoatRoughness: .2 }),
-    water: P({ color: 0xd8eef0, roughness: .02, transmission: 1, thickness: .2, ior: 1.33 }),
+    water: P({ color: 0xd8eef0, roughness: .05, clearcoat: 1, transparent: true, opacity: .45, depthWrite: false }),
     mirror: P({ color: 0xf2f2f2, metalness: 1, roughness: .015 }),
     blackGlass: P({ color: 0x08080a, roughness: .06, clearcoat: 1, clearcoatRoughness: .02 }),
     screen: P({ color: 0x050506, roughness: .08, clearcoat: 1, emissive: 0xffffff, emissiveMap: planar(tvTex, 7.51, 1.01, 1.38, .76), emissiveIntensity: 0, nightIntensity: 1.6 }),

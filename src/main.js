@@ -4,6 +4,7 @@ import { buildTextures } from './textures.js';
 import { buildMaterials, textured } from './materials.js';
 import { upgradeMaterials, whenIdle } from './assets.js';
 import { PUBLISHED, bbox, plan, setPlan } from './plan/plan.js';
+import { ensureProducts } from './plan/products.js';
 import { buildAll, refreshOverlays } from './build.js';
 import { hasTints } from './tint.js';
 import { composer, lod, setMoving } from './post.js';
@@ -25,12 +26,13 @@ import { focalFov, ptCamera, ptSetScene, rebuildPT, stillFov, stillTick } from '
 const ROOF = bbox(plan.ceilings.flatMap(c => [[c.rect[0], c.rect[1]], [c.rect[2], c.rect[3]]]));
 
 async function build() {
+  const serverP = pullServer();
   await frame(); await buildTextures(); buildMaterials();
   loader.textContent = 'Building apartment…'; await frame();
-  const init = () => { loadStyle(); buildAll(); applySun(false); setView('overview', true); initFast(); };
-  await pullServer();
+  const init = () => { loadStyle(); buildAll(); applySun(false); setView('overview', true); initFast(); markShadows(); };
+  await serverP;
   const saved = hasEdits();
-  try { loadEdits(); init(); } catch (err) { // a saved edit that cannot be built or shown: drop it and start from the published plan
+  try { loadEdits(); if (plan.items.some(i => i.type === 'product')) await ensureProducts(); init(); } catch (err) { // a saved edit that cannot be built or shown: drop it and start from the published plan
     if (!saved) throw err; console.error('stored edits could not be built; using the published plan', err); discardBroken(); discardEdits(); setPlan(PUBLISHED); init();
     showToast('Saved edits were discarded because they could not be built. Click to close.', { id: 'discardnote', cls: 'toast-error' }); }
   loader.hidden = true; syncStart();
@@ -70,7 +72,6 @@ function tick(now) {
   window.__settled = !state.anim && camera.fov === fov && !lod.on; // camera at rest: read by tools/shot.py
   if (document.hidden) return;
   if (state.ceiling) { state.ceiling.visible = inside; if (state.lastCeil !== inside) { state.lastCeil = inside; markShadows(); rebuildPT(); } }
-  if (window.__frames < 30) markShadows(); // first frames after load
   if (!state.photo && !state.walk && window.__settled && idle > 30) return;
   renderer.toneMappingExposure = (state.night ? 1.25 : 1.0) * (state.photo ? (inside ? (state.night ? .75 : 6) : (state.night ? 1.3 : .5)) : 1);
   if (state.photo && state.pt) {

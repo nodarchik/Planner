@@ -16,7 +16,8 @@ for (const w of plan.walls) {
   const ops = [...(w.openings || [])].sort((p, q) => p.at - q.at); let c = a;
   for (const o of ops) { if (o.at < c - 1e-9 || o.at + o.w > b + 1e-9) errors.push(`wall ${w.id}: opening at ${o.at} overlaps another opening or leaves the wall`); c = o.at + o.w; }
 }
-const catalog = new Set(JSON.parse(fs.readFileSync('src/plan/comforter.json', 'utf8')).products.map(p => p.id));
+const comforterData = JSON.parse(fs.readFileSync('src/plan/comforter.json', 'utf8'));
+const catalog = new Set(comforterData.products.map(p => p.id));
 for (const it of plan.items) {
   if (it.type === 'product') { if (!Number.isInteger(it.product) || !catalog.has(it.product)) errors.push(`item ${it.id}: unknown product ${JSON.stringify(it.product)} (not a furniture product in src/plan/comforter.json)`); if (!it.pos) errors.push(`item ${it.id}: product needs "pos"`); }
   for (const ref of [it.wall, it.anchor && it.anchor.wall, it.north && it.north.wall, it.west && it.west.wall]) if (ref && !solid.has(ref)) errors.push(`item ${it.id}: unknown wall "${ref}"`);
@@ -28,6 +29,8 @@ if (errors.length) { console.error(errors.map(e => '✗ ' + e).join('\n')); proc
 console.log(`plan OK — ${plan.rooms.length} rooms, ${plan.walls.length} walls, ${plan.items.length} items`);
 
 // geometric checks: listed; they fail the run only with --strict (the published plan has known, reviewed findings)
+const { loadProductsData } = await import('../src/plan/products.js');
+loadProductsData(comforterData);
 const { runChecks, summary } = await import('../src/plan/checks.js');
 const list = runChecks(plan), s = summary(list);
 for (const c of list) if (c.severity !== 'ok' || process.argv.includes('--all')) console.log(`${c.severity === 'error' ? '✗' : c.severity === 'warn' ? '!' : '✓'} ${c.item.padEnd(20)} ${c.check.padEnd(38)} ${String(c.value).padEnd(16)} required ${c.required}${c.note ? '   (' + c.note + ')' : ''}`);
