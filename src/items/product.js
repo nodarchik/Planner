@@ -154,6 +154,6 @@ export const product = {
     beginG(it.name || it.label || p.title); build(c); const g = state.CUR; fit(g, [w, d, h]); endGRaw();
     const [x, y] = it.pos, face = it.lookAt ? Math.atan2(-(it.lookAt[0] - x), -(it.lookAt[1] - y)) : -(it.rot || 0) * Math.PI / 180;
     g.position.set(x, 0, y); g.rotation.y = face; g.userData.home = { x, z: y, r: face }; g.userData.product = p.id; movables.push(g);
-    const mo = MODELS[p.id]; if (mo) swapIn(g, p.id, { path: `assets/comforter/${p.id}.glb`, rot: mo.rot, size: mo.fit === 'width' ? null : [w, d, h], width: mo.fit === 'width' ? w : 0, h: it.h || 0 });
+    const mo = kind !== 'unknown' && MODELS[p.id]; if (mo) swapIn(g, p.id, { path: `assets/comforter/${p.id}.glb`, rot: mo.rot, size: mo.fit === 'width' ? null : [w, d, h], width: mo.fit === 'width' ? w : 0, it });
   }
 };

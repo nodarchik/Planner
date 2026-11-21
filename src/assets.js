@@ -60,8 +60,13 @@ export async function instance(id, width, o = {}) { // o.path: other glb file, o
 // replace the placeholder content of a group with a model once it has loaded; the group keeps its position, rotation and name
 export function swapIn(g, id, opts = {}) {
   instance(id, opts.width, opts).then(obj => { if (!g.parent) return; // the item was rebuilt or deleted meanwhile
-    disposeObject(g, textured); g.clear(); if (opts.size) g.scale.set(1, 1, 1); if (opts.pos) g.position.set(opts.pos[0], 0, opts.pos[1]); obj.position.y = opts.h || 0; g.add(obj); g.updateMatrixWorld(true);
-    const bb = new THREE.Box3().setFromObject(obj); g.userData.size = bb.getSize(new THREE.Vector3()); g.userData.minY0 = bb.min.y; g.userData.model = id;
+    disposeObject(g, textured); g.clear(); if (opts.pos) g.position.set(opts.pos[0], 0, opts.pos[1]); obj.position.y = opts.h || 0; g.add(obj);
+    if (opts.it) { const { x, y, z } = g.position, ry = g.rotation.y; g.position.set(0, 0, 0); g.rotation.y = 0; g.scale.set(1, 1, 1); g.updateMatrixWorld(true); // product: size and base in the local frame, fit stretch dropped
+      const b0 = new THREE.Box3().setFromObject(obj); g.userData.size = b0.getSize(new THREE.Vector3()); g.userData.minY0 = b0.min.y; g.rotation.y = ry; const rs = opts.it.resize || [1, 1, 1];
+      g.scale.set(...rs); g.position.set(x, opts.it.resize ? b0.min.y * (1 - rs[1]) : y, z); }
+    g.updateMatrixWorld(true);
+    if (!opts.it) { const bb = new THREE.Box3().setFromObject(obj); g.userData.size = bb.getSize(new THREE.Vector3()); g.userData.minY0 = bb.min.y; }
+    g.userData.model = id;
     g.traverse(o => { if (o.isMesh) { const b = new THREE.Box3().setFromObject(o); o.userData.minY = b.min.y; o.userData.maxY = b.max.y; } });
     markShadows(); fastSync(); window.dispatchEvent(new CustomEvent('modelswap', { detail: g })); }).catch(err => { if (!OFF) console.warn(`model ${id} not loaded; keeping the placeholder`, err); });
 }
