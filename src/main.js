@@ -57,6 +57,7 @@ function tick(now) {
   const moved0 = state.walk ? walkStep(dt) : controls.update() || keysMoved || !!state.anim;
   const inside = camera.position.y < H - .05 && camera.position.x > ROOF[0] && camera.position.x < ROOF[2] && camera.position.z > ROOF[1] && camera.position.z < ROOF[3];
   const fov = stillFov() ?? (state.photo && state.focal ? focalFov(state.focal, camera.aspect) : (inside || state.walk ? 62 : 42) + (innerWidth < 600 ? 14 : 0));
+  state.fovTarget = fov;
   if (Math.abs(camera.fov - fov) > .01) {
     if (reducedMotion.matches) camera.fov = fov;
     else { camera.fov += (fov - camera.fov) * .15; if (Math.abs(camera.fov - fov) < .05) camera.fov = fov; }

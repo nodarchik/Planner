@@ -45,13 +45,15 @@ const STILL = { w: 2560, h: 1440, samples: 96 }, stillBtn = document.getElementB
 let still = null;
 // vertical fov kept while a current-camera still renders (read by the render loop)
 export const stillFov = () => still?.pin ? still.fov : null;
-function endStill() { const s = still; still = null; renderer.setPixelRatio(s.pr); renderer.setSize(s.size.x, s.size.y); camera.aspect = s.aspect; if (s.pin) camera.fov = s.fov; camera.updateProjectionMatrix(); state.pt.renderScale = s.scale; if (s.bounces != null) state.pt.bounces = s.bounces;
-  controls.enabled = s.enabled; controls.enableDamping = s.damping; camera.position.copy(s.pos); controls.target.copy(s.target); controls.update(); ptCamera(); stillBtn.textContent = 'Save 2K still'; }
+function endStill() { const s = still; still = null; state.stillBusy = false; document.getElementById('view').disabled = false; renderer.setPixelRatio(s.pr); renderer.setSize(s.size.x, s.size.y); camera.aspect = s.aspect; if (s.pin) camera.fov = s.fov; camera.updateProjectionMatrix(); state.pt.renderScale = s.scale; if (s.bounces != null) state.pt.bounces = s.bounces;
+  controls.enabled = s.enabled; controls.enableDamping = s.damping; camera.position.copy(s.pos); controls.target.copy(s.target); controls.update(); dispatchEvent(new Event('resize')); ptCamera(); stillBtn.textContent = 'Save 2K still'; }
 function startStill(o = {}) { if (!state.photo || !state.pt || still) return false;
-  controls.update(); state.anim = null; // settle inertia and any view move: the still is exactly where the camera is now
-  still = { pr: renderer.getPixelRatio(), size: renderer.getSize(new V2()), aspect: camera.aspect, scale: state.pt.renderScale, w: o.w || STILL.w, h: o.h || STILL.h, samples: o.samples || STILL.samples, resolve: o.resolve, reject: o.reject,
-    pin: !o.view, fov: camera.fov, pos: camera.position.clone(), target: controls.target.clone(), enabled: controls.enabled, damping: controls.enableDamping, bounces: o.bounces ? state.pt.bounces : null };
-  controls.enabled = false; controls.enableDamping = false; if (o.bounces) state.pt.bounces = o.bounces;
+  const damping = controls.enableDamping; controls.enableDamping = false; controls.update(); state.anim = null; // settle inertia fully and any view move: the still is exactly where the camera is now
+  if (!o.view && state.fovTarget != null) { camera.fov = state.fovTarget; camera.updateProjectionMatrix(); } // not a half-eased fov
+  const ar = camera.aspect, fit = !o.view && !o.w && !o.h; // current camera: same aspect as the viewport, long edge 2560
+  still = { pr: renderer.getPixelRatio(), size: renderer.getSize(new V2()), aspect: ar, scale: state.pt.renderScale, w: fit ? Math.round(ar >= 1 ? STILL.w : STILL.w * ar) : o.w || STILL.w, h: fit ? Math.round(ar >= 1 ? STILL.w / ar : STILL.w) : o.h || STILL.h, samples: o.samples || STILL.samples, resolve: o.resolve, reject: o.reject,
+    pin: !o.view, fov: camera.fov, pos: camera.position.clone(), target: controls.target.clone(), enabled: controls.enabled, damping, bounces: o.bounces ? state.pt.bounces : null };
+  state.stillBusy = true; document.getElementById('view').disabled = true; controls.enabled = false; if (o.bounces) state.pt.bounces = o.bounces;
   renderer.setPixelRatio(1); renderer.setSize(still.w, still.h, false); camera.aspect = still.w / still.h; camera.updateProjectionMatrix(); state.pt.renderScale = 1; if (state.focal && !still.pin) { camera.fov = focalFov(state.focal, camera.aspect); camera.updateProjectionMatrix(); } ptCamera(); stillBtn.textContent = 'Rendering…'; return true; }
 // called by the render loop right after a path-traced sample, while the frame is still in the canvas
 export function stillTick() { if (!still) return false; if (still.saving) return true; window.__stillSamples = Math.floor(state.pt.samples); statusEl.textContent = `Still · ${window.__stillSamples} / ${still.samples} samples`; if (state.pt.samples < still.samples) return true;
