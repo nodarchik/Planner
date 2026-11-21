@@ -10,7 +10,8 @@
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<link id="gfonts" rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700&family=JetBrains+Mono:wght@400;600&display=swap" media="print">
+<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700&family=JetBrains+Mono:wght@400;600&display=swap"></noscript>
 <link rel="stylesheet" href="/src/style.css">
 </head>
 <body>
@@ -49,9 +50,9 @@
       <button id="mnight" type="button" aria-pressed="false">Night</button>
     </div>
     <div class="sunctl" role="group" aria-label="Sun">
-      <select id="sunMonth" class="sel" aria-label="Month"></select>
+      <select id="sunMonth" class="sel" aria-label="Month"><option value="1">Jan</option><option value="2">Feb</option><option value="3">Mar</option><option value="4">Apr</option><option value="5">May</option><option value="6">Jun</option><option value="7">Jul</option><option value="8">Aug</option><option value="9" selected>Sep</option><option value="10">Oct</option><option value="11">Nov</option><option value="12">Dec</option></select>
       <input id="sunTime" type="range" min="5" max="21" step="0.25" aria-label="Time of day">
-      <span class="status" id="sunInfo"></span>
+      <span class="status" id="sunInfo">16:30 · sun 253° / 21° up</span>
     </div>
     <div class="seg" role="group" aria-label="Overlays">
       <button id="tlab" type="button" aria-pressed="true">Rooms</button>
@@ -138,7 +139,7 @@
     <button id="resetPlan" type="button">Reset to published</button>
     <select id="planSlot" class="sel" aria-label="Layout variant"><option value="">Slot: Current</option><option value="a">Variant A</option><option value="b">Variant B</option><option value="c">Variant C</option></select><button id="saveSlot" type="button" title="Save current plan into variant slot">Save slot</button>
     <button id="measureBtn" type="button" aria-pressed="false" title="Click two points in 3D to measure distance">Measure</button>
-    <button id="exportPlan" type="button">Export JSON</button><button id="importPlan" type="button">Import JSON</button><input id="importFile" type="file" accept=".json,application/json" hidden>
+    <button id="exportPlan" type="button">Export JSON</button><button id="importPlan" type="button">Import JSON</button><input id="importFile" type="file" accept=".json,application/json" aria-label="Import plan JSON file" hidden>
     <button id="copyChanges" type="button">Copy changes</button><span class="status" id="changeCount" role="status" aria-live="polite"></span>
     <textarea id="changeText" rows="4" readonly hidden aria-label="Change summary"></textarea>
   </div>

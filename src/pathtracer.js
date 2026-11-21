@@ -7,8 +7,16 @@ import { setFast } from './fast.js';
 
 // vertical FOV in degrees for a full-frame focal length at the given aspect
 export const focalFov = (mm, aspect) => 2 * Math.atan(18 / Math.max(aspect, 1) / mm) * 180 / Math.PI;
+let ptCam = null;
 // push lens settings to the path tracer and restart accumulation (focus = distance to the orbit target)
-const lens = () => { camera.focusDistance = camera.position.distanceTo(controls.target); camera.fStop = state.fstop || Infinity; };
+const lens = () => {
+  if (!ptCam) return;
+  ptCam.fov = camera.fov; ptCam.aspect = camera.aspect; ptCam.near = camera.near; ptCam.far = camera.far;
+  ptCam.zoom = camera.zoom; ptCam.filmGauge = camera.filmGauge;
+  ptCam.position.copy(camera.position); ptCam.quaternion.copy(camera.quaternion); ptCam.scale.copy(camera.scale);
+  ptCam.updateMatrixWorld(true); ptCam.updateProjectionMatrix();
+  ptCam.focusDistance = camera.position.distanceTo(controls.target); ptCam.fStop = state.fstop || Infinity;
+};
 export function ptCamera() { lens(); if (state.pt) state.pt.updateCamera(); }
 
 /* ================= path tracer ("Photo render") ================= */
@@ -21,6 +29,7 @@ export function disposePT() {
   if (!state.pt) return;
   const pt = state.pt;
   state.pt = null;
+  ptCam = null;
   pt._quad?.dispose();
   pt._quad?.material?.dispose();
   pt._pathTracer?.dispose();
@@ -38,7 +47,7 @@ function ptGlass(on) { for (const [k, op] of Object.entries(GLASS)) { const m = 
   else if (!on && glassKept.has(k)) { [m.transmission, m.transparent, m.opacity] = glassKept.get(k); glassKept.delete(k); m.needsUpdate = true; } }
   ptMats(on); }
 // day sky 3x stronger in Photo: the room is lit only through the windows, the raster view gets unoccluded sky light everywhere
-export function ptSetScene() { ptMats(true); lens(); scene.environmentIntensity = state.night ? 1 : 3; state.pt.setScene(scene, camera); }
+export function ptSetScene() { ptMats(true); lens(); scene.environmentIntensity = state.night ? 1 : 3; state.pt.setScene(scene, ptCam); }
 export function rebuildPT() { state.dirty = true; if (state.photo) state.ptDirty = true; }
 // 2560 × 1440 still of the current camera (no view change): path-trace off the page size to `samples`, then download a PNG (or resolve a data URL for window.__still)
 const STILL = { w: 2560, h: 1440, samples: 96 }, stillBtn = document.getElementById('still');
@@ -84,6 +93,8 @@ export async function setPhoto(on) {
   try {
     if (!state.pt) { statusEl.textContent = 'Loading renderer…'; await frame();
       const mod = await import('three-gpu-pathtracer');
+      ptCam = new mod.PhysicalCamera(camera.fov, camera.aspect, camera.near, camera.far);
+      ptCam.filmGauge = camera.filmGauge;
       state.pt = new mod.WebGLPathTracer(renderer);
       state.pt.tiles.set(2, 2); state.pt.bounces = 8; state.pt.transmissiveBounces = 8; state.pt.filterGlossyFactor = .5; state.pt.minSamples = 3; state.pt.renderDelay = 0; state.pt.fadeDuration = 300;
       state.pt.renderScale = Math.min(1, 1.4 / DPR);

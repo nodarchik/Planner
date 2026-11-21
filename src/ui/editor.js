@@ -7,7 +7,7 @@ import { DESIGNS } from '../catalog.js';
 import { PUBLISHED, plan, setPlan, wallAxis, wallRect } from '../plan/plan.js';
 import { applyPatch, describe, diffPlan, isEmpty } from '../plan/patch.js';
 import { openPicker } from './picker.js';
-import { PRODUCTS } from '../plan/products.js';
+import { PRODUCTS, ensureProducts } from '../plan/products.js';
 import { HEX } from '../tint.js';
 import { buildAll, rebuildItem } from '../build.js';
 import { itemGroups, itemObjects } from '../items/index.js';
@@ -191,6 +191,7 @@ $('resetPlan').onclick = () => { if (isEmpty(diffPlan(PUBLISHED, plan))) return;
 $('exportPlan').onclick = () => download('palace1.json', JSON.stringify(plan, null, 1));
 $('importPlan').onclick = () => $('importFile').click();
 $('importFile').onchange = async ev => { const f = ev.target.files[0]; if (!f) return; try { const next = JSON.parse(await f.text()); if (!next.items || !next.walls || !next.rooms) throw new Error('not a plan file');
+  if (next.items.some(i => i.type === 'product')) await ensureProducts();
   const before = snapshot(); try { pushUndo(before); restore(JSON.stringify(next)); } catch (e) { undoStack.pop(); restore(before); throw e; } } catch (e) { alert('Import failed: ' + e.message); } ev.target.value = ''; };
 $('copyChanges').onclick = copyChanges;
 
@@ -210,13 +211,14 @@ function storeSlot(slot) {
 }
 refreshSlotOptions();
 if ($('saveSlot')) $('saveSlot').onclick = () => { const s = $('planSlot'), slot = (s && s.value) || 'a'; if (s) s.value = slot; storeSlot(slot); };
-if ($('planSlot')) $('planSlot').onchange = () => {
+if ($('planSlot')) $('planSlot').onchange = async () => {
   const slot = $('planSlot').value; if (!slot) return;
   const v = loadVariants();
   if (!v[slot]) { storeSlot(slot); return; }
   const before = snapshot();
   try {
     const next = applyPatch(PUBLISHED, v[slot].patch);
+    if (next.items.some(i => i.type === 'product')) await ensureProducts();
     pushUndo(before); redoStack.length = 0; sel = null; restore(JSON.stringify(next));
     $('changeCount').textContent = `loaded Variant ${slot.toUpperCase()}`;
   } catch (e) {
@@ -271,7 +273,7 @@ function pickPoint(ev) {
 }
 
 /* ---------- edit mode, dragging with snapping, keyboard ---------- */
-export function setMove(on) { if (on) state.leaveWalk?.(); state.moveMode = on; $('move').setAttribute('aria-pressed', on); bar.hidden = !on;
+export function setMove(on) { if (on) { state.leaveWalk?.(); ensureProducts(); } state.moveMode = on; $('move').setAttribute('aria-pressed', on); bar.hidden = !on;
   hintEl.textContent = on ? 'Click an item or wall to edit its values · drag to move (snaps to walls, items, 5 cm; Shift = free) · drag empty space to orbit' : 'W A S D move · Drag rotate · Right-drag pan · Scroll zoom';
   if (!on) { setMeasure(false); select(null); } updateBar(); renderer.domElement.style.cursor = ''; }
 $('move').onclick = () => setMove(!state.moveMode);
@@ -338,7 +340,7 @@ function endDrag(ev) { if (!drag || ev.pointerId !== drag.id) return; const d = 
   else { d.objs.forEach((o, i) => o.position.copy(d.home[i])); boxes.forEach(b => b.material.color.setHex(sel?.kind === 'wall' ? 0xc4552f : 0x2f6fd8)); markShadows(); }
   if (photoWasOn) { photoWasOn = false; setPhoto(true); } }
 renderer.domElement.addEventListener('pointerup', endDrag); renderer.domElement.addEventListener('pointercancel', endDrag);
-addEventListener('keydown', ev => { if (!state.moveMode || ev.isComposing || ev.keyCode === 229) return;
+addEventListener('keydown', ev => { if (!state.moveMode || ev.isComposing || ev.keyCode === 229 || document.querySelector('dialog:modal')) return;
   if (ev.key === 'Escape' && measureMode) { ev.preventDefault(); setMeasure(false); return; }
   if (ev.key === 'Escape' && sel) { ev.preventDefault(); select(null); $('move')?.focus(); return; }
   const act = document.activeElement, tag = act?.tagName || '';

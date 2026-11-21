@@ -58,3 +58,7 @@ export function furnitureLabels() {
     rows.push([label, size]); }
   fillTable('furnTable', ['Item', 'W × D × H (m)'], rows, 'Furniture dimensions');
 }
+export function refreshFurnitureLabels() {
+  for (let i = labels.length - 1; i >= 0; i--) if (labels[i].group === 'furn') { labels[i].el.remove(); labels.splice(i, 1); }
+  furnitureLabels();
+}

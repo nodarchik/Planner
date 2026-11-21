@@ -1,5 +1,6 @@
 // Shared plan edits: the patch is also kept on the server (api/plan.js, one rev-checked copy) so every device sees the same apartment. localStorage stays the fallback.
 import { PUBLISHED } from './plan.js';
+import { ensureProducts } from './products.js';
 import { showToast, toggleBadge } from '../ui/toast.js';
 
 const PKEY = 'palace1-plan-patch-v1', PWKEY = 'palace1-chat-password', UNSENT = 'palace1-plan-unsent', REVKEY = 'palace1-plan-rev', URL = '/api/plan', DEBOUNCE = 2000, OFF = !!import.meta.env.VITE_NO_ASSETS; // PKEY: same key as ui/editor.js
@@ -55,7 +56,12 @@ async function push(quiet) {
   setLocalOnly(true); // network error, 401, 404, 503, ...: local only until the next edit
 }
 
-function adopt(patch, lost) { if (!apply) return; if (apply(patch)) note('Updated from another session' + (lost ? '; your last edit was replaced' : '')); else note('Could not apply edits from another session', true); }
+async function adopt(patch, lost) {
+  if (!apply) return;
+  if (patch?.items?.add?.some(i => i.type === 'product') || Object.values(patch?.items?.set || {}).some(s => s?.type === 'product' || s?.product !== undefined)) await ensureProducts();
+  if (apply(patch)) note('Updated from another session' + (lost ? '; your last edit was replaced' : ''));
+  else note('Could not apply edits from another session', true);
+}
 
 // the tab is hidden or closing: send pending edits now; visible again: save pending edits first, otherwise pick up newer edits from other sessions
 const flush = () => { if (dirty && !busy) { clearTimeout(timer); push(true); } };
