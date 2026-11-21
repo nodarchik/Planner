@@ -17,6 +17,21 @@
 <body>
 
 <div id="stage" role="main" aria-label="3D apartment viewport"></div>
+<img id="photoImg" class="photo-img" alt="Path-traced realistic render of the current view" hidden>
+<div id="photobar" class="photobar" role="region" aria-label="Photo render" hidden>
+  <span id="photoText" class="photo-text" role="status" aria-live="polite">Preparing realistic render…</span>
+  <progress id="photoProg" class="photo-prog" max="32" aria-label="Photo render progress"></progress>
+  <div class="pcam" id="pcam">
+    <select id="focal" class="sel" aria-label="Focal length"><option value="0">Lens: Auto</option><option value="18">18 mm</option><option value="24">24 mm</option><option value="35">35 mm</option><option value="50">50 mm</option></select>
+    <select id="fstop" class="sel" aria-label="Aperture (focus on the orbit target)" title="Depth of field in Photo render; focus stays on the orbit target"><option value="0">DOF: Off</option><option value="1.4">f/1.4</option><option value="2.8">f/2.8</option><option value="5.6">f/5.6</option><option value="11">f/11</option></select>
+  </div>
+  <div class="photo-actions">
+    <button id="photoStop" type="button" hidden>Finish now</button>
+    <button id="photoMore" type="button" hidden>+32 samples</button>
+    <button id="photoSave" type="button" hidden>Save PNG</button>
+    <button id="photoClose" type="button">Back to 3D</button>
+  </div>
+</div>
 <div id="labels" aria-hidden="true"></div>
 <div id="loader" role="status" aria-live="polite">Building materials…</div>
 <header class="bar">
@@ -69,11 +84,7 @@
     </select>
     <div class="seg" role="group" aria-label="Interaction modes"><button id="walk" type="button" aria-pressed="false" title="First-person view at eye height">Walk</button><button id="move" type="button" aria-pressed="false">Edit plan</button><button id="chatBtn" type="button" aria-pressed="false" aria-expanded="false" aria-controls="chatpanel">Assistant</button></div>
     <div class="seg" role="group" aria-label="Performance"><button id="fast" type="button" aria-pressed="false" title="Fast: no reflections, shadows or light effects">Fast</button></div>
-    <div class="seg" role="group" aria-label="Render quality"><button id="photo" type="button" aria-pressed="false">Photo render</button><button id="still" type="button" disabled title="Path-traced 2560 × 1440 PNG of what the camera sees now">Save 2K still</button></div>
-    <div class="pcam" id="pcam" hidden>
-      <select id="focal" class="sel" aria-label="Focal length"><option value="0">Lens: Auto</option><option value="18">18 mm</option><option value="24">24 mm</option><option value="35">35 mm</option><option value="50">50 mm</option></select>
-      <select id="fstop" class="sel" aria-label="Aperture (focus on the orbit target)" title="Depth of field in Photo render; focus stays on the orbit target"><option value="0">DOF: Off</option><option value="1.4">f/1.4</option><option value="2.8">f/2.8</option><option value="5.6">f/5.6</option><option value="11">f/11</option></select>
-    </div>
+    <div class="seg" role="group" aria-label="Render quality"><button id="photo" type="button" aria-pressed="false">Photo render</button></div>
   </div>
   <span class="status" id="status" role="status" aria-live="polite"></span>
 </header>
@@ -103,7 +114,7 @@
     <table id="roomSizeTable"></table>
     <h2>Furniture · W × D × H</h2>
     <table id="furnTable"></table>
-    <p>Dimensions labelled on the plan are used as written; everything else is scaled from the PDF at 1:100; ceiling height 2.80 assumed. "Photo render" path-traces the current view: light bounces, soft shadows, real glass. It sharpens over 10–30 s; keep the camera still.</p>
+    <p>Dimensions labelled on the plan are used as written; everything else is scaled from the PDF at 1:100; ceiling height 2.80 assumed. "Photo render" locks the current camera view and path-traces it with real light bounces, soft shadows and glass until finished.</p>
     </div>
   </details>
 </section>

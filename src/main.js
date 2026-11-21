@@ -1,5 +1,5 @@
 import { Box3 } from 'three';
-import { CUT, H, MOBILE, V3, camera, controls, frame, loader, markShadows, renderer, scene, state, statusEl, world } from './scene.js';
+import { CUT, H, MOBILE, V3, camera, controls, frame, loader, markShadows, renderer, scene, state, world } from './scene.js';
 import { buildTextures } from './textures.js';
 import { buildMaterials, textured } from './materials.js';
 import { upgradeMaterials, whenIdle } from './assets.js';
@@ -20,7 +20,7 @@ import { showToast } from './ui/toast.js';
 import './ui/chat.js';
 import './products-hook.js';
 import { initFast } from './fast.js';
-import { focalFov, ptCamera, ptSetScene, rebuildPT, stillFov, stillTick } from './pathtracer.js';
+import { focalFov, photoTick, ptSetScene, rebuildPT } from './pathtracer.js';
 
 // extent of the ceilings: the camera counts as inside (wide lens, ceiling shown) within it
 const ROOF = bbox(plan.ceilings.flatMap(c => [[c.rect[0], c.rect[1]], [c.rect[2], c.rect[3]]]));
@@ -46,38 +46,47 @@ window.__sceneTriangles = () => { let n = 0; scene.traverse(o => { if (o.isMesh 
 const v = new V3(), reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
 let idle = 99, last = 0; // frames since the camera last moved; time of the last frame
 const isInside = () => camera.position.y < H - .05 && camera.position.x > ROOF[0] && camera.position.x < ROOF[2] && camera.position.z > ROOF[1] && camera.position.z < ROOF[3];
-state.fovNow = () => { // target fov for the camera where it is now (also read by startStill after it settles a view move)
+state.fovNow = () => {
   const inside = isInside();
-  return stillFov() ?? (state.photo && state.focal ? focalFov(state.focal, camera.aspect) : (inside || state.walk ? 62 : 42) + (innerWidth < 600 ? 14 : 0)); };
+  return state.photo
+    ? (state.focal ? focalFov(state.focal, camera.aspect) : (state.photoFov ?? camera.fov))
+    : ((inside || state.walk ? 62 : 42) + (innerWidth < 600 ? 14 : 0)); };
+state.syncCeiling = () => { if (!state.ceiling) return; const inside = isInside(); state.ceiling.visible = inside; state.lastCeil = inside; };
 function tick(now) {
   requestAnimationFrame(tick); window.__frames = (window.__frames || 0) + 1;
+  if (document.hidden) return;
+  if (state.photo) {
+    last = now;
+    if (state.photoRendering && state.pt) {
+      const inside = isInside();
+      if (state.ceiling) { state.ceiling.visible = inside; state.lastCeil = inside; }
+      renderer.toneMappingExposure = (state.night ? 1.25 : 1.0) * (inside ? (state.night ? .75 : 6) : (state.night ? 1.3 : .5));
+      if (state.ptDirty) { state.ptDirty = false; ptSetScene(); }
+      photoTick();
+    }
+    return;
+  }
   if (state.anim) {
     if (reducedMotion.matches) { camera.position.copy(state.anim.to.p); controls.target.copy(state.anim.to.t); state.anim = null; }
     else { const k = Math.min(1, (now - state.anim.t0) / 900), e = k < .5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2;
       camera.position.lerpVectors(state.anim.from.p, state.anim.to.p, e); controls.target.lerpVectors(state.anim.from.t, state.anim.to.t, e); if (k >= 1) state.anim = null; }
-    if (state.photo && state.pt) ptCamera();
   }
   const dt = (now - last) / 1000; last = now;
   const keysMoved = !state.walk && orbitKeyStep(dt);
-  if (keysMoved && state.photo && state.pt) ptCamera();
   const moved0 = state.walk ? walkStep(dt) : controls.update() || keysMoved || !!state.anim;
   const inside = isInside(), fov = state.fovNow();
   if (Math.abs(camera.fov - fov) > .01) {
     if (reducedMotion.matches) camera.fov = fov;
     else { camera.fov += (fov - camera.fov) * .15; if (Math.abs(camera.fov - fov) < .05) camera.fov = fov; }
-    camera.updateProjectionMatrix(); if (state.photo && state.pt) ptCamera();
+    camera.updateProjectionMatrix();
   }
   const dirty = state.dirty; state.dirty = false;
-  idle = moved0 || dirty || camera.fov !== fov ? 0 : idle + 1; if (!MOBILE) setMoving(!state.photo && idle < 8);
+  idle = moved0 || dirty || camera.fov !== fov ? 0 : idle + 1; if (!MOBILE) setMoving(idle < 8);
   window.__settled = !state.anim && camera.fov === fov && !lod.on; // camera at rest: read by tools/shot.py
-  if (document.hidden) return;
   if (state.ceiling) { state.ceiling.visible = inside; if (state.lastCeil !== inside) { state.lastCeil = inside; markShadows(); rebuildPT(); } }
-  if (!state.photo && !state.walk && window.__settled && idle > 30) return;
-  renderer.toneMappingExposure = (state.night ? 1.25 : 1.0) * (state.photo ? (inside ? (state.night ? .75 : 6) : (state.night ? 1.3 : .5)) : 1);
-  if (state.photo && state.pt) {
-    if (state.ptDirty) { state.ptDirty = false; ptSetScene(); }
-    state.pt.renderSample(); if (!stillTick()) statusEl.textContent = `Photo · ${Math.floor(state.pt.samples)} samples`;
-  } else composer.render();
+  if (!state.walk && window.__settled && idle > 30) return;
+  renderer.toneMappingExposure = state.night ? 1.25 : 1.0;
+  composer.render();
   const w = innerWidth, h = innerHeight;
   for (const l of labels) { const on = l.group === 'room' ? state.showRooms && camera.position.y > H : l.group === 'furn' ? state.showFurn && !!l.grp : state.showDims;
     if (l.grp) { if (!l.grp.visible || !l.grp.parent) { l.el.hidden = true; continue; } l.p.copy(l.local); l.grp.localToWorld(l.p); }

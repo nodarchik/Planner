@@ -63,7 +63,7 @@ function applyBatch(changes) {
 }
 // view state: drive the same toolbar controls a click would
 function applyViewState(v) {
-  const locked = state.stillBusy ? ['view', 'camera', 'walk_to'].filter(k => k in v) : []; if (locked.length) { v = { ...v }; for (const k of locked) delete v[k]; } // a still is rendering
+  const locked = state.photo && v.photo !== false ? ['view', 'camera', 'walk_to'].filter(k => k in v) : []; if (locked.length) { v = { ...v }; for (const k of locked) delete v[k]; } // Photo render locks camera and views
   let uiErr = null; const onErr = ev => { uiErr = ev.error || new Error(ev.message); ev.preventDefault(); };
   const fire = (id, value) => { const e = $(id); e.value = value; addEventListener('error', onErr); e.dispatchEvent(new Event(id === 'sunTime' ? 'input' : 'change')); removeEventListener('error', onErr); if (uiErr) throw uiErr; }, done = []; // listener errors do not propagate: catch and rethrow them
   if ('sun_month' in v && !(Number.isInteger(v.sun_month) && v.sun_month >= 1 && v.sun_month <= 12)) throw new Error('sun_month must be an integer 1 to 12');
@@ -78,6 +78,7 @@ function applyViewState(v) {
   if ('style' in v && ![...$('style').options].some(o => o.value === v.style)) throw new Error(`unknown style "${v.style}"`);
   if ('view' in v && !plan.views[v.view]) throw new Error(`no view "${v.view}"`);
   if ('walk_to' in v) { const e = walkError(v.walk_to.x, v.walk_to.y); if (e) throw new Error(e); }
+  if (v.photo === false && state.photo) setPhoto(false);
   if ('night' in v) { $(v.night ? 'mnight' : 'mday').click(); done.push('night ' + v.night); }
   if ('cut' in v) { $(v.cut ? 'wcut' : 'wfull').click(); done.push('cut ' + v.cut); }
   if ('style' in v) { setPreset(v.style); done.push('style ' + v.style + ' (saved in meta.style.preset)'); }
@@ -92,11 +93,11 @@ function applyViewState(v) {
   if ('walk_to' in v) { walkTo(v.walk_to.x, v.walk_to.y, v.walk_to.yaw || 0); done.push(`walk_to ${v.walk_to.x}, ${v.walk_to.y}`); }
   if ('camera' in v) { state.anim = null; camera.position.set(...v.camera.cam); controls.target.set(...v.camera.target); controls.update(); done.push('camera set'); }
   if ('fast' in v) { setFast(v.fast); done.push('fast ' + v.fast); }
-  if ('photo' in v) { setPhoto(v.photo); done.push('photo ' + v.photo); }
+  if ('photo' in v) { if (v.photo !== state.photo) setPhoto(v.photo); done.push('photo ' + v.photo); }
   done.locked = locked; return done;
 }
 function runTool(block) {
-  if (block.name === 'set_view_state') { try { const done = applyViewState(block.input || {}), err = done.locked.length ? `${done.locked.join(', ')} not applied: a still is rendering; view and camera are locked until it finishes` : null; say(err ? 'note error' : 'note', (done.length ? 'View: ' + done.join(', ') : 'No change.') + (err ? ' Rejected: ' + err : '')); return { type: 'tool_result', tool_use_id: block.id, ...(err && { is_error: true }), content: err ? `${err}. Applied: ${done.join(', ') || 'nothing'}` : JSON.stringify({ applied: done }) }; }
+  if (block.name === 'set_view_state') { try { const done = applyViewState(block.input || {}), err = done.locked.length ? `${done.locked.join(', ')} not applied: view and camera are locked while Photo render is active` : null; say(err ? 'note error' : 'note', (done.length ? 'View: ' + done.join(', ') : 'No change.') + (err ? ' Rejected: ' + err : '')); return { type: 'tool_result', tool_use_id: block.id, ...(err && { is_error: true }), content: err ? `${err}. Applied: ${done.join(', ') || 'nothing'}` : JSON.stringify({ applied: done }) }; }
     catch (e) { say('note error', 'Rejected: ' + e.message); return { type: 'tool_result', tool_use_id: block.id, is_error: true, content: e.message }; } }
   if (block.name === 'history') { const { action, steps: st } = block.input || {}, steps = st ?? 1, fail = m => { say('note error', 'Rejected: ' + m); return { type: 'tool_result', tool_use_id: block.id, is_error: true, content: m }; };
     if (!['undo', 'redo', 'reset'].includes(action)) return fail('action must be undo, redo or reset'); if (!Number.isInteger(steps) || steps < 1 || steps > 100) return fail('steps must be an integer 1 to 100');

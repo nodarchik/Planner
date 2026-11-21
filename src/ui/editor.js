@@ -273,11 +273,12 @@ function pickPoint(ev) {
 }
 
 /* ---------- edit mode, dragging with snapping, keyboard ---------- */
-export function setMove(on) { if (on) { state.leaveWalk?.(); ensureProducts(); } state.moveMode = on; $('move').setAttribute('aria-pressed', on); bar.hidden = !on;
+export function setMove(on) { if (on) { state.leaveWalk?.(); if (state.photo) setPhoto(false); ensureProducts(); } state.moveMode = on; $('move').setAttribute('aria-pressed', on); bar.hidden = !on;
   hintEl.textContent = on ? 'Click an item or wall to edit its values · drag to move (snaps to walls, items, 5 cm; Shift = free) · drag empty space to orbit' : 'W A S D move · Drag rotate · Right-drag pan · Scroll zoom';
   if (!on) { setMeasure(false); select(null); } updateBar(); renderer.domElement.style.cursor = ''; }
+state.leaveMove = () => setMove(false);
 $('move').onclick = () => setMove(!state.moveMode);
-let drag = null, photoWasOn = false;
+let drag = null;
 function snapAxis(lo, hi, d, faces, free) { if (free) return { d: r2(d), snap: null };
   let best = null, snap = null; for (const f of faces) for (const e of [lo, hi]) { const c = f - (e + d); if (Math.abs(c) < SNAP && (best === null || Math.abs(c) < Math.abs(best))) { best = c; snap = f; } }
   return best !== null ? { d: d + best, snap } : { d: Math.round((lo + d) / GRID) * GRID - lo, snap: null }; }
@@ -307,7 +308,7 @@ stage.addEventListener('pointerdown', ev => { if (!state.moveMode || ev.button !
       if (bb.max.y >= .08 && bb.min.y <= 1.8 && b.max.y >= .08 && b.min.y <= 1.8) addOb(id, [b.min.x, b.min.z, b.max.x, b.max.z]); } } }
   dragPlane.set(new V3(0, 1, 0), -h.point.y); ray.ray.intersectPlane(dragPlane, hitP);
   drag = { id: ev.pointerId, start: hitP.clone(), objs, home: objs.map(o => o.position.clone()), bb, mv, axis, fx, fy, obs, dx: 0, dy: 0, moved: false };
-  if (state.photo) { photoWasOn = true; setPhoto(false); } controls.enabled = false; renderer.domElement.setPointerCapture(ev.pointerId); renderer.domElement.style.cursor = 'grabbing'; }, { capture: true });
+  controls.enabled = false; renderer.domElement.setPointerCapture(ev.pointerId); renderer.domElement.style.cursor = 'grabbing'; }, { capture: true });
 renderer.domElement.addEventListener('pointermove', ev => {
   if (drag && ev.pointerId === drag.id) { aim(ev); if (!ray.ray.intersectPlane(dragPlane, hitP)) return;
     let dx = hitP.x - drag.start.x, dy = hitP.z - drag.start.z; if (Math.hypot(dx, dy) > .02) drag.moved = true;
@@ -337,8 +338,7 @@ function endDrag(ev) { if (!drag || ev.pointerId !== drag.id) return; const d = 
   try { renderer.domElement.releasePointerCapture(ev.pointerId); } catch (e) {}
   const dx = r2(d.dx), dy = r2(d.dy);
   if (d.moved && (dx || dy)) { if (sel.kind === 'item') edit(() => d.mv.move(dx, dy), { item: sel.id }); else edit(() => moveWall(wallOf(sel.id), d.axis === 'x' ? dx : dy)); }
-  else { d.objs.forEach((o, i) => o.position.copy(d.home[i])); boxes.forEach(b => b.material.color.setHex(sel?.kind === 'wall' ? 0xc4552f : 0x2f6fd8)); markShadows(); }
-  if (photoWasOn) { photoWasOn = false; setPhoto(true); } }
+  else { d.objs.forEach((o, i) => o.position.copy(d.home[i])); boxes.forEach(b => b.material.color.setHex(sel?.kind === 'wall' ? 0xc4552f : 0x2f6fd8)); markShadows(); } }
 renderer.domElement.addEventListener('pointerup', endDrag); renderer.domElement.addEventListener('pointercancel', endDrag);
 addEventListener('keydown', ev => { if (!state.moveMode || ev.isComposing || ev.keyCode === 229 || document.querySelector('dialog:modal')) return;
   if (ev.key === 'Escape' && measureMode) { ev.preventDefault(); setMeasure(false); return; }

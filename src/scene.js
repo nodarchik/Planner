@@ -54,8 +54,11 @@ export const state = {
   focal: 0, // Photo lens in mm, 0 = automatic FOV
   fstop: 0, // Photo aperture, 0 = no depth of field
   ptDirty: false,
+  photoRendering: false,
+  photoFov: null,
   lastCeil: null,
   moveMode: false,
+  leaveMove: null,
   walk: false,
   teleport: null,
   leaveWalk: null, // set by ui/walk.js: Photo, Cut and Edit plan switching on call it

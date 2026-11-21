@@ -51,15 +51,16 @@ export function walkTo(x, y, yawDeg = 0) {
   const err = walkError(x, y); if (err) throw new Error(err);
   if (!state.walk) enter(); pos = [x, y]; yaw = -yawDeg * Math.PI / 180; pitch = 0; dirty = true; place();
 }
-export function leave(instant) {
+export function leave(instant, keepCam = false) {
   if (!state.walk) return; state.walk = false; document.body.classList.remove('walking'); keys.clear(); joy[0] = joy[1] = 0; controls.enabled = true; $('walk').setAttribute('aria-pressed', 'false'); if (!state.moveMode) $('hint').textContent = HINT;
   if (document.pointerLockElement === dom) document.exitPointerLock();
+  if (keepCam) { state.anim = null; return; }
   if (instant || matchMedia('(prefers-reduced-motion: reduce)').matches) { camera.position.copy(prev.p); controls.target.copy(prev.t); controls.update(); return; }
   state.anim = { from: { p: camera.position.clone(), t: controls.target.clone() }, to: { p: prev.p, t: prev.t }, t0: performance.now() };
 }
 
 $('walk').onclick = e => { if (state.walk) leave(); else { enter(); e.currentTarget.blur(); } };
-state.leaveWalk = () => leave(true);
+state.leaveWalk = keepCam => leave(true, keepCam);
 $('view').addEventListener('change', e => { if (state.walk) e.target.blur(); });
 addEventListener('keydown', ev => { if (!state.walk || /INPUT|SELECT|TEXTAREA/.test(document.activeElement?.tagName || '')) return; if (ev.metaKey || ev.ctrlKey) { keys.clear(); return; }
   if (ev.key === 'Escape') { leave(); $('walk').focus(); return; } if (ev.code.startsWith('Key') || ev.code.startsWith('Arrow') || ev.code.startsWith('Shift')) { keys.add(ev.code); if (ev.code.startsWith('Arrow')) ev.preventDefault(); } });

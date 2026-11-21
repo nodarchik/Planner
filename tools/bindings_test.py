@@ -122,8 +122,8 @@ async def main():
         await ev(SET, [{'input': 'wheel', 'action': 'pan'}]); await view('bed1'); await ev(WHEEL, [0, 200, {}]); await ev(raf)
         check('a bound pan counts as moving (quality drop, like an orbit)', await ev('window.__settled') is False)
         await settle(); await pg.click('#photo'); await pg.wait_for_function('(() => ' + smp + ')() >= 6', timeout=240000, polling=200)
-        n0 = await ev(smp); await ev(WHEEL, [0, 200, {}]); await ev(raf); n1 = await ev(smp)
-        check('Photo: a bound pan restarts the accumulation', n1 < n0, (n0, n1)); await ctx.close()
+        n0 = await ev(smp); c0 = await ev('__bindings.cam'); await ev(WHEEL, [0, 200, {}]); await ev(raf); n1 = await ev(smp); c1 = await ev('__bindings.cam')
+        check('Photo locks the camera and keeps samples', c0 == c1 and n1 >= n0, (n0, n1, c0, c1)); await ctx.close()
         # ?safe=1
         ctx, pg = await page(sys.argv[1] + '?safe=1', viewport={'width': 1200, 'height': 720}, has_touch=True); ev = pg.evaluate; cdp = await ctx.new_cdp_session(pg)
         await view('bed1'); check('safe: table empty and flag set', await ev('__bindings.table') == [] and await ev('__bindings.safe'))

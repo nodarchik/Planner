@@ -1,12 +1,13 @@
 // Overlays computed from the plan: room labels with areas, room sizes and dimension lines, furniture labels with measured sizes.
 import * as THREE from 'three';
-import { V3, scene } from '../scene.js';
+import { V3, scene, state } from '../scene.js';
 import { H, plan, bbox, area, fmt } from '../plan/plan.js';
 import { itemGroups } from '../items/index.js';
 import { productLabel } from '../plan/products.js';
 
 export const labelsEl = document.getElementById('labels'), labels = [];
 export const dimGroup = new THREE.Group(); scene.add(dimGroup); dimGroup.visible = false;
+state.syncDims = () => { dimGroup.visible = state.showDims && !state.photo; };
 const dimMat = new THREE.LineBasicMaterial({ color: 0x2f6fd8 }); dimMat.userData.shared = true;
 
 function addLabel(x, y, h, parts, cls, group) {
