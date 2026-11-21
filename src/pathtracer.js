@@ -58,8 +58,9 @@ function startStill(o = {}) { if (!state.photo || !state.pt || still) return fal
 // called by the render loop right after a path-traced sample, while the frame is still in the canvas
 export function stillTick() { if (!still) return false; if (still.saving) return true; window.__stillSamples = Math.floor(state.pt.samples); statusEl.textContent = `Still · ${window.__stillSamples} / ${still.samples} samples`; if (state.pt.samples < still.samples) return true;
   const s = still;
-  if (s.resolve) { const url = renderer.domElement.toDataURL('image/png'); endStill(); s.resolve(url); }
-  else { s.saving = true; renderer.domElement.toBlob(blob => { if (still === s) endStill(); if (!blob) return; const url = URL.createObjectURL(blob), a = document.createElement('a'); a.href = url; a.download = `palace1-still-${s.w}x${s.h}.png`; a.click(); setTimeout(() => URL.revokeObjectURL(url), 5000); }, 'image/png'); }
+  if (s.resolve) { let url; try { url = renderer.domElement.toDataURL('image/png'); } catch (e) { endStill(); s.reject?.(e); return true; } endStill(); s.resolve(url); }
+  else { s.saving = true; try { renderer.domElement.toBlob(blob => { if (still === s) endStill(); if (!blob) return; const url = URL.createObjectURL(blob), a = document.createElement('a'); a.href = url; a.download = `palace1-still-${s.w}x${s.h}.png`; a.click(); setTimeout(() => URL.revokeObjectURL(url), 5000); }, 'image/png'); } catch (e) { endStill(); }
+  }
   return true; }
 stillBtn.onclick = () => startStill();
 // scripted still (tools/stills.py): resolves with a PNG data URL, then restores view, mood and Photo state
