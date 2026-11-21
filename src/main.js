@@ -19,7 +19,7 @@ import { showToast } from './ui/toast.js';
 import './ui/chat.js';
 import './products-hook.js';
 import { initFast } from './fast.js';
-import { focalFov, ptCamera, ptSetScene, rebuildPT, stillTick } from './pathtracer.js';
+import { focalFov, ptCamera, ptSetScene, rebuildPT, stillFov, stillTick } from './pathtracer.js';
 
 // extent of the ceilings: the camera counts as inside (wide lens, ceiling shown) within it
 const ROOF = bbox(plan.ceilings.flatMap(c => [[c.rect[0], c.rect[1]], [c.rect[2], c.rect[3]]]));
@@ -43,6 +43,10 @@ window.__sceneTriangles = () => { let n = 0; scene.traverse(o => { if (o.isMesh 
 /* ================= loop ================= */
 const v = new V3(), reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
 let idle = 99, last = 0; // frames since the camera last moved; time of the last frame
+const isInside = () => camera.position.y < H - .05 && camera.position.x > ROOF[0] && camera.position.x < ROOF[2] && camera.position.z > ROOF[1] && camera.position.z < ROOF[3];
+state.fovNow = () => { // target fov for the camera where it is now (also read by startStill after it settles a view move)
+  const inside = isInside();
+  return stillFov() ?? (state.photo && state.focal ? focalFov(state.focal, camera.aspect) : (inside || state.walk ? 62 : 42) + (innerWidth < 600 ? 14 : 0)); };
 function tick(now) {
   requestAnimationFrame(tick); window.__frames = (window.__frames || 0) + 1;
   if (state.anim) {
@@ -55,8 +59,7 @@ function tick(now) {
   const keysMoved = !state.walk && orbitKeyStep(dt);
   if (keysMoved && state.photo && state.pt) ptCamera();
   const moved0 = state.walk ? walkStep(dt) : controls.update() || keysMoved || !!state.anim;
-  const inside = camera.position.y < H - .05 && camera.position.x > ROOF[0] && camera.position.x < ROOF[2] && camera.position.z > ROOF[1] && camera.position.z < ROOF[3];
-  const fov = state.photo && state.focal ? focalFov(state.focal, camera.aspect) : (inside || state.walk ? 62 : 42) + (innerWidth < 600 ? 14 : 0);
+  const inside = isInside(), fov = state.fovNow();
   if (Math.abs(camera.fov - fov) > .01) {
     if (reducedMotion.matches) camera.fov = fov;
     else { camera.fov += (fov - camera.fov) * .15; if (Math.abs(camera.fov - fov) < .05) camera.fov = fov; }

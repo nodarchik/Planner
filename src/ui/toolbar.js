@@ -43,6 +43,7 @@ tog('tdim', () => { state.showDims = !state.showDims; dimGroup.visible = state.s
 tog('tfur', () => state.showFurn = !state.showFurn);
 
 function resize() {
+  if (state.stillBusy) return; // a still renders at its own size; endStill re-runs this
   state.dirty = true;
   const w = innerWidth, h = innerHeight;
   renderer.setSize(w, h); composer.setPixelRatio(renderer.getPixelRatio()); composer.setSize(w, h);

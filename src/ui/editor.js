@@ -303,9 +303,9 @@ stage.addEventListener('pointerdown', ev => { if (!state.moveMode || ev.button !
     for (const [id, gs] of itemGroups) { if (id === h.id) continue; for (const g of gs) { const b = new THREE.Box3().setFromObject(g);
       if (b.max.z >= bb.min.z - .5 && b.min.z <= bb.max.z + .5 && b.max.x >= bb.min.x - .5 && b.min.x <= bb.max.x + .5) { fx.push(b.min.x, b.max.x); fy.push(b.min.z, b.max.z); }
       if (bb.max.y >= .08 && bb.min.y <= 1.8 && b.max.y >= .08 && b.min.y <= 1.8) addOb(id, [b.min.x, b.min.z, b.max.x, b.max.z]); } } }
-  controls.enabled = false; dragPlane.set(new V3(0, 1, 0), -h.point.y); ray.ray.intersectPlane(dragPlane, hitP);
+  dragPlane.set(new V3(0, 1, 0), -h.point.y); ray.ray.intersectPlane(dragPlane, hitP);
   drag = { id: ev.pointerId, start: hitP.clone(), objs, home: objs.map(o => o.position.clone()), bb, mv, axis, fx, fy, obs, dx: 0, dy: 0, moved: false };
-  if (state.photo) { photoWasOn = true; setPhoto(false); } renderer.domElement.setPointerCapture(ev.pointerId); renderer.domElement.style.cursor = 'grabbing'; }, { capture: true });
+  if (state.photo) { photoWasOn = true; setPhoto(false); } controls.enabled = false; renderer.domElement.setPointerCapture(ev.pointerId); renderer.domElement.style.cursor = 'grabbing'; }, { capture: true });
 renderer.domElement.addEventListener('pointermove', ev => {
   if (drag && ev.pointerId === drag.id) { aim(ev); if (!ray.ray.intersectPlane(dragPlane, hitP)) return;
     let dx = hitP.x - drag.start.x, dy = hitP.z - drag.start.z; if (Math.hypot(dx, dy) > .02) drag.moved = true;
