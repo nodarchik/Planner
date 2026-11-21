@@ -59,7 +59,22 @@ canvas{display:block;touch-action:none}
 .panel-title{margin:0;font:700 0.75rem var(--f-display);letter-spacing:.02em}
 .selpanel .pos{font:0.75rem var(--f-mono);color:var(--muted);font-variant-numeric:tabular-nums}
 .selpanel .row{display:flex;flex-wrap:wrap;gap:6px}
-.selpanel button,.editbar button,.chatpanel button,.fix-btn{font:600 0.6875rem var(--f-mono);letter-spacing:.04em;min-height:28px;padding:6px 10px;border:1px solid var(--line);border-radius:999px;background:var(--panel);color:var(--fg);cursor:pointer}
+.selpanel button,.editbar button,.chatpanel button,.photobar button,.fix-btn{font:600 0.6875rem var(--f-mono);letter-spacing:.04em;min-height:28px;padding:6px 10px;border:1px solid var(--line);border-radius:999px;background:var(--panel);color:var(--fg);cursor:pointer}
+.photo-img{position:fixed;inset:0;z-index:3;width:100%;height:100%;object-fit:contain;background:var(--bg);user-select:none}
+body.photo-mode #stage{pointer-events:none;cursor:default}
+body.photo-mode #stage[inert]{opacity:1}
+body.photo-mode #labels,body.photo-mode #hint,body.photo-mode .spec,body.photo-mode .layouts{display:none}
+.photobar{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:6;width:max-content;max-width:calc(100dvw - 24px);display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:10px 14px;border:1px solid var(--line);border-radius:14px;background:color-mix(in srgb,var(--panel) 94%,transparent);backdrop-filter:blur(10px);font:0.6875rem var(--f-mono);contain:layout style}
+.photo-text{color:var(--fg);font-weight:600;font-variant-numeric:tabular-nums}
+.photo-actions{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+#photoSave{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
+progress.photo-prog{appearance:none;border:0 solid;overflow:clip;container-type:inline-size;inline-size:140px;block-size:6px;border-radius:999px;background:color-mix(in srgb,var(--line) 35%,transparent);--prog-indet-dur:1.5s}
+progress.photo-prog:dir(rtl){--prog-indet-anim:photo-prog-indet var(--prog-indet-dur) infinite linear reverse}
+progress.photo-prog:indeterminate{--prog-anim:var(--prog-indet-anim,photo-prog-indet var(--prog-indet-dur) infinite linear)}
+progress.photo-prog::-webkit-progress-bar{background:transparent}
+progress.photo-prog::-webkit-progress-value{background:var(--accent);border-radius:999px;transition:inline-size .2s;animation:var(--prog-anim,revert-rule)}
+progress.photo-prog::-moz-progress-bar{background:var(--accent);border-radius:999px;transition:inline-size .2s;animation:var(--prog-anim,revert-rule)}
+@keyframes photo-prog-indet{from,to{inline-size:30%;margin-right:auto}from{translate:-100%}to{translate:100cqi}}
 .fix-btn{justify-self:start}
 #measureBtn[aria-pressed="true"]{background:var(--dim);color:var(--accent-fg);border-color:var(--dim)}
 .selpanel .note{font:0.6875rem var(--f-mono);color:var(--muted)}
@@ -130,11 +145,11 @@ canvas{display:block;touch-action:none}
 .local-badge.chat-local{bottom:3rem}
 
 /* focus states across all controls */
-.seg button:focus-visible,.sel:focus-visible,.selpanel button:focus-visible,.editbar button:focus-visible,.chatpanel button:focus-visible,.chathead select:focus-visible,.fix-btn:focus-visible,.sws .sw:focus-visible,.sws input[type=color]:focus-visible,.sizerow input:focus-visible,.fld input:focus-visible,.fld select:focus-visible,.fld textarea:focus-visible,.chatpanel textarea:focus-visible,.chatpanel input:focus-visible,.sunctl input[type=range]:focus-visible,summary:focus-visible,.spec .scroll:focus-visible,.chk-btn:focus-visible,.toast-btn:focus-visible{outline:2px solid var(--fg);outline-offset:2px}
+.seg button:focus-visible,.sel:focus-visible,.selpanel button:focus-visible,.editbar button:focus-visible,.chatpanel button:focus-visible,.photobar button:focus-visible,.chathead select:focus-visible,.fix-btn:focus-visible,.sws .sw:focus-visible,.sws input[type=color]:focus-visible,.sizerow input:focus-visible,.fld input:focus-visible,.fld select:focus-visible,.fld textarea:focus-visible,.chatpanel textarea:focus-visible,.chatpanel input:focus-visible,.sunctl input[type=range]:focus-visible,summary:focus-visible,.spec .scroll:focus-visible,.chk-btn:focus-visible,.toast-btn:focus-visible{outline:2px solid var(--fg);outline-offset:2px}
 summary:focus-visible,.spec .scroll:focus-visible,.chk-btn:focus-visible{border-radius:6px}
 
 @media (hover:hover){
-  .selpanel button:not(:disabled):hover,.editbar button:not(:disabled):hover,.chatpanel button:not(:disabled):hover,.fix-btn:not(:disabled):hover{border-color:var(--fg)}
+  .selpanel button:not(:disabled):hover,.editbar button:not(:disabled):hover,.chatpanel button:not(:disabled):hover,.photobar button:not(:disabled):hover,.fix-btn:not(:disabled):hover{border-color:var(--fg)}
   .layouts tr.chk:hover td{background:color-mix(in srgb,var(--fg) 6%,transparent)}
 }
 
@@ -163,15 +178,16 @@ summary:focus-visible,.spec .scroll:focus-visible,.chk-btn:focus-visible{border-
 
 /* editor & touch devices: bottom sheet, >=44px hit targets */
 @media (max-width:700px),(pointer:coarse){
-  .seg button,.sel,.selpanel button,.editbar button,.chatpanel button,.chathead select,#chatclose,.chips button,.spec summary,.layouts summary,.chk-btn,.fix-btn,.toast-btn,.lock{min-height:44px}
+  .seg button,.sel,.selpanel button,.editbar button,.chatpanel button,.photobar button,.chathead select,#chatclose,.chips button,.spec summary,.layouts summary,.chk-btn,.fix-btn,.toast-btn,.lock{min-height:44px}
   .sunctl input[type=range]{min-height:44px}
   .sws .sw{width:44px;height:44px;min-width:44px;min-height:44px}
   .sws input[type=color]{min-width:44px;min-height:44px}
   .selpanel{left:0;right:0;bottom:0;width:auto;max-height:46dvh;border-radius:16px 16px 0 0;padding-bottom:calc(12px + env(safe-area-inset-bottom,0px));z-index:8}
-  .selpanel button,.editbar button{padding:10px 14px}
+  .selpanel button,.editbar button,.photobar button{padding:10px 14px}
   .fld input,.fld select,.fld textarea,.sizerow input{min-height:44px;font-size:1rem}
   .fld input[type=checkbox],.lock input{width:24px;height:24px}
   .editbar{left:8px;right:8px;top:auto;bottom:calc(8px + env(safe-area-inset-bottom,0px));max-width:none;z-index:7}
+  .photobar{left:8px;right:8px;transform:none;width:auto;max-width:none;bottom:calc(8px + env(safe-area-inset-bottom,0px))}
   body:has(.selpanel:not([hidden])) .editbar{display:none}
   .chatpanel{left:0;right:0;bottom:0;width:auto;max-height:70dvh;border-radius:16px 16px 0 0;padding-bottom:calc(12px + env(safe-area-inset-bottom,0px));z-index:9}
   .chatpanel textarea,.chatpanel input{font-size:1rem}
@@ -190,7 +206,10 @@ summary:focus-visible,.spec .scroll:focus-visible,.chk-btn:focus-visible{border-
 }
 
 @media (prefers-reduced-motion:reduce){
-  *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}
+  *:not(.photo-prog),*:not(.photo-prog)::before,*:not(.photo-prog)::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}
+  progress.photo-prog{--prog-indet-dur:10s;transition-duration:0s}
+  progress.photo-prog::-webkit-progress-value{transition-duration:0s}
+  progress.photo-prog::-moz-progress-bar{transition-duration:0s}
 }
 /* shop product picker */
 dialog.picker{margin:auto;padding:12px;width:min(640px,calc(100dvw - 24px));max-height:min(720px,calc(100dvh - 28px));border:1px solid var(--line);border-radius:14px;background:var(--panel);color:var(--fg);box-sizing:border-box}

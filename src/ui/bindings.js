@@ -57,7 +57,7 @@ export function applyBindings() {
 
 /* ---------- camera moves for the inputs OrbitControls lacks ---------- */
 const off = new V3(), right = new V3(), up = new V3(), sph = new Spherical();
-const live = () => !safe && !state.walk && controls.enabled; // not in walk mode, not during an editor drag
+const live = () => !safe && !state.walk && !state.photo && controls.enabled; // not in walk mode, Photo render, or editor drag
 function pan(dx, dy) { // camera offset in screen pixels (right, up)
   camera.updateMatrix(); right.setFromMatrixColumn(camera.matrix, 0); up.setFromMatrixColumn(camera.matrix, 1);
   const s = 2 * Math.tan(camera.fov * Math.PI / 360) * camera.position.distanceTo(controls.target) / dom.clientHeight;
@@ -101,7 +101,7 @@ let shiftHeld = false;
 const matchKey = (e, ev) => ['shift', 'ctrl', 'alt', 'meta'].every(m => e.mods.includes(m) === ev[m + 'Key']) && (ev.code === e.key || ev.key.toLowerCase() === e.key.toLowerCase());
 const clearWasd = () => { wasdHeld.clear(); wasdPending.clear(); shiftHeld = false; };
 export function orbitKeyStep(dt) {
-  if (state.walk || !controls.enabled || (!wasdHeld.size && !wasdPending.size)) { wasdPending.clear(); return false; }
+  if (state.walk || state.photo || !controls.enabled || (!wasdHeld.size && !wasdPending.size)) { wasdPending.clear(); return false; }
   const active = k => wasdHeld.has(k) || wasdPending.has(k);
   const f = (active('KeyW') ? 1 : 0) - (active('KeyS') ? 1 : 0), s = (active('KeyD') ? 1 : 0) - (active('KeyA') ? 1 : 0);
   const tapOnly = !wasdHeld.size && wasdPending.size > 0;
@@ -124,6 +124,12 @@ on(window, 'keydown', ev => {
   if (state.walk || ev.isComposing || ev.keyCode === 229 || document.querySelector('dialog:modal')) return;
   const act = document.activeElement;
   if (/INPUT|SELECT|TEXTAREA/.test(act?.tagName || '') || act?.isContentEditable) return;
+  if (state.photo) {
+    if (ev.key === 'Escape') { ev.preventDefault(); click('photo'); return; }
+    const b = !safe && keys.length ? keys.find(e => matchKey(e, ev)) : null;
+    if (b?.action === 'toggle:photo' && !ev.repeat) { ev.preventDefault(); click('photo'); }
+    return;
+  }
   shiftHeld = ev.shiftKey;
   const b = !safe && keys.length ? keys.find(e => matchKey(e, ev)) : null;
   if (b && !(state.moveMode && state.sel)) { if (b.action !== 'none') { ev.preventDefault(); runKey(b, ev.repeat); } return; }

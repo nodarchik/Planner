@@ -6,6 +6,8 @@ import { B, C, RB, beginG, endGRaw, pillow } from '../primitives.js';
 import { movables, state } from '../scene.js';
 import { cab } from '../furniture/storage.js';
 import { productSize } from '../plan/products.js';
+import { swapIn } from '../assets.js';
+import MODELS from '../plan/comforter-models.json';
 
 const COLORS = { beige: '#d8c8ae', 'light beige': '#e6dccb', 'dark beige': '#b9a68a', cashmere: '#cdb9a0', white: '#f0ede7', black: '#26262a', grey: '#8a8a8a', 'light grey': '#c4c4c2', 'dark grey': '#55575a',
   anthracite: '#3a3d40', green: '#6b7f5a', 'dark green': '#3f5a45', 'light green': '#a9bf98', blue: '#5a7690', navy: '#2c3e5c', brown: '#6b4a34', red: '#9b3a32', burgundy: '#6a2431', yellow: '#d5b04a',
@@ -152,5 +154,6 @@ export const product = {
     beginG(it.name || it.label || p.title); build(c); const g = state.CUR; fit(g, [w, d, h]); endGRaw();
     const [x, y] = it.pos, face = it.lookAt ? Math.atan2(-(it.lookAt[0] - x), -(it.lookAt[1] - y)) : -(it.rot || 0) * Math.PI / 180;
     g.position.set(x, 0, y); g.rotation.y = face; g.userData.home = { x, z: y, r: face }; g.userData.product = p.id; movables.push(g);
+    const mo = kind !== 'unknown' && MODELS[p.id]; if (mo) swapIn(g, p.id, { path: `assets/comforter/${p.id}.glb`, rot: mo.rot, size: mo.fit === 'width' ? null : [w, d, h], width: mo.fit === 'width' ? w : 0, it });
   }
 };

@@ -5,7 +5,7 @@ import { plan } from '../plan/plan.js';
 import { emissives } from '../materials.js';
 import { bloom, composer } from '../post.js';
 import { dimGroup } from './dims.js';
-import { ptCamera, rebuildPT } from '../pathtracer.js';
+import { rebuildPT } from '../pathtracer.js';
 
 const gf = document.getElementById('gfonts');
 if (gf) { const on = () => { gf.media = 'all'; }; if (gf.sheet) on(); else gf.addEventListener('load', on, { once: true }); }
@@ -46,12 +46,11 @@ tog('tdim', () => { state.showDims = !state.showDims; dimGroup.visible = state.s
 tog('tfur', () => state.showFurn = !state.showFurn);
 
 function resize() {
-  if (state.stillBusy) return; // a still renders at its own size; endStill re-runs this
+  if (state.photo) return; // Photo render locks the viewport resolution until exited
   state.dirty = true;
   const w = innerWidth, h = innerHeight;
   renderer.setSize(w, h); composer.setPixelRatio(renderer.getPixelRatio()); composer.setSize(w, h);
   camera.aspect = w / h; camera.updateProjectionMatrix();
-  if (state.photo && state.pt) ptCamera();
 }
 addEventListener('resize', resize); resize();
 { const sp = document.getElementById('spec'), ly = document.getElementById('layouts'), narrow = () => innerWidth <= 700;

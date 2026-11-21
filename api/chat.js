@@ -64,7 +64,7 @@ TOOLS.push({
     type: 'object', additionalProperties: false,
     properties: {
       night: { type: 'boolean', description: 'Night (true) or day (false).' },
-      photo: { type: 'boolean', description: 'Photo render (path tracer) on or off.' },
+      photo: { type: 'boolean', description: 'Photo render (locked-camera path-traced photo of the current screen view) on or off.' },
       fast: { type: 'boolean', description: 'Fast mode on or off: no reflections, shadows, ambient occlusion, bloom or lamps, for speed. Photo turns it off.' },
       cut: { type: 'boolean', description: 'Cut (walls cut at 1.2 m) on or off.' },
       style: { type: 'string', description: 'Interior style preset: warm, soft, nordic, japandi, luxe or midcentury.' },
