@@ -8,6 +8,7 @@ import { cab } from '../furniture/storage.js';
 import { productSize } from '../plan/products.js';
 import { swapIn } from '../assets.js';
 import MODELS from '../plan/comforter-models.json';
+import { DESIGNS_BY_ID } from './product-designs.js';
 
 const COLORS = { beige: '#d8c8ae', 'light beige': '#e6dccb', 'dark beige': '#b9a68a', cashmere: '#cdb9a0', white: '#f0ede7', black: '#26262a', grey: '#8a8a8a', 'light grey': '#c4c4c2', 'dark grey': '#55575a',
   anthracite: '#3a3d40', green: '#6b7f5a', 'dark green': '#3f5a45', 'light green': '#a9bf98', blue: '#5a7690', navy: '#2c3e5c', brown: '#6b4a34', red: '#9b3a32', burgundy: '#6a2431', yellow: '#d5b04a',
@@ -149,7 +150,7 @@ export const product = {
   product(it) {
     let s = productSize(it);
     if (!s) { console.warn(`plan: item ${it.id} uses unknown product ${it.product}; showing a placeholder`); s = { p: { id: it.product, title: `Unknown product ${it.product}` }, kind: 'unknown', w: .6, d: .6, h: .6 }; }
-    const { p, kind, w, d, h } = s, build = kind === 'unknown' ? c => B(c.x1, c.y1, c.x2, c.y2, 0, c.h, M.carcass) : kinds[kind]; if (!build) throw new Error(`plan: item ${it.id} product ${it.product} has no model for kind "${kind}"`);
+    const { p, kind, w, d, h } = s, build = kind === 'unknown' ? c => B(c.x1, c.y1, c.x2, c.y2, 0, c.h, M.carcass) : DESIGNS_BY_ID[p.id] || kinds[kind]; if (!build) throw new Error(`plan: item ${it.id} product ${it.product} has no model for kind "${kind}"`);
     const c = { w, d, h, kind, it, title: p.title, x1: -w / 2, x2: w / 2, y1: -d / 2, y2: d / 2, ...palette(p, it) };
     beginG(it.name || it.label || p.title); build(c); const g = state.CUR; fit(g, [w, d, h]); endGRaw();
     const [x, y] = it.pos, face = it.lookAt ? Math.atan2(-(it.lookAt[0] - x), -(it.lookAt[1] - y)) : -(it.rot || 0) * Math.PI / 180;

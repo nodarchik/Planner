@@ -43,6 +43,7 @@ export function buildMaterials() {
     concrete: T('micro', 3, { color: 0xd8d2c8, normalScale: .6 }),
     deck: T('deck', 2.0, { normalScale: .8 }),
     boucle: T('boucle', .16, { color: 0xf0e9de, sheen: 1, sheenColor: 0xffffff, sheenRoughness: .7, normalScale: 1.4 }),
+    boucleMatte: T('boucle', .16, { color: 0xf0e9de, normalScale: 1.4 }),
     boucleOat: T('boucle', .16, { color: 0xd9ccb8, sheen: 1, sheenColor: 0xfff4e4, sheenRoughness: .7, normalScale: 1.4 }),
     linenWhite: T('linen', .1, { color: 0xf5f2ec, sheen: .6, sheenColor: 0xffffff, sheenRoughness: .5, side: THREE.DoubleSide }),
     linenSand: T('linen', .1, { color: 0xdcc3a0, sheen: .6, sheenColor: 0xfff1dc, sheenRoughness: .5, side: THREE.DoubleSide }),
