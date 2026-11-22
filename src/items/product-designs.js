@@ -17,7 +17,7 @@ function soft(w, h, d, o = {}) {
     const p = [0, 1, 2].map(k => L[k][Math.round((q.array[i * 3 + k] + hf[k]) / (2 * hf[k]) * (L[k].length - 1))]), o2 = p.slice();
     const c = p.map((e, k) => Math.max(-hf[k] + r, Math.min(hf[k] - r, e))), dv = p.map((e, k) => e - c[k]), l = Math.hypot(...dv) || 1;
     for (let k = 0; k < 3; k++) p[k] = c[k] + dv[k] / l * r;
-    if (o.top) p[1] += Math.max(0, p[1] / hf[1]) ** 3 * (o.top * (.5 + .5 * Math.cos(6 * Math.PI * p[0] / w)) - o.droop * (p[0] / hf[0]) ** 4); // scalloped top, drooping corners
+    if (o.top || o.droop) p[1] += Math.max(0, p[1] / hf[1]) ** 3 * ((o.top || 0) * (.5 + .5 * Math.cos(6 * Math.PI * p[0] / w)) - (o.droop || 0) * (p[0] / hf[0]) ** 4); // optional scalloped top, corner droop (negative raises)
     for (let k = 0; k < 3; k++) { if (Math.abs(Math.abs(o2[k]) - hf[k]) > 1e-5) continue;
       const s = Math.sign(o2[k]), [m, n] = [0, 1, 2].filter(e => e !== k); let dz = !bk.includes(k) ? 0 : b * Math.max(0, Math.cos(Math.PI / 2 * o2[m] / hf[m]) * Math.cos(Math.PI / 2 * o2[n] / hf[n])) ** .6;
       for (const G of gr) if (G.k === k && G.s === s) { const a = G.a, e = 3 - k - a, f = Math.min(1, (1 - Math.abs(o2[e]) / hf[e]) / .12), t = G.lo === undefined ? 1 : Math.max(0, Math.min(1, (o2[e] - G.lo) / .03, (G.hi - o2[e]) / .03));
@@ -27,23 +27,23 @@ function soft(w, h, d, o = {}) {
   g.deleteAttribute('uv'); g.deleteAttribute('normal'); const m = mergeVertices(g, 1e-4); if (o.rx) m.rotateX(o.rx); m.computeVertexNormals(); return m;
 }
 
-// Corner Sofa Alikante (634): one-piece arms with tufted outer faces, thick crowned seats on a recessed base, one-piece chaise, tall back cushions in 3 lobes, soft lumbar pillows. Built chaise at +x; the shop photo (chaise on the sitter's left) is the default, "R" mirrors it.
+// Corner Sofa Alikante (634): tufted one-piece arms, crowned seats filling the body over a flush base, one-piece chaise, tall back cushions with two seams, soft lumbar pillows. Built chaise at +x; the shop photo (chaise on the sitter's left) is the default, "R" mirrors it.
 function alikante(c) {
-  const { x1, x2, y1, y2 } = c, mx = c.it.chaise !== 'R' ? -1 : 1, hex = c.it.color || '#e4c8ab', f = c.it.color ? c.fab : tinted('boucle', hex), dark = tinted('walnut', '#3a281e');
+  const { x1, x2, y1, y2 } = c, mx = c.it.chaise !== 'R' ? -1 : 1, hex = c.it.color || '#e0c8b0', f = c.it.color ? c.fab : tinted('boucle', hex), dark = tinted('walnut', '#3a281e');
   const put = (geo, x, z, y) => add(geo, f, mx * x, z, y, { hideInCut: false });
   const rb = (a, y, b, ya, z1, z2, r, m = f) => { const [p, q] = mx < 0 ? [-b, -a] : [a, b]; return RB(p, y, q, ya, z1, z2, r, m, { seg: 2 }); };
-  const D = 1.18, yb = y2 - D, aw = .3, ch = 1.31, fz = .045, bz = .25, sz = .45, az = .66, sw = (x2 - x1 - aw - ch) / 2, xs = [x1 + aw, x1 + aw + sw, x2 - ch], sd = D - .36;
-  for (const [x, y] of [[x1 + .1, yb + .12], [x1 + .1, y2 - .08], [x2 - .1, y2 - .08], [x2 - .1, y1 + .14], [x2 - ch + .1, y1 + .14], [x2 - ch + .1, yb + .12], [(x1 + x2 - ch) / 2, y2 - .08]]) rb(x - .04, y - .04, x + .04, y + .04, 0, fz + .01, .02, dark);
-  rb(x1 + aw - .02, yb + .06, x2 - aw + .02, y2, fz, bz, .03); rb(x2 - ch, y1 + .06, x2 - .02, yb + .06, fz, bz, .03); // recessed bases
-  const seat = (a, ya, bb, yz) => put(soft(bb - a - .006, sz - bz + .01, yz - ya - .006, { r: .07, b: .016, bk: [1], step: .06 }), (a + bb) / 2, (bz + sz) / 2 - .005, (ya + yz) / 2);
-  seat(xs[0], yb, xs[1], y2 - .36); seat(xs[1], yb, xs[2], y2 - .36); seat(xs[2], y1, x2, yb); seat(xs[2], yb, x2 - aw, y2 - .36); // seats, chaise front, chaise rear
-  for (const [a, out] of [[x1, -1], [x2 - aw, 1]]) { const o = out * mx, G = (a2, at) => ({ k: 0, s: o, a: a2, at, w: .016, d: .02 }), h = az - .035; // arm: one block, outer face 3 x 2 tufts
-    put(soft(aw, h, D - .004, { r: .06, b: .012, step: .04, grooves: [G(2, -D / 6), G(2, D / 6), G(1, 0)] }), a + aw / 2, .035 + h / 2, yb + D / 2); }
-  rb(x1 + .03, y2 - .2, x2 - .03, y2, bz, .55, .05); // back rail
-  const tl = .15, bh = .425, py = .38 * bh - bh / 2; // back cushion: lean, pinch line height
-  for (let i = 0; i < 3; i++) { const cx = x1 + .76 + .73 * i, G = at => ({ k: 2, s: -1, a: 0, at, w: .024, d: .022, lo: py, hi: bh / 2 });
-    put(soft(.74, bh, .23, { r: .06, b: .07, bk: [2], step: .05, rx: tl, top: .014, droop: .03, grooves: [G(-.123), G(.123), { k: 2, s: -1, a: 1, at: py, w: .035, d: .02 }] }), cx, sz + .01 + bh / 2 * Math.cos(tl), y2 - .3 + bh / 2 * Math.sin(tl));
-    put(soft(.62, .22, .16, { r: .02, b: .06, bk: [2], step: .04, rx: -.26, top: .008, droop: .02 }), cx, sz + .12, y2 - .5); } // lumbar pillow
+  const D = 1.18, yb = y2 - D, aw = .29, fz = .045, bz = .26, sz = .45, az = .68, xa = x1 + aw, xr = x1 + 2.63, xc = x1 + 1.89, ys = y2 - .24; // xr: inner edge of the chaise-side arm, xc: chaise start, ys: seat back
+  for (const [x, y] of [[x1 + .12, yb + .14], [x1 + .12, y2 - .1], [xr + .2, y2 - .1], [xr + .2, yb + .14], [x2 - .1, y1 + .14], [xc + .1, y1 + .14], [xc + .1, yb + .14], [(x1 + xr) / 2, y2 - .1]]) rb(x - .04, y - .04, x + .04, y + .04, 0, fz + .01, .02, dark);
+  rb(xa - .02, yb + .02, xr + .02, y2, fz, bz, .02); rb(xc, y1 + .02, x2 - .02, yb + .02, fz, bz, .02); // bases
+  const seat = (a, ya, b, yz) => put(soft(b - a - .006, sz - bz + .02, yz - ya - .006, { r: .05, b: .014, bk: [1], step: .07 }), (a + b) / 2, (bz + sz) / 2 - .01, (ya + yz) / 2);
+  seat(xa, yb, x1 + 1.10, ys); seat(x1 + 1.10, yb, xc, ys); seat(xc, y1 + .003, x2, yb + .003); seat(xc, yb, xr, ys); // seats, chaise front, chaise rear
+  for (const [a, b, out] of [[x1, xa, -1], [xr, x1 + 3.12, 1]]) { const o = out * mx, G = (k, a2, at, w = .016, d = .02) => ({ k, s: k ? -1 : o, a: a2, at, w, d }), h = az - fz + .01, w = b - a; // arm: one block, 3 x 2 tufts on the outer face, top panel seam
+    put(soft(w, h, D - .02, { r: .06, b: .012, step: .045, grooves: [G(0, 2, -D / 6 + .01), G(0, 2, D / 6 + .01), G(0, 1, 0), G(0, 1, h / 2 - .09, .01, .012), G(2, 1, h / 2 - .09, .01, .012)] }), (a + b) / 2, fz - .01 + h / 2, yb + .02 + (D - .02) / 2); }
+  rb(xa, y2 - .2, xr, y2, bz, sz - .01, .02); // seat-level back block behind the cushions
+  const tl = .12, bh = .455, py = .4 * bh - bh / 2, tk = .26; // back cushion: lean, pinch line at 40 %
+  for (let i = 0; i < 3; i++) { const cx = x1 + .765 + .735 * i, G = at => ({ k: 2, s: -1, a: 0, at, w: .008, d: .012, lo: py, hi: bh / 2 });
+    put(soft(.735, bh, tk, { r: .08, b: .075, bk: [2], step: .06, rx: tl, droop: -.014, grooves: [G(-.122), G(.122), { k: 2, s: -1, a: 1, at: py, w: .012, d: .012 }] }), cx, sz + bh / 2 * Math.cos(tl), y2 - .23 + bh / 2 * Math.sin(tl));
+    put(soft(.66, .22, .16, { r: .015, b: .065, bk: [2], step: .05, rx: .35, droop: -.008 }), cx, sz + .11, y2 - .4); } // lumbar pillow
 }
 
 export const DESIGNS_BY_ID = { 634: alikante };
