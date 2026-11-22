@@ -1,5 +1,5 @@
 // Hand-modelled designs for single shop products, keyed by comforter.ge id; used by product() instead of the generic kind builder.
-import { tinted } from '../tint.js';
+import { tinted, HEX } from '../tint.js';
 import * as THREE from 'three';
 import { mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
 import { RB, add } from '../primitives.js';
@@ -10,7 +10,7 @@ function soft(w, h, d, o = {}) {
   const axis = k => { const s = [];
     for (let j = 0; j <= 3; j++) s.push(hf[k] - r + r * j / 3, -(hf[k] - r + r * j / 3));
     for (let e = -hf[k] + r + st; e < hf[k] - r - st * .6; e += st) s.push(e);
-    for (const [c, v] of cu[k]) for (const m of [-2, -1, -.5, 0, .5, 1, 2]) if (Math.abs(c + m * v) < hf[k] - r) s.push(c + m * v);
+    for (const [c, v] of cu[k]) for (const m of [-2, -1.5, -1, -.5, 0, .5, 1, 1.5, 2]) if (Math.abs(c + m * v) < hf[k] - r) s.push(c + m * v);
     s.sort((x, y) => x - y); return s.filter((e, i) => !i || e - s[i - 1] > .004); };
   const L = [0, 1, 2].map(axis), g = new THREE.BoxGeometry(2 * hf[0], 2 * hf[1], 2 * hf[2], L[0].length - 1, L[1].length - 1, L[2].length - 1), q = g.attributes.position;
   for (let i = 0; i < q.count; i++) {
@@ -27,10 +27,9 @@ function soft(w, h, d, o = {}) {
 const gauss = (x, at, w) => Math.exp(-(((x - at) / w) ** 2));
 const rnd = (i, j) => { const v = Math.sin(i * 12.9898 + j * 78.233) * 43758.5453; return v - Math.floor(v); };
 
-// Corner Sofa Alikante (634): arms as single tufted blocks, box seat cushions on a recessed base, pillowy back cushions with two creases, soft lumbar pillows. Built chaise at +x; the shop photo (chaise on the sitter's left) is the default, "R" mirrors it.
+// Corner Sofa Alikante (634), built at the fixed 3.20 x 2.24 footprint (fit() absorbs small size changes): arms as single tufted blocks, box seat cushions on a recessed base, pillowy back cushions with two creases, soft lumbar pillows. Built chaise at +x; the shop photo (chaise on the sitter's left) is the default, "R" mirrors it.
 function alikante(c) {
-  const { x1, x2, y1, y2 } = c, mx = c.it.chaise !== 'R' ? -1 : 1, hex = c.it.color || '#d8c4b0', f = c.it.color ? c.fab : tinted('boucle', hex), dark = tinted('walnut', '#3a281e');
-  if (f.sheen) f.sheen = 0;
+  const { x1, x2, y1, y2 } = c, mx = c.it.chaise !== 'R' ? -1 : 1, hex = c.it.color || '#d8c4b0', f = tinted('boucleMatte', HEX.test(hex) ? hex : '#d8c4b0'), dark = tinted('walnut', '#3a281e');
   const put = (geo, x, z, y) => add(geo, f, mx * x, z, y, { hideInCut: false });
   const rb = (a, y, b, ya, z1, z2, r, m = f) => { const [p, q] = mx < 0 ? [-b, -a] : [a, b]; return RB(p, y, q, ya, z1, z2, r, m, { seg: 2 }); };
   const D = 1.1, yb = y2 - D, fz = .045, bz = .26, sz = .45, az = .68, xa = x1 + .29, xr = x1 + 2.66, xar = x2 - .02, xc = x1 + 1.89, ys = y2 - .1, pf = .025; // xr: inner edge of the chaise-side arm, xc: chaise start, ys: seat back, pf: cushion front proud of the base
@@ -43,9 +42,9 @@ function alikante(c) {
   const seat = (a, ya, b, yz, p0 = pf) => { const w = b - a - .004, th = sz - .01 - bz, dz = yz - ya + p0;
     return put(soft(w, th, dz, { r: .04, bow: [0, .03, .012], step: .09, cuts: [[], [[th / 2 - .035, .008], [-th / 2 + .035, .008]], [[-dz / 2 + .035, .008]]], disp: sd }), (a + b) / 2, bz + th / 2, (ya - p0 + yz) / 2); };
   seat(xa, yb, x1 + 1.10, ys); seat(x1 + 1.10, yb, xc, ys); seat(xc, y1, x2, yb + .004, 0); seat(xc, yb, xr, ys, 0); // seats, chaise cushion, seat behind the chaise
-  for (const [a, b, out] of [[x1, xa, -1], [xr, xar, 1]]) { const o = out * mx, h = az - fz, dd = D / 6, yc = .43 - (fz + h / 2), tw = .04; // arm: one block, 3 x 2 tufts on the outer face
+  for (const [a, b, out] of [[x1, xa, -1], [xr, xar, 1]]) { const o = out * mx, h = az - fz, dd = D / 6, yc = .02, tw = .05; // arm: one block, 3 x 2 tufts on the outer face
     const ad = (k, s, u, v, hf) => { if (k === 0 && s === o) { const e = Math.min(1, (1 - Math.abs(u) / hf[1]) / .18, (1 - Math.abs(v) / hf[2]) / .12);
-        return -e * e * .024 * Math.max(gauss(v, -dd, tw), gauss(v, dd, tw), gauss(u, yc, tw)); }
+        return -e * e * .04 * (1 - (1 - gauss(v, -dd, tw)) * (1 - gauss(v, dd, tw)) * (1 - gauss(u, yc, tw))); }
       return 0; };
     put(soft(b - a, h, D, { r: .04, step: .06, bow: [.02, .01, .01], cuts: [[], [[yc, tw]], [[-dd, tw], [dd, tw]]], disp: ad }), (a + b) / 2, fz + h / 2, yb + D / 2); }
   rb(xa, y2 - .2, xr, y2, bz, sz - .05, .02); // block behind the cushions
