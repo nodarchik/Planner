@@ -1,4 +1,4 @@
-import { DPR, V2, camera, controls, frame, markShadows, renderer, scene, stage, state, statusEl } from './scene.js';
+import { MOBILE, V2, camera, controls, frame, markShadows, renderer, scene, stage, state, statusEl } from './scene.js';
 import { composer } from './post.js';
 import { M } from './materials.js';
 import { setView } from './ui/views.js';
@@ -22,7 +22,13 @@ export function ptCamera() { lens(); if (state.pt) state.pt.updateCamera(); }
 
 /* ================= path tracer ("Photo render") ================= */
 
-const DEFAULT_SAMPLES = 32, DEFAULT_BOUNCES = 5, MAX_EDGE = 1440;
+const DEFAULT_SAMPLES = 32, DEFAULT_BOUNCES = 5;
+// Photo size = the window in device pixels (as sharp as the screen), capped by pixel count (render time, GPU memory: up to 95 bytes per pixel) and long edge
+const MAX_PIXELS = MOBILE ? 1e6 : 3.7e6, MAX_EDGE = MOBILE ? 2048 : 2880;
+const photoDims = budget => { const w = innerWidth * devicePixelRatio, h = innerHeight * devicePixelRatio, k = Math.min(1, Math.sqrt(MAX_PIXELS * budget / (w * h)), MAX_EDGE / Math.max(w, h));
+  return [Math.max(1, Math.round(w * k)), Math.max(1, Math.round(h * k))]; };
+// true when the GPU ran out of memory since the last call (lost context included)
+const gpuFull = () => { const gl = renderer.getContext(); let full = gl.isContextLost(); for (let e, i = 0; i < 8 && (e = gl.getError()); i++) if (e === gl.OUT_OF_MEMORY) full = true; return full; };
 // window / rail / shower glass use clear alpha so sunlight reaches rooms cleanly; clearcoat breaks in the path tracer so it is off in Photo
 const GLASS_ALPHA = { glassWin: 0, glassRail: 0, glassShower: .1 };
 // decorative glass, tinted glass and pool water keep thin-walled/index transmission during path tracing
@@ -74,6 +80,7 @@ const lockToolbar = on => { for (const id of LOCK_IDS) { const el = $(id); if (e
 
 let snap = null, runId = 0, passId = 0, targetSamples = DEFAULT_SAMPLES, stopRequested = false, photoDone = false, saving = false;
 let photoUrl = null, photoSize = [0, 0], headlessReq = null;
+let lastSamples = 0, rearm = null;
 const revokePhotoUrl = () => { if (photoUrl) { URL.revokeObjectURL(photoUrl); photoUrl = null; } photoImg.removeAttribute('src'); };
 
 function beginPass() {
@@ -82,6 +89,7 @@ function beginPass() {
   photoDone = stopRequested = saving = false;
   targetSamples = headlessReq?.samples || DEFAULT_SAMPLES;
   window.__photoSamples = window.__stillSamples = 0;
+  lastSamples = 0; denoiser?.reset();
   photoProg.max = targetSamples; photoProg.value = 0;
   photoText.textContent = `Rendering photo · 0 / ${targetSamples} samples`;
   statusEl.textContent = `Photo · 0 / ${targetSamples} samples`;
@@ -95,7 +103,7 @@ function exitPhoto() {
   denoiser?.dispose(); denoiser = null;
   photoImg.hidden = true; photoBar.hidden = true;
   photoStop.hidden = photoMore.hidden = photoSave.hidden = true;
-  stopRequested = photoDone = saving = false;
+  stopRequested = photoDone = saving = false; rearm = null;
   ptGlass(false); scene.environmentIntensity = 1;
   state.photo = false; state.photoRendering = false; state.photoFov = null;
   if (snap) {
@@ -119,7 +127,11 @@ function exitPhoto() {
 export function photoTick() {
   if (!state.photo || !state.photoRendering || !state.pt || saving) return false;
   state.pt.renderSample();
-  const n = Math.floor(state.pt.samples);
+  const s = state.pt.samples, n = Math.floor(s);
+  if (rearm && s > 0) { const again = rearm; rearm = null; if (gpuFull()) { again(); return true; } }
+  if (s < lastSamples) denoiser?.reset(); // the accumulation restarted (scene or camera update)
+  lastSamples = s;
+  if (s === n && n > 0 && !(n & (n - 1))) denoiser?.snapshot(state.pt.target.texture, n); // halves for the noise estimate
   window.__photoSamples = window.__stillSamples = n;
   const shown = Math.min(targetSamples, n);
   photoProg.value = shown;
@@ -127,7 +139,7 @@ export function photoTick() {
     statusEl.textContent = `Still · ${shown} / ${targetSamples} samples`;
     if (state.pt.samples < targetSamples && !stopRequested) return true;
     const h = headlessReq; headlessReq = null; state.photoRendering = false;
-    denoiser?.run(state.pt.target.texture, renderer.toneMappingExposure, state.fstop > 0);
+    denoiser?.run(state.pt.target.texture, renderer.toneMappingExposure, { samples: state.pt.samples, dof: state.fstop > 0 });
     try { h.resolve(renderer.domElement.toDataURL('image/png')); } catch (e) { h.reject(e); }
     return true;
   }
@@ -140,7 +152,7 @@ export function photoTick() {
   const focusStop = document.activeElement === photoStop;
   photoStop.hidden = true;
   photoText.textContent = 'Denoising image…';
-  denoiser?.run(state.pt.target.texture, renderer.toneMappingExposure, state.fstop > 0);
+  denoiser?.run(state.pt.target.texture, renderer.toneMappingExposure, { samples: state.pt.samples, dof: state.fstop > 0 });
   try {
     renderer.domElement.toBlob(blob => {
       if (myPass !== passId || !state.photo) return;
@@ -201,7 +213,7 @@ export async function setPhoto(on, opts = {}) {
       ptCam = new mod.PhysicalCamera(camera.fov, camera.aspect, camera.near, camera.far);
       ptCam.filmGauge = camera.filmGauge;
       state.pt = new mod.WebGLPathTracer(renderer);
-      state.pt.tiles.set(2, 2); state.pt.bounces = DEFAULT_BOUNCES; state.pt.transmissiveBounces = 4; state.pt.filterGlossyFactor = .5; state.pt.minSamples = 1; state.pt.renderDelay = 0; state.pt.fadeDuration = 0; state.pt.renderScale = 1;
+      state.pt.bounces = DEFAULT_BOUNCES; state.pt.filterGlossyFactor = .25; state.pt.minSamples = 1; state.pt.renderDelay = 0; state.pt.fadeDuration = 0; state.pt.renderScale = 1;
       state.pt.rasterizeSceneCallback = () => composer.render();
       denoiser = dn.createDenoiser(renderer);
     } else if (!denoiser) {
@@ -214,26 +226,36 @@ export async function setPhoto(on, opts = {}) {
     await frame(); if (myRun !== runId || !state.photo) return;
     await frame(); if (myRun !== runId || !state.photo) return;
     setFast(false);
-    const rw0 = innerWidth * Math.min(DPR, 1.25), rh0 = innerHeight * Math.min(DPR, 1.25);
-    const k = Math.min(1, MAX_EDGE / Math.max(rw0, rh0));
-    const rw = opts.w || Math.max(1, Math.round(rw0 * k)), rh = opts.h || Math.max(1, Math.round(rh0 * k));
-    renderer.setPixelRatio(1); renderer.setSize(rw, rh, false);
-    if (!opts.w) { renderer.domElement.style.width = `${innerWidth}px`; renderer.domElement.style.height = `${innerHeight}px`; }
-    camera.aspect = rw / rh;
-    camera.fov = state.focal ? focalFov(state.focal, camera.aspect) : baseFov;
-    camera.updateProjectionMatrix();
-    state.pt.renderScale = 1;
-    state.pt.bounces = opts.bounces || DEFAULT_BOUNCES;
-    denoiser.capture(scene, camera, rw, rh, skipMats());
-    ptGlass(true); syncLights(); ptSetScene(); state.ptDirty = false;
-    beginPass();
-  } catch (err) {
-    console.warn(err);
-    const rej = headlessReq?.reject; headlessReq = null;
-    if (state.photo) exitPhoto();
-    statusEl.textContent = 'Photo render unavailable on this device';
-    rej?.(err);
-  }
+    // size, guide buffers, scene upload; `budget` 0.5 = second try with half the pixels after the GPU ran out of memory
+    const arm = async budget => {
+      const [rw, rh] = opts.w ? [opts.w, opts.h] : photoDims(budget);
+      renderer.setPixelRatio(1); renderer.setSize(rw, rh, false);
+      if (!opts.w) { renderer.domElement.style.width = `${innerWidth}px`; renderer.domElement.style.height = `${innerHeight}px`; }
+      camera.aspect = rw / rh;
+      camera.fov = state.focal ? focalFov(state.focal, camera.aspect) : baseFov;
+      camera.updateProjectionMatrix();
+      const t = Math.min(4, Math.max(2, Math.ceil(Math.sqrt(rw * rh / 2.5e5)))); // about 0.25 MP per frame keeps the page responsive
+      state.pt.tiles.set(t, t); state.pt.renderScale = 1;
+      state.pt.bounces = opts.bounces || DEFAULT_BOUNCES;
+      // the library keeps its random numbers in a table bounces + transmissiveBounces + 5 wide but reads columns 0-16 of it; with 5 + 4 + 5 = 14
+      // the lobe choice (column 15) read outside the table, got the same value for every sample of a pixel, and glossy reflections never converged
+      state.pt.transmissiveBounces = Math.max(4, 12 - state.pt.bounces);
+      gpuFull(); denoiser.capture(scene, camera, rw, rh, skipMats());
+      if (gpuFull()) throw new Error('GPU out of memory');
+      ptGlass(true); syncLights(); ptSetScene(); state.ptDirty = false;
+      beginPass();
+    };
+    const half = async () => { console.warn('Photo render: GPU out of memory, trying half the pixels'); state.photoRendering = false; await arm(.5); };
+    try { await arm(1); if (!opts.w) rearm = () => half().catch(fail); } // photoTick calls rearm when the first samples ran out of memory
+    catch (err) { if (opts.w) throw err; await half(); }
+  } catch (err) { fail(err); }
+}
+function fail(err) {
+  console.warn(err);
+  const rej = headlessReq?.reject; headlessReq = null;
+  if (state.photo) exitPhoto();
+  statusEl.textContent = 'Photo render unavailable on this device';
+  rej?.(err);
 }
 
 photoBtn.onclick = () => setPhoto(!state.photo);
@@ -276,5 +298,6 @@ window.__photo = {
   get done() { return photoDone; },
   get samples() { return window.__photoSamples || 0; },
   get target() { return targetSamples; },
+  get size() { return [renderer.domElement.width, renderer.domElement.height]; },
   finish() { if (state.photoRendering) stopRequested = true; },
 };
