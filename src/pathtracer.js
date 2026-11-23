@@ -80,19 +80,34 @@ const lockToolbar = on => { for (const id of LOCK_IDS) { const el = $(id); if (e
 
 let snap = null, runId = 0, passId = 0, targetSamples = DEFAULT_SAMPLES, stopRequested = false, photoDone = false, saving = false;
 let photoUrl = null, photoSize = [0, 0], headlessReq = null;
-let lastSamples = 0, rearm = null;
+let finishing = false, focusStop = false, lastSamples = 0, rearm = null;
+// one percentage for the whole render: loading the renderer 0-3, preparing the scene 3-10, sampling up to 97, denoising 97, encoding 99, 100 = image ready.
+// It never goes back within a pass; "+32 samples" and a lens change start a new pass at 0.
+let pct = 0, stageName = '', passLo = 0, passFrom = 0;
+function progress(p, name, samples) {
+  pct = Math.max(pct, Math.min(100, Math.floor(p))); stageName = name;
+  const line = `${headlessReq ? 'Still' : 'Photo'} · ${pct} % · ${samples || name.toLowerCase()}`;
+  if (statusEl.textContent !== line) statusEl.textContent = line;
+  if (headlessReq) return;
+  const text = samples ? `${name} · ${pct} % · ${samples}` : `${name} · ${pct} %`;
+  if (photoText.textContent !== text) photoText.textContent = text;
+  photoProg.max = 100; photoProg.value = pct;
+}
+function sampling() {
+  const s = state.pt.samples;
+  if (!s && state.pt.isCompiling) return progress(passLo, 'Compiling shaders');
+  progress(passLo + (97 - passLo) * Math.min(1, Math.max(0, (s - passFrom) / Math.max(1e-6, targetSamples - passFrom))), 'Rendering photo', `${Math.min(targetSamples, Math.floor(s))} / ${targetSamples} samples`);
+}
 const revokePhotoUrl = () => { if (photoUrl) { URL.revokeObjectURL(photoUrl); photoUrl = null; } photoImg.removeAttribute('src'); };
 
-function beginPass() {
+function beginPass(lo = 0) {
   passId++; revokePhotoUrl();
   photoImg.hidden = true; photoSave.hidden = photoMore.hidden = photoStop.hidden = true;
-  photoDone = stopRequested = saving = false;
+  photoDone = stopRequested = saving = finishing = false;
   targetSamples = headlessReq?.samples || DEFAULT_SAMPLES;
   window.__photoSamples = window.__stillSamples = 0;
-  lastSamples = 0; denoiser?.reset();
-  photoProg.max = targetSamples; photoProg.value = 0;
-  photoText.textContent = `Rendering photo · 0 / ${targetSamples} samples`;
-  statusEl.textContent = `Photo · 0 / ${targetSamples} samples`;
+  passLo = lo; passFrom = lastSamples = 0; if (!lo) pct = 0;
+  denoiser?.reset(); sampling();
   state.photoRendering = true;
 }
 
@@ -103,7 +118,7 @@ function exitPhoto() {
   denoiser?.dispose(); denoiser = null;
   photoImg.hidden = true; photoBar.hidden = true;
   photoStop.hidden = photoMore.hidden = photoSave.hidden = true;
-  stopRequested = photoDone = saving = false; rearm = null;
+  stopRequested = photoDone = saving = finishing = false; rearm = null; pct = 0; stageName = '';
   ptGlass(false); scene.environmentIntensity = 1;
   state.photo = false; state.photoRendering = false; state.photoFov = null;
   if (snap) {
@@ -126,48 +141,45 @@ function exitPhoto() {
 // called from main.js render loop while Photo render is actively refining samples
 export function photoTick() {
   if (!state.photo || !state.photoRendering || !state.pt || saving) return false;
-  state.pt.renderSample();
-  const s = state.pt.samples, n = Math.floor(s);
+  if (finishing) { finishing = false; develop(); return true; }
+  const pt = state.pt;
+  pt.renderSample();
+  const s = pt.samples, n = Math.floor(s);
   if (rearm && s > 0) { const again = rearm; rearm = null; if (gpuFull()) { again(); return true; } }
   if (s < lastSamples) denoiser?.reset(); // the accumulation restarted (scene or camera update)
   lastSamples = s;
-  if (s === n && n > 0 && !(n & (n - 1))) denoiser?.snapshot(state.pt.target.texture, n); // halves for the noise estimate
+  if (s === n && n > 0 && !(n & (n - 1))) denoiser?.snapshot(pt.target.texture, n); // halves for the noise estimate
   window.__photoSamples = window.__stillSamples = n;
-  const shown = Math.min(targetSamples, n);
-  photoProg.value = shown;
-  if (headlessReq) {
-    statusEl.textContent = `Still · ${shown} / ${targetSamples} samples`;
-    if (state.pt.samples < targetSamples && !stopRequested) return true;
-    const h = headlessReq; headlessReq = null; state.photoRendering = false;
-    denoiser?.run(state.pt.target.texture, renderer.toneMappingExposure, { samples: state.pt.samples, dof: state.fstop > 0 });
-    try { h.resolve(renderer.domElement.toDataURL('image/png')); } catch (e) { h.reject(e); }
-    return true;
-  }
-  photoText.textContent = `Rendering photo · ${n} / ${targetSamples} samples`;
-  statusEl.textContent = `Photo · ${n} / ${targetSamples} samples`;
-  if (n >= 1 && photoStop.hidden) photoStop.hidden = false;
-  if (state.pt.samples < targetSamples && !stopRequested) return true;
-  saving = true; state.photoRendering = false;
-  const myPass = ++passId, w = renderer.domElement.width, h = renderer.domElement.height;
-  const focusStop = document.activeElement === photoStop;
-  photoStop.hidden = true;
-  photoText.textContent = 'Denoising image…';
+  sampling();
+  if (!headlessReq && n >= 1 && photoStop.hidden) photoStop.hidden = false;
+  if (s < targetSamples && !stopRequested) return true;
+  focusStop = document.activeElement === photoStop; photoStop.hidden = true;
+  finishing = true; progress(97, 'Denoising'); // shown for one frame, the filter runs on the next tick
+  return true;
+}
+// denoise the accumulated image onto the canvas, then hand it over (PNG blob on screen, data URL for a scripted still)
+function develop() {
+  const n = Math.floor(state.pt.samples);
   denoiser?.run(state.pt.target.texture, renderer.toneMappingExposure, { samples: state.pt.samples, dof: state.fstop > 0 });
+  state.photoRendering = false;
+  if (headlessReq) {
+    const h = headlessReq; let url;
+    try { url = renderer.domElement.toDataURL('image/png'); } catch (e) { headlessReq = null; h.reject(e); return; }
+    progress(100, 'Photo ready'); headlessReq = null; h.resolve(url);
+    return;
+  }
+  saving = true; progress(99, 'Saving image');
+  const myPass = ++passId, w = renderer.domElement.width, h = renderer.domElement.height;
+  const ready = (text, focus) => { saving = false; photoDone = true; photoMore.hidden = false; progress(100, 'Photo ready'); photoText.textContent = text; statusEl.textContent = `Photo ready · ${n} samples`; if (focusStop) focus.focus(); };
   try {
     renderer.domElement.toBlob(blob => {
       if (myPass !== passId || !state.photo) return;
-      saving = false;
-      if (!blob) { photoDone = true; photoMore.hidden = false; photoText.textContent = `Photo finished · ${n} samples`; if (focusStop) photoClose.focus(); return; }
+      if (!blob) return ready(`Photo finished · ${n} samples`, photoClose);
       revokePhotoUrl(); photoUrl = URL.createObjectURL(blob); photoSize = [w, h];
-      photoImg.src = photoUrl; photoImg.hidden = false; photoDone = true;
-      photoProg.value = targetSamples;
-      photoMore.hidden = photoSave.hidden = false;
-      photoText.textContent = `Photo ready · ${w}×${h} · ${n} samples`;
-      statusEl.textContent = `Photo ready · ${n} samples`;
-      if (focusStop) photoSave.focus();
+      photoImg.src = photoUrl; photoImg.hidden = false; photoSave.hidden = false;
+      ready(`Photo ready · ${w}×${h} · ${n} samples`, photoSave);
     }, 'image/png');
-  } catch (e) { saving = false; photoDone = true; photoMore.hidden = false; if (focusStop) photoClose.focus(); }
-  return true;
+  } catch (e) { ready(`Photo finished · ${n} samples`, photoClose); }
 }
 
 function setLens(focal, fstop) {
@@ -200,13 +212,12 @@ export async function setPhoto(on, opts = {}) {
   headlessReq = opts.headless || null;
   if (!headlessReq) {
     revokePhotoUrl(); photoImg.hidden = true; photoStop.hidden = photoMore.hidden = photoSave.hidden = true;
-    photoProg.removeAttribute('value');
-    photoBar.hidden = false; photoText.textContent = 'Loading renderer…'; statusEl.textContent = 'Loading renderer…';
-    photoClose.focus();
+    photoBar.hidden = false; photoClose.focus();
   }
+  pct = 0; progress(0, 'Loading renderer');
   try {
     if (!state.pt) {
-      statusEl.textContent = 'Loading renderer…'; await frame();
+      await frame();
       if (myRun !== runId || !state.photo) return;
       const [mod, dn] = await Promise.all([import('three-gpu-pathtracer'), import('./denoise.js')]);
       if (myRun !== runId || !state.photo) return;
@@ -221,8 +232,7 @@ export async function setPhoto(on, opts = {}) {
       if (myRun !== runId || !state.photo) return;
       denoiser = createDenoiser(renderer);
     }
-    if (!headlessReq) photoText.textContent = 'Preparing scene…';
-    statusEl.textContent = 'Preparing scene…';
+    progress(3, 'Preparing scene');
     await frame(); if (myRun !== runId || !state.photo) return;
     await frame(); if (myRun !== runId || !state.photo) return;
     setFast(false);
@@ -234,7 +244,7 @@ export async function setPhoto(on, opts = {}) {
       camera.aspect = rw / rh;
       camera.fov = state.focal ? focalFov(state.focal, camera.aspect) : baseFov;
       camera.updateProjectionMatrix();
-      const t = Math.min(4, Math.max(2, Math.ceil(Math.sqrt(rw * rh / 2.5e5)))); // about 0.25 MP per frame keeps the page responsive
+      const t = Math.min(4, Math.max(2, Math.ceil(Math.sqrt(rw * rh / 2.5e5)))); // about 0.25 MP per frame keeps the page and the percentage moving
       state.pt.tiles.set(t, t); state.pt.renderScale = 1;
       state.pt.bounces = opts.bounces || DEFAULT_BOUNCES;
       // the library keeps its random numbers in a table bounces + transmissiveBounces + 5 wide but reads columns 0-16 of it; with 5 + 4 + 5 = 14
@@ -242,12 +252,15 @@ export async function setPhoto(on, opts = {}) {
       state.pt.transmissiveBounces = Math.max(4, 12 - state.pt.bounces);
       gpuFull(); denoiser.capture(scene, camera, rw, rh, skipMats());
       if (gpuFull()) throw new Error('GPU out of memory');
+      progress(5, 'Preparing scene'); await frame(); if (myRun !== runId || !state.photo) return false;
       ptGlass(true); syncLights(); ptSetScene(); state.ptDirty = false;
-      beginPass();
+      progress(10, 'Preparing scene');
+      return true;
     };
-    const half = async () => { console.warn('Photo render: GPU out of memory, trying half the pixels'); state.photoRendering = false; await arm(.5); };
-    try { await arm(1); if (!opts.w) rearm = () => half().catch(fail); } // photoTick calls rearm when the first samples ran out of memory
-    catch (err) { if (opts.w) throw err; await half(); }
+    const start = async budget => { const ok = await arm(budget); if (ok) beginPass(10); return ok; };
+    const half = () => { console.warn('Photo render: GPU out of memory, trying half the pixels'); state.photoRendering = false; return start(.5); };
+    try { if (await start(1) && !opts.w) rearm = () => half().catch(fail); } // photoTick calls rearm when the first samples ran out of memory
+    catch (err) { if (opts.w || myRun !== runId || !state.photo) throw err; await half(); }
   } catch (err) { fail(err); }
 }
 function fail(err) {
@@ -267,9 +280,7 @@ photoMore.onclick = () => {
   photoImg.hidden = true; photoMore.hidden = photoSave.hidden = true;
   photoStop.hidden = false; photoDone = stopRequested = false;
   targetSamples = Math.max(targetSamples, Math.floor(state.pt.samples)) + DEFAULT_SAMPLES;
-  photoProg.max = targetSamples; photoProg.value = Math.floor(state.pt.samples);
-  photoText.textContent = `Rendering photo · ${Math.floor(state.pt.samples)} / ${targetSamples} samples`;
-  statusEl.textContent = `Photo · ${Math.floor(state.pt.samples)} / ${targetSamples} samples`;
+  passLo = pct = 0; passFrom = state.pt.samples; sampling(); // a new pass: the percentage covers the added samples
   state.photoRendering = true; photoStop.focus();
 };
 photoSave.onclick = () => {
@@ -298,6 +309,8 @@ window.__photo = {
   get done() { return photoDone; },
   get samples() { return window.__photoSamples || 0; },
   get target() { return targetSamples; },
+  get percent() { return pct; }, // 0-100, see progress()
+  get stage() { return stageName; },
   get size() { return [renderer.domElement.width, renderer.domElement.height]; },
   finish() { if (state.photoRendering) stopRequested = true; },
 };
