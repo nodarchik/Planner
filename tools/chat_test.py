@@ -296,6 +296,16 @@ async def main():
         check('a message with photos and no text is sent', any(x['type'] == 'text' and 'attached photos' in x['text'] for x in pb[3]['messages'][-1]['content']))
         await ph.set_input_files('#chatfile', [{'name': 'broken.png', 'mimeType': 'image/png', 'buffer': b'not an image'}]); await ph.wait_for_timeout(800)
         check('a file that cannot be decoded is skipped with a note', await ph.evaluate("document.querySelectorAll('#chatthumbs .chatthumb').length") == 0 and 'Could not read' in await ph.evaluate("document.getElementById('chatlog').innerText"))
+        # a file drop is never left to the browser (it would navigate away); non-images get a note
+        pd = await ph.evaluate("""(() => { const dt = new DataTransfer(); dt.items.add(new File(['x'], 'a.txt', { type: 'text/plain' })); const ev = new DragEvent('drop', { dataTransfer: dt, bubbles: true, cancelable: true }); document.getElementById('chatpanel').dispatchEvent(ev); return ev.defaultPrevented; })()""")
+        check('a non-image file drop is prevented and noted', pd is True and 'Only photos can be attached' in await ph.evaluate("document.getElementById('chatlog').innerText"))
+        # photos of the newest message are never dropped silently: over the cap nothing is sent
+        noise = []
+        for n in range(3):
+            f = os.path.join(tmp, f'noise{n}.png'); Image.frombytes('RGB', (1600, 1200), os.urandom(1600 * 1200 * 3)).save(f); noise.append(f)
+        k = len(pb); await ph.set_input_files('#chatfile', noise); await ph.wait_for_function("document.querySelectorAll('#chatthumbs .chatthumb').length === 3", timeout=30000)
+        await ph.fill('#chatinput', 'too many big photos'); await ph.click('#chatsend'); await ph.wait_for_function("document.getElementById('chatlog').innerText.includes('too large to send')", timeout=30000)
+        check('over the cap: not sent, a note asks for fewer or smaller photos, nothing replaced', len(pb) == k and 'photo not kept' not in json.dumps(pb))
         check('no page errors with photos', not errs, errs[:5])
         await ph.close()
         await b.close()

@@ -46,10 +46,11 @@ export function repair(h) {
 const size = h => JSON.stringify(h, (k, v) => v && v.type === 'image' ? '[photo]' : v).length; // photos count as their placeholder
 // stored form of a user message with photos: its text plus one [photo: name] line each, never the pixels
 const storable = m => { if (m.role !== 'user' || !photoMsg(m)) return m; const t = m.content.filter(b => b.type === 'text').map(b => b.text); return { role: 'user', content: [t[t.length - 1], ...t.slice(0, -1)].join('\n') }; };
-// when the request would pass the server cap, the oldest photos are replaced by a text block
+// near the server cap the oldest photos are replaced by a text block, never those of the newest user message; null = still too big
 export function dropPhotos(h, cap = 3.4e6) {
-  for (let i = 0; i < h.length && JSON.stringify(h).length > cap; i++) if (Array.isArray(h[i].content) && h[i].content.some(b => b.type === 'image')) { h = h.slice(); h[i] = { ...h[i], content: h[i].content.map(b => b.type === 'image' ? { type: 'text', text: '[photo not kept]' } : b) }; }
-  return h; }
+  const keep = h.findLastIndex(plain);
+  for (let i = 0; i < h.length && JSON.stringify(h).length > cap; i++) if (i !== keep && Array.isArray(h[i].content) && h[i].content.some(b => b.type === 'image')) { h = h.slice(); h[i] = { ...h[i], content: h[i].content.map(b => b.type === 'image' ? { type: 'text', text: '[photo not kept]' } : b) }; }
+  return JSON.stringify(h).length > cap ? null : h; }
 // drop the oldest whole turns (cut at a plain user message) once the conversation nears the server limits; returns the same list if nothing to cut
 export function trim(h) {
   if (h.length <= MAX_MSGS && size(h) <= MAX_BYTES) return h;
@@ -76,10 +77,10 @@ const entry = (id, d) => ({ id, title: titleOf(d.log), updated: Date.now(), coun
 const touch = (id, d) => save({ chats: [...readIdx().chats.filter(c => c.id !== id), entry(id, d)] }, IDX); // after each saved turn
 
 // at start (or when a chat is opened): server copy first (short timeout), else the local one; a local copy the server never confirmed is pushed first
-export async function load(id = cur) {
+export async function load(id = cur, strict = false) { // strict: false (not null) when the server cannot be read and there is no local copy
   const local = readLocal(id); if (OFF) return cleanData(local);
   const { status, j } = await call('GET', null, 3000, id);
-  if (status !== 200 || !j) return cleanData(local);
+  if (status !== 200 || !j) return strict && !local ? false : cleanData(local);
   if (ls.get(keysOf(id).unsent) || (j.rev === 0 && local)) { setRev(id, j.rev); const mine = cleanData(local); save(mine, id); return mine; } // a 409 on the way resolves it: this copy wins
   setRev(id, j.rev); writeLocal(id, j.data); return cleanData(j.data); }
 // the chat list for the panel; also adds a chat saved by the single-chat version ("main") the first time
@@ -93,22 +94,24 @@ export async function loadIndex() {
   return idx.chats; }
 // delete a chat: local copy, list entry and the server copy (emptied)
 export async function drop(id) {
-  removed.add(id); const k = keysOf(id); ls.del(k.data); ls.del(k.rev); ls.del(k.unsent); delete st[id];
+  removed.add(id); const k = keysOf(id), busy = st[id]; ls.del(k.data); ls.del(k.rev); ls.del(k.unsent); delete st[id];
+  for (let i = 0; busy && busy.inflight && i < 80; i++) await new Promise(r => setTimeout(r, 100)); // a running save of this chat ends first (it stops at the next step)
   save({ chats: readIdx().chats.filter(c => c.id !== id) }, IDX);
   if (OFF) return; const { status, j } = await call('GET', null, 4000, id); if (status === 200 && j && j.rev > 0 && j.data) await call('PUT', { rev: j.rev, data: null }, 8000, id); }
 // after a finished turn: local copy now, server copy with the last known rev; on 409 this copy wins (never merged), except the chat list, which is merged
 export async function save(data, id = cur) {
+  if (removed.has(id)) return; // a deleted chat is never written again
   const idx = id === IDX; if (data) data = idx ? cleanIdx(data) : fit(data); writeLocal(id, data); if (!idx && data) touch(id, data);
   if (OFF) return; const k = keysOf(id), s = S(id); ls.set(k.unsent, '1'); s.latest = data; if (s.inflight) { s.queued = true; return; }
   s.inflight = true;
   try { do { s.queued = false; let sent = s.latest;
-      for (let n = 0; n < 3; n++) { let { status, j } = await call('PUT', { rev: s.rev, data: sent }, 8000, id);
+      for (let n = 0; n < 3 && !removed.has(id); n++) { let { status, j } = await call('PUT', { rev: s.rev, data: sent }, 8000, id);
         if (status === 401 && !noPrompt) { const pw = prompt('Chat password (the same as the assistant):'); if (pw) { ls.set(PWKEY, pw); ({ status, j } = await call('PUT', { rev: s.rev, data: sent }, 8000, id)); } if (status === 401) { ls.del(PWKEY); noPrompt = true; } }
         if (status === 200 && j) { setRev(id, j.rev); if (!idx) setLocalOnly(false); if (!s.queued) ls.del(k.unsent); break; }
         if (status === 409 && j && JSON.stringify(j.data) === JSON.stringify(sent)) { setRev(id, j.rev); if (!idx) setLocalOnly(false); if (!s.queued) ls.del(k.unsent); break; } // our own PUT whose reply was lost
         if (status === 409 && j) { setRev(id, j.rev); if (idx) { sent = mergeIdx(sent, j.data); writeLocal(id, sent); } else note("Chat was changed on another device; this device's version was kept"); continue; }
         if (status === 413 && !idx) setLocalOnly(true);
-        break; } } while (s.queued); }
+        break; } } while (s.queued && !removed.has(id)); }
   finally { s.inflight = false; } }
 // the server copy of the current chat if it is newer than ours and this device has nothing unsent: { data } (data null = cleared), else null
 export async function fresh() {
@@ -119,4 +122,4 @@ export async function fresh() {
 // tab visible again: adopt a newer server copy unless a turn is running
 export function watch(isBusy, adopt) {
   if (OFF) return;
-  document.addEventListener('visibilitychange', async () => { if (document.hidden || isBusy()) return; const f = await fresh(); if (f && !isBusy()) { f.commit(); adopt(f.data); } }); }
+  document.addEventListener('visibilitychange', async () => { if (document.hidden || isBusy()) return; const id = cur, f = await fresh(); if (f && !isBusy() && cur === id) { f.commit(); adopt(f.data); } }); }

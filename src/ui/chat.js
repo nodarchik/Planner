@@ -115,7 +115,8 @@ function runTool(block) {
 }
 async function post(messages) {
   const headers = { 'content-type': 'application/json' }; let pw = null; try { pw = localStorage.getItem(PWKEY); } catch (e) {} if (pw) headers['x-chat-password'] = pw;
-  let r; try { r = await fetch('/api/chat', { method: 'POST', headers, body: JSON.stringify({ messages: dropPhotos(messages), model }) }); } catch (e) { throw new Error('Could not reach the assistant.'); }
+  const kept = dropPhotos(messages); if (!kept) throw new Error('The photos are too large to send together: attach fewer or smaller photos.');
+  let r; try { r = await fetch('/api/chat', { method: 'POST', headers, body: JSON.stringify({ messages: kept, model }) }); } catch (e) { throw new Error('Could not reach the assistant.'); }
   if (r.status === 404) throw new Error('The assistant runs only on the deployed site (Vercel), not in this build.');
   const data = await r.json().catch(() => ({ error: `HTTP ${r.status}` }));
   if (r.status === 401) { try { localStorage.removeItem(PWKEY); } catch (e) {} $('chatpw').hidden = false; $('chatpwinput').focus(); throw new Error('Enter the chat password below, then send again.'); }
@@ -132,8 +133,9 @@ function drawList(chats) {
     t.textContent = c.title; d.textContent = `${new Date(c.updated).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })} · ${c.count} request${c.count === 1 ? '' : 's'}${now ? ' · current' : ''}`;
     if (now) open.setAttribute('aria-current', 'true'); open.append(t, d); open.onclick = () => openChat(c.id);
     del.textContent = '✕'; del.setAttribute('aria-label', 'Delete chat: ' + c.title); del.title = 'Delete this chat'; del.onclick = () => removeChat(c); row.append(open, del); box.appendChild(row); } }
-function openChat(id) { if (busy) return; showList(false); if (id === chatId()) return; setChat(id); restore(null); ready = load(id).then(d => { if (chatId() === id) restore(d); }); } // the next message carries the full plan again (restore)
-async function removeChat(c) { if (busy || !confirm(`Delete the chat "${c.title}"? This cannot be undone.`)) return; await drop(c.id); if (c.id === chatId()) { setChat(newChatId()); restore(null); } drawList(localIndex()); }
+async function openChat(id) { if (busy) return; showList(false); if (id === chatId()) return; busy = true; lock(true);
+  try { const d = await load(id, true); if (d === false) { say('note error', 'Could not open that chat (no connection). Staying on the current chat.', false); return; } setChat(id); restore(d); } finally { busy = false; lock(false); } } // restore: the next message carries the full plan again
+async function removeChat(c) { if (busy || !confirm(`Delete the chat "${c.title}"? This cannot be undone.`)) return; busy = true; lock(true); try { await drop(c.id); if (c.id === chatId()) { setChat(newChatId()); restore(null); } drawList(localIndex()); } finally { busy = false; lock(false); } }
 // photos: decoded, scaled to 1568 px and re-encoded as JPEG here; a 96 px thumbnail goes to the transcript
 const MAX_PHOTOS = 4;
 async function shrink(file) {
@@ -146,8 +148,8 @@ function drawPending() {
 async function addPhotos(files) {
   for (const f of [...files].filter(f => f.type.startsWith('image/'))) {
     if (pending.length >= MAX_PHOTOS) { say('note error', `At most ${MAX_PHOTOS} photos per message.`, false); break; }
-    try { pending.push(await shrink(f)); drawPending(); } catch (e) { say('note error', `Could not read the photo ${f.name || ''}; skipped.`, false); } } }
-async function send() { const text = input.value.trim(); if ((!text && !pending.length) || busy) return; await ready; if (busy) return; busy = true; lock(true); if (listOpen) showList(false); input.value = '';
+    try { const p = await shrink(f); if (pending.length >= MAX_PHOTOS) { say('note error', `At most ${MAX_PHOTOS} photos per message.`, false); break; } pending.push(p); drawPending(); } catch (e) { say('note error', `Could not read the photo ${f.name || ''}; skipped.`, false); } } }
+async function send() { const text = input.value.trim(); if ((!text && !pending.length) || busy) return; busy = true; lock(true); await ready; if (listOpen) showList(false); input.value = '';
   const photos = pending, thumbs = photos.map(p => p.thumb), req = text || '(see the attached photos)'; pending = []; drawPending();
   const pre = [add('user', text, '', thumbs), add('note', 'Thinking…')]; // shown at once; the check below can take up to 2 s
   const [other] = await Promise.all([fresh(), ensureProducts()]); pre.forEach(n => n.remove()); if (other) { other.commit(); restore(other.data); say('note', 'Chat updated from another device.', false); } // another device changed the chat since this one loaded
@@ -190,7 +192,7 @@ function setChatOpen(open) {
 if ($('chatBtn')) { const off = !!import.meta.env.VITE_NO_ASSETS; $('chatBtn').hidden = off; $('chatBtn').setAttribute('aria-controls', 'chatpanel'); $('chatBtn').setAttribute('aria-expanded', String(!panel.hidden));
   const pick = $('chatmodel'); CHAT_MODELS.forEach(m => pick.add(new Option(m.label, m.id))); pick.value = model;
   pick.onchange = () => { model = pick.value; try { localStorage.setItem(MODELKEY, model); } catch (e) {} };
-  ready = load().then(d => { if (d && !busy) restore(d); }); watch(() => busy, d => restore(d));
+  const first = chatId(); ready = load().then(d => { if (d && !busy && chatId() === first) restore(d); }); watch(() => busy, d => restore(d));
   $('chatBtn').onclick = () => setChatOpen(panel.hidden);
   if ($('chatclose')) $('chatclose').onclick = () => { setChatOpen(false); $('chatBtn').focus(); };
   panel.onkeydown = ev => { if (ev.key === 'Escape' && !ev.isComposing && ev.keyCode !== 229) { ev.stopPropagation(); setChatOpen(false); $('chatBtn').focus(); } };
@@ -200,7 +202,7 @@ if ($('chatBtn')) { const off = !!import.meta.env.VITE_NO_ASSETS; $('chatBtn').h
   const imgs = dt => dt && [...dt.files].filter(f => f.type.startsWith('image/'));
   panel.addEventListener('paste', ev => { const f = imgs(ev.clipboardData); if (f && f.length) { ev.preventDefault(); addPhotos(f); } });
   panel.addEventListener('dragover', ev => { if (ev.dataTransfer && [...ev.dataTransfer.types].includes('Files')) ev.preventDefault(); });
-  panel.addEventListener('drop', ev => { const f = imgs(ev.dataTransfer); if (f && f.length) { ev.preventDefault(); addPhotos(f); } });
+  panel.addEventListener('drop', ev => { if (!ev.dataTransfer || ![...ev.dataTransfer.types].includes('Files')) return; ev.preventDefault(); const f = imgs(ev.dataTransfer); if (f.length) addPhotos(f); else say('note error', 'Only photos can be attached.', false); }); // any file drop is handled here, never navigated to
   $('chatnew').onclick = () => { if (busy) return; showList(false); if (!(history.length || entries.length)) return; setChat(newChatId()); restore(null); input.focus(); }; // the old chat stays in the list
   $('chatsbtn').onclick = async () => { if (busy) return; if (listOpen) { showList(false); return; } showList(true); drawList(localIndex()); const chats = await loadIndex(); if (listOpen) drawList(chats); };
   if ($('chatundo')) $('chatundo').onclick = () => { if (!busy) editHistory('undo', 1); };

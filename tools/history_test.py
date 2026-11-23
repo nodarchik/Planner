@@ -238,6 +238,13 @@ async def main():
         d2 = await page(); await d2.click('#chatsbtn'); await d2.wait_for_function("document.querySelectorAll('#chatlist .chatitem').length === 2", timeout=10000)
         check('another device shows the same chats', sorted(await d2.evaluate(rows)) == ['brand new chat|false', 'old request 0|true'], await d2.evaluate(rows))
         await m.goto(sys.argv[1], timeout=120000); await m.wait_for_selector('#loader[hidden]', state='attached', timeout=240000); await m.click('#chatBtn')   # page() parked this page
+        # opening a chat whose server copy cannot be read (and has no local copy) keeps the current chat
+        idx.update(rev=idx['rev'] + 1, data={'chats': idx['data']['chats'] + [{'id': 'ghost-chat-1', 'title': 'Ghost chat', 'updated': 9999999999999, 'count': 1}]})
+        await m.click('#chatsbtn'); await m.wait_for_function("[...document.querySelectorAll('#chatlist .title')].some(t => t.textContent === 'Ghost chat')", timeout=10000)
+        mode['v'] = '500'; k = await m.evaluate("localStorage.getItem('palace1-chat-current')")
+        await m.evaluate("[...document.querySelectorAll('#chatlist .chatopen')].find(b => b.textContent.includes('Ghost chat')).click()"); await m.wait_for_function("document.getElementById('chatlog').innerText.includes('Could not open that chat')", timeout=15000); mode['v'] = 'ok'
+        check('open-chat load failure: note shown, previous chat and its transcript kept', await m.evaluate("localStorage.getItem('palace1-chat-current')") == k and 'continue old' in await m.evaluate(LOG) and not await m.evaluate("document.getElementById('chatsend').disabled"))
+        idx.update(rev=idx['rev'] + 1, data={'chats': [c for c in idx['data']['chats'] if c['id'] != 'ghost-chat-1']})
         # delete: another chat, then the current one
         await m.click('#chatsbtn'); await m.wait_for_function("document.querySelectorAll('#chatlist .chatitem').length === 2", timeout=10000)
         dn = len(dialogs); await m.click('#chatlist .chatitem:nth-child(2) .chatdel'); await m.wait_for_function("document.querySelectorAll('#chatlist .chatitem').length === 1", timeout=10000); await m.wait_for_timeout(500)
