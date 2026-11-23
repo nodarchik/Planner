@@ -40,10 +40,17 @@ void main() {
 const COMMON = /* glsl */`
 const vec3 LUM = vec3(0.2126, 0.7152, 0.0722);
 uniform bool uFlat;
-// surface colour to divide out: the flat-lit guide, floored so dark and metallic surfaces stay finite; 1 for sky, and
-// everywhere with depth of field (uFlat: the image is defocused, the guide is not)
-vec3 albedoAt(sampler2D guide, ivec2 p, float depth) {
-  return depth > 0.001 && !uFlat ? max(texelFetch(guide, p, 0).rgb, vec3(0.03)) : vec3(1.0);
+// surface colour to divide out: the flat-lit guide (g = its texel), floored so dark and metallic surfaces stay finite;
+// 1 with depth of field (uFlat: the image is defocused, the guide is not)
+vec3 albedoOf(vec4 g) {
+  return uFlat ? vec3(1.0) : max(g.rgb, vec3(0.03));
+}
+// surface pixel with sky inside the path tracer's pixel filter (guide alpha 0). It holds sky radiance its surface colour
+// does not explain: divided by a dark window frame that is a lighting value 100x its neighbours'. Such a pixel is never
+// a tap and has no say in the noise statistics (it used to lift whole frames to grey with a hatch pattern) and is not
+// firefly-capped; it still borrows from clean neighbours when it is within their noise, else it stays as rendered
+bool skyEdge(vec4 g) {
+  return g.a < 0.5 && !uFlat;
 }
 // same surface: depth and normals agree. A 2 % floor on the normal test lets slivers with no like-facing neighbour
 // (bevels, edges one pixel wide) borrow from the surfaces around them instead of staying noisy
@@ -61,12 +68,20 @@ void main() {
   gl_FragColor = vec4(min(dot(c, vec3(0.2126, 0.7152, 0.0722)), 6.0e4), 0.0, 0.0, 1.0);
 }`;
 
-// resolved multisampled guide -> surface colour: divided by coverage so sky (cleared, alpha 0) does not darken silhouettes
+// resolved multisampled guide -> surface colour: divided by coverage so sky (cleared, alpha 0) does not darken silhouettes.
+// alpha = 0 where sky is within one pixel (the path tracer's pixel filter reaches that far), see skyEdge
 const GUIDE_FRAG = /* glsl */`
 uniform sampler2D tSrc;
+uniform sampler2D tND;
 void main() {
-  vec4 c = texelFetch(tSrc, ivec2(gl_FragCoord.xy), 0);
-  gl_FragColor = vec4(c.a > 0.01 ? c.rgb / min(c.a, 1.0) : c.rgb, 1.0);
+  ivec2 p = ivec2(gl_FragCoord.xy);
+  ivec2 sz = textureSize(tND, 0);
+  vec4 c = texelFetch(tSrc, p, 0);
+  float solid = 1.0;
+  for (int i = 0; i < 9; i++) {
+    if (texelFetch(tND, clamp(p + ivec2(i % 3 - 1, i / 3 - 1), ivec2(0), sz - 1), 0).a <= 0.001) solid = 0.0;
+  }
+  gl_FragColor = vec4(c.a > 0.01 ? c.rgb / min(c.a, 1.0) : c.rgb, solid);
 }`;
 
 // rgb = lighting (HDR x exposure / surface colour), fireflies capped; a = variance of its luminance
@@ -86,10 +101,12 @@ void main() {
   ivec2 sz = textureSize(tSrc, 0);
   vec3 hdr = min(max(texelFetch(tSrc, p, 0).rgb, vec3(0.0)) * uGain, vec3(6.0e4));
   vec4 nd0 = texelFetch(tND, p, 0);
+  vec4 gd0 = texelFetch(tGuide, p, 0);
   if (nd0.a <= 0.001) {
     gl_FragColor = vec4(hdr, 0.0);
     return;
   }
+  bool edge0 = skyEdge(gd0);
   float L[25];
   float D[25];
   float W[25];
@@ -100,9 +117,11 @@ void main() {
     if (q.x < 0 || q.y < 0 || q.x >= sz.x || q.y >= sz.y) continue;
     vec4 ndq = texelFetch(tND, q, 0);
     if (ndq.a <= 0.001) continue;
+    vec4 gdq = texelFetch(tGuide, q, 0);
+    if (skyEdge(gdq)) continue;
     vec3 hq = max(texelFetch(tSrc, q, 0).rgb, vec3(0.0)) * uGain;
     float raw = dot(hq, LUM);
-    float k = 1.0 / dot(albedoAt(tGuide, q, ndq.a), LUM);
+    float k = 1.0 / dot(albedoOf(gdq), LUM);
     W[i] = surfW(nd0, ndq);
     L[i] = min(raw * k, 3.0e4);
     D[i] = (texelFetch(tHalf, q, 0).r * uGain - raw) * k;
@@ -119,14 +138,15 @@ void main() {
     float d = clamp(D[i], -cap, cap);
     tw += W[i]; tv += W[i] * d * d; t1 += W[i] * l; t2 += W[i] * l * l;
   }
+  tw = max(tw, 1e-6); // a sky-edge pixel with no clean neighbour: noise unknown, it stays as rendered
   float temporal = uHalf * tv / tw;
   float spatial = max(t2 / tw - (t1 / tw) * (t1 / tw), 0.0);
   // noise level: the spread of the neighbourhood is right on evenly lit surfaces but also counts lighting detail as noise;
   // the two halves see only noise, though less of it than there is (a pixel's samples are not independent), so they bound it
   float vr = uHalf > 0.0 ? min(spatial, uTGain * temporal + uSpatial * spatial) : spatial;
-  vec3 e = min(hdr / albedoAt(tGuide, p, nd0.a), vec3(3.0e4)); // half floats end at 65504
+  vec3 e = min(hdr / albedoOf(gd0), vec3(3.0e4)); // half floats end at 65504
   float l0 = dot(e, LUM);
-  if (l0 > cap) e *= cap / l0;
+  if (l0 > cap && !edge0) e *= cap / l0;
   gl_FragColor = vec4(e, min(vr, 1.0e4));
 }`;
 
@@ -173,12 +193,12 @@ float b3(int i) {
   return a == 0 ? 0.375 : (a == 1 ? 0.25 : 0.0625);
 }
 
-vec3 guideSRGB(ivec2 p) {
-  return pow(max(texelFetch(tGuide, p, 0).rgb, vec3(0.0)), vec3(1.0 / 2.2));
+vec3 guideSRGB(vec4 g) {
+  return pow(max(g.rgb, vec3(0.0)), vec3(1.0 / 2.2));
 }
 
-vec4 finish(vec4 c, ivec2 p, float depth) {
-  return uFinal ? vec4(linearToSRGB(ACESFilmic(c.rgb * albedoAt(tGuide, p, depth))), 1.0) : c;
+vec4 finish(vec4 c, vec3 albedo) {
+  return uFinal ? vec4(linearToSRGB(ACESFilmic(c.rgb * albedo)), 1.0) : c;
 }
 
 void main() {
@@ -187,10 +207,11 @@ void main() {
   vec4 c0 = texelFetch(tIn, p, 0);
   vec4 nd0 = texelFetch(tND, p, 0);
   if (nd0.a <= 0.001) {
-    gl_FragColor = finish(c0, p, 0.0);
+    gl_FragColor = finish(c0, vec3(1.0));
     return;
   }
-  vec3 g0 = guideSRGB(p);
+  vec4 gd0 = texelFetch(tGuide, p, 0);
+  vec3 g0 = guideSRGB(gd0);
   float l0 = dot(c0.rgb, LUM);
   // noise level here: smoothed variance (3x3) so one lucky pixel does not switch the filter off
   float v0 = 0.0, vw = 0.0;
@@ -214,8 +235,10 @@ void main() {
       if (q.x < 0 || q.y < 0 || q.x >= sz.x || q.y >= sz.y) continue;
       vec4 ndq = texelFetch(tND, q, 0);
       if (ndq.a <= 0.001) continue;
+      vec4 gdq = texelFetch(tGuide, q, 0);
+      if (skyEdge(gdq) && (dx != 0 || dy != 0)) continue;
       vec4 cq = texelFetch(tIn, q, 0);
-      vec3 dg = g0 - guideSRGB(q);
+      vec3 dg = g0 - guideSRGB(gdq);
       float wg = exp(-dot(dg, dg) / uSigmaG2);
       float dl = l0 - dot(cq.rgb, LUM);
       float wl = exp(-max(dl * dl / (var0 + cq.a) - uTol * uTol, 0.0));
@@ -226,7 +249,7 @@ void main() {
       wsum += w;
     }
   }
-  gl_FragColor = finish(wsum > 0.0 ? vec4(acc / wsum, min(uVGain * vacc / (wsum * wsum), vlin / wsum)) : c0, p, nd0.a);
+  gl_FragColor = finish(wsum > 0.0 ? vec4(acc / wsum, min(uVGain * vacc / (wsum * wsum), vlin / wsum)) : c0, albedoOf(gd0));
 }`;
 
 const makeRT = (type, depthBuffer, format = THREE.RGBAFormat) => new THREE.WebGLRenderTarget(1, 1, {
@@ -248,7 +271,7 @@ export function createDenoiser(renderer) {
 
   const ndMat = new THREE.ShaderMaterial({ vertexShader: ND_VERT, fragmentShader: ND_FRAG, side: THREE.DoubleSide });
   const snapMat = quadMat(SNAP_FRAG, { tSrc: { value: null } });
-  const copyMat = quadMat(GUIDE_FRAG, { tSrc: { value: null } });
+  const copyMat = quadMat(GUIDE_FRAG, { tSrc: { value: null }, tND: { value: null } });
   const prepMat = quadMat(PREP_FRAG, {
     tSrc: { value: null }, tND: { value: null }, tGuide: { value: null }, tHalf: { value: null },
     uGain: { value: 1 }, uHalf: { value: 0 }, uSpatial: { value: 1 }, uTGain: { value: 8 }, uClamp: { value: 4 }, uFlat: { value: false },
@@ -325,7 +348,7 @@ export function createDenoiser(renderer) {
       renderer.clear();
       renderer.render(scene, camera);
       scene.remove(hemi);
-      copyMat.uniforms.tSrc.value = aa.texture;
+      copyMat.uniforms.tSrc.value = aa.texture; copyMat.uniforms.tND.value = rtND.texture;
       quadMesh.material = copyMat;
       renderer.setRenderTarget(rtGuide);
       renderer.render(quadScene, quadCam);
