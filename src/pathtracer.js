@@ -72,7 +72,7 @@ function ptGlass(on) {
 export function ptSetScene() { ptMats(true); lens(); scene.environmentIntensity = state.night ? 1 : 3; state.pt.setScene(scene, ptCam); }
 export function rebuildPT() { state.dirty = true; if (state.photo) state.ptDirty = true; }
 
-const photoBtn = $('photo'), photoBar = $('photobar'), photoImg = $('photoImg'), photoText = $('photoText'), photoProg = $('photoProg');
+const photoBtn = $('photo'), photoBar = $('photobar'), photoImg = $('photoImg'), photoStage = $('photoStage'), photoNum = $('photoNum'), photoProg = $('photoProg');
 const photoStop = $('photoStop'), photoMore = $('photoMore'), photoSave = $('photoSave'), photoClose = $('photoClose');
 const focalSel = $('focal'), fstopSel = $('fstop');
 const LOCK_IDS = ['view', 'wfull', 'wcut', 'mday', 'mnight', 'sunMonth', 'sunTime', 'tlab', 'tdim', 'tfur', 'style', 'walk', 'move'];
@@ -82,15 +82,18 @@ let snap = null, runId = 0, passId = 0, targetSamples = DEFAULT_SAMPLES, stopReq
 let photoUrl = null, photoSize = [0, 0], headlessReq = null;
 let finishing = false, focusStop = false, lastSamples = 0, rearm = null;
 // one percentage for the whole render: loading the renderer 0-3, preparing the scene 3-10, sampling up to 97, denoising 97, encoding 99, 100 = image ready.
-// It never goes back within a pass; "+32 samples" and a lens change start a new pass at 0.
+// It never goes back within a pass; "+32 samples", a lens change and a restart of the accumulation (scene re-uploaded) start a new pass.
+// Screen readers hear the stage names only (#photoStage is the live region) and read the value from the <progress>: the numbers
+// change about 120 times per render, so they sit outside it (#photoNum) and the status line is not live while Photo is on.
 let pct = 0, stageName = '', passLo = 0, passFrom = 0;
 function progress(p, name, samples) {
   pct = Math.max(pct, Math.min(100, Math.floor(p))); stageName = name;
   const line = `${headlessReq ? 'Still' : 'Photo'} · ${pct} % · ${samples || name.toLowerCase()}`;
   if (statusEl.textContent !== line) statusEl.textContent = line;
   if (headlessReq) return;
-  const text = samples ? `${name} · ${pct} % · ${samples}` : `${name} · ${pct} %`;
-  if (photoText.textContent !== text) photoText.textContent = text;
+  const num = samples ? ` · ${pct} % · ${samples}` : ` · ${pct} %`;
+  if (photoStage.textContent !== name) photoStage.textContent = name;
+  if (photoNum.textContent !== num) photoNum.textContent = num;
   photoProg.max = 100; photoProg.value = pct;
 }
 function sampling() {
@@ -133,7 +136,7 @@ function exitPhoto() {
   stage.inert = false; document.body.classList.remove('photo-mode');
   lockToolbar(false);
   const inBar = document.activeElement && photoBar.contains(document.activeElement);
-  photoBtn.setAttribute('aria-pressed', 'false'); statusEl.textContent = '';
+  photoBtn.setAttribute('aria-pressed', 'false'); statusEl.textContent = ''; statusEl.setAttribute('aria-live', 'polite');
   syncLights(); markShadows(); dispatchEvent(new Event('resize'));
   if (inBar) photoBtn.focus();
 }
@@ -170,7 +173,7 @@ function develop() {
   }
   saving = true; progress(99, 'Saving image');
   const myPass = ++passId, w = renderer.domElement.width, h = renderer.domElement.height;
-  const ready = (text, focus) => { saving = false; photoDone = true; photoMore.hidden = false; progress(100, 'Photo ready'); photoText.textContent = text; statusEl.textContent = `Photo ready · ${n} samples`; if (focusStop) focus.focus(); };
+  const ready = (text, focus) => { saving = false; photoDone = true; photoMore.hidden = false; progress(100, 'Photo ready'); photoNum.textContent = ''; photoStage.textContent = text; statusEl.textContent = `Photo ready · ${n} samples`; if (focusStop) focus.focus(); };
   try {
     renderer.domElement.toBlob(blob => {
       if (myPass !== passId || !state.photo) return;
@@ -208,7 +211,7 @@ export async function setPhoto(on, opts = {}) {
   snap = { pr: renderer.getPixelRatio(), size: renderer.getSize(new V2()), aspect: camera.aspect, fov: baseFov, pos: camera.position.clone(), target: controls.target.clone(), enabled: prevEnabled, damping: prevDamping, scale: state.pt?.renderScale ?? 1, bounces: state.pt?.bounces ?? DEFAULT_BOUNCES };
   state.photo = true; state.photoRendering = false; state.photoFov = baseFov;
   stage.inert = true; document.body.classList.add('photo-mode'); lockToolbar(true); state.syncDims?.();
-  photoBtn.setAttribute('aria-pressed', 'true');
+  photoBtn.setAttribute('aria-pressed', 'true'); statusEl.setAttribute('aria-live', 'off');
   headlessReq = opts.headless || null;
   if (!headlessReq) {
     revokePhotoUrl(); photoImg.hidden = true; photoStop.hidden = photoMore.hidden = photoSave.hidden = true;
