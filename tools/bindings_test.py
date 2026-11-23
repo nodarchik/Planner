@@ -118,7 +118,7 @@ async def main():
         check('other edits still work while a stored binding is bad', await ev("__editor.plan.items.find(i => i.id === 'wardrobe-b2').to") == 4.5); await ctx.close()
         # moving quality and Photo (no touch emulation: desktop pointer)
         ctx, pg = await page(sys.argv[1], viewport={'width': 1200, 'height': 720}); ev = pg.evaluate
-        raf = 'new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))'; smp = "+((document.getElementById('status').textContent.match(/(\\d+) samples/) || [0, 0])[1])"
+        raf = 'new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))'; smp = "+((document.getElementById('status').textContent.match(/(\\d+) \\/ \\d+ samples/) || [0, 0])[1])"
         await ev(SET, [{'input': 'wheel', 'action': 'pan'}]); await view('bed1'); await ev(WHEEL, [0, 200, {}]); await ev(raf)
         check('a bound pan counts as moving (quality drop, like an orbit)', await ev('window.__settled') is False)
         await settle(); await pg.click('#photo'); await pg.wait_for_function('(() => ' + smp + ')() >= 6', timeout=240000, polling=200)
