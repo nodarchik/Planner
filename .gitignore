@@ -9,3 +9,4 @@ dist-single/
 .venv/
 .DS_Store
 renders/
+__pycache__/
