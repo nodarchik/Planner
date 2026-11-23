@@ -1,5 +1,6 @@
-"""Test of the assistant's saved history with mocked /api/chat (strict conversation checks) and /api/history (in-memory {rev, data}). Usage: python3 tools/history_test.py <url>  (exit 1 on failure)"""
-import asyncio, sys, os, json
+"""Test of the assistant's saved chats and chat list with mocked /api/chat (strict conversation checks) and /api/history (in-memory {rev, data} per chat id and for the list). Usage: python3 tools/history_test.py <url>  (exit 1 on failure)"""
+import asyncio, sys, os, json, re
+from urllib.parse import urlparse, parse_qs
 from playwright.async_api import async_playwright
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from launch import launch
@@ -7,7 +8,7 @@ HK = 'palace1-chat-history-v1'
 LOG = "document.getElementById('chatlog').innerText"
 
 def strict(ms):   # what the Claude API and api/chat.js would accept; returns an error text or None
-    if not ms or len(ms) > 200 or len(json.dumps(ms)) > 1_500_000: return 'size'
+    if not ms or len(ms) > 200 or len(json.dumps(ms)) > 3_500_000: return 'size'
     if ms[0]['role'] != 'user' or not isinstance(ms[0]['content'], str): return 'first message'
     think = lambda m: isinstance(m['content'], list) and any(b.get('type') in ('thinking', 'redacted_thinking') for b in m['content'])
     turn0 = max(i for i, m in enumerate(ms) if m['role'] == 'user' and (isinstance(m['content'], str) or any(b.get('type') == 'text' for b in m['content'])))
@@ -42,23 +43,25 @@ async def until(cond, limit=15):
         await asyncio.sleep(.2)
     return False
 async def main():
-    fails = []; calls = []; store = {'rev': 0, 'data': None}; puts = []; mode = {'v': 'ok', 'put': 'ok'}; bad = []; pwreq = {'v': False}
+    fails = []; calls = []; store = {'rev': 0, 'data': None}; stores = {'main': store}; idx = {'rev': 0, 'data': None}; iputs = []; dialogs = []; puts = []; mode = {'v': 'ok', 'put': 'ok'}; bad = []; pwreq = {'v': False}
     def check(name, ok, extra=''):
         print(('ok   ' if ok else 'FAIL ') + name + (' — ' + str(extra) if extra != '' else ''))
         if not ok: fails.append(name)
     async def hist(route):
-        r = route.request
+        r = route.request; q = parse_qs(urlparse(r.url).query)   # no query or id=main = the single-chat store, id=<id> = that chat, index=1 = the list
+        st = idx if q.get('index') else store if not q.get('id') or q['id'][0] == 'main' else stores.setdefault(q['id'][0], {'rev': 0, 'data': None})
         if mode['v'] != 'ok': await route.fulfill(status=int(mode['v']), json={'error': 'x'}); return
         if pwreq['v'] and r.headers.get('x-chat-password') != 'pw': await route.fulfill(status=401, json={'error': 'password required'}); return
-        if r.method == 'GET': await route.fulfill(json=store); return
-        body = json.loads(r.post_data); puts.append(body)
+        if r.method == 'GET': await route.fulfill(json=st); return
+        body = json.loads(r.post_data); (iputs if st is idx else puts if st is store else []).append(body)
         if mode['put'] != 'ok': await route.fulfill(status=int(mode['put']), json={'error': 'x'}); return
-        if body['rev'] != store['rev']: await route.fulfill(status=409, json=store); return
-        store.update(rev=store['rev'] + 1, data=body['data']); await route.fulfill(json=store)
+        if body['rev'] != st['rev']: await route.fulfill(status=409, json=st); return
+        st.update(rev=st['rev'] + 1, data=body['data']); await route.fulfill(json=st)
     async def chat(route):
         ms = json.loads(route.request.post_data)['messages']; calls.append(ms); e = strict(ms)
         if e: bad.append(e); await route.fulfill(status=400, json={'error': e}); return
         if 'BUMP' in json.dumps(ms[-1]['content']): store['rev'] += 5   # another device saves while this turn runs
+        if 'SLOW' in json.dumps(ms[-1]['content']): await asyncio.sleep(1.5)   # keeps the turn running
         last = ms[-1]['content']; text = last if isinstance(last, str) else ' '.join(b.get('text', '') for b in last if b.get('type') == 'text'); res = isinstance(last, list) and last[0].get('type') == 'tool_result'
         edit = {'type': 'tool_use', 'id': f'u{len(calls)}', 'name': 'apply_changes', 'input': {'summary': 'x', 'changes': [{'op': 'add', 'list': 'meta', 'id': '', 'path': 'histTest', 'value_json': '{"a": 1}'}]}}
         if not res and 'FAILMID' in text: await route.fulfill(json={'content': [THINK, edit], 'stop_reason': 'tool_use'}); return
@@ -78,10 +81,10 @@ async def main():
                     if c is not keep.get('a') and q.url != 'about:blank': await q.goto('about:blank')
             ctx = await b.new_context(viewport={'width': 1200, 'height': 720}); pg = await ctx.new_page()
             pg.on('console', lambda m: errs.append(m.text) if m.type == 'error' and not any(s in m.text for s in ('404', '503', 'Failed to load resource')) else None); pg.on('pageerror', lambda e: errs.append('PAGE: ' + str(e)))
-            pg.on('dialog', lambda d: asyncio.ensure_future(d.accept()))
+            pg.on('dialog', lambda d: (dialogs.append(d.message), asyncio.ensure_future(d.accept())))
             await pg.route('**/api/chat', chat)
             if pw: await pg.add_init_script("try { localStorage.setItem('palace1-chat-password', '%s') } catch (e) {}" % pw)
-            if hroute: await pg.route('**/api/history', hroute)
+            if hroute: await pg.route(re.compile(r'/api/history(\?.*)?$'), hroute)
             await pg.goto(sys.argv[1], timeout=120000); await pg.wait_for_selector('#loader[hidden]', state='attached', timeout=240000); await pg.click('#chatBtn'); return pg
         async def ask(pg, text, expect):
             await pg.fill('#chatinput', text); await pg.click('#chatsend')
@@ -196,22 +199,70 @@ async def main():
         check('stored HTML is shown as text, not run', await x.evaluate("document.querySelectorAll('#chatlog img, #chatlog script').length") == 0 and await x.evaluate("window.__xss") is None and evil in await x.evaluate(LOG))
         check('entries with an unknown class or a bad shape are dropped', await x.evaluate("document.querySelectorAll('#chatlog .msg').length") == 2)
 
-        # New chat
-        n = len(puts); await a.evaluate("document.getElementById('chatnew').click()"); await a.wait_for_timeout(1000)
-        check('New chat clears the transcript', await a.evaluate(LOG) == '')
-        check('New chat clears the server copy', store['data'] is None and puts[-1]['data'] is None)
-        check('New chat clears the local copy', await a.evaluate(f"localStorage.getItem('{HK}')") is None)
-        await reload(a); check('a reload after New chat stays empty', await a.evaluate(LOG) == '')
-        n = len(calls); await ask(a, 'fresh start', 'Done: fresh start'); check('first request of a new chat is a first message again', len(calls[n]) == 1 and plan_in(calls[n][0]))
-        d = await page(); check('another device sees the cleared chat only after a new turn exists', 'fresh start' in await d.evaluate(LOG))
-        await d.evaluate("document.getElementById('chatnew').click()"); await d.wait_for_timeout(800)
-        await a.evaluate("document.dispatchEvent(new Event('visibilitychange'))"); await a.wait_for_timeout(1500)
-        check('New chat on one device clears the other on focus', await a.evaluate(LOG) == '')
+        # chat list: New chat keeps the old chat; open, continue, delete; migration of a stored single chat; merge of the list
+        seed = turn_msgs(2); store.update(rev=store['rev'] + 1, data={'messages': seed, 'log': [['user', 'old request 0'], ['bot', 'old reply 0'], ['user', 'old request 1'], ['bot', 'old reply 1']]}); idx.update(rev=0, data=None); stores.clear(); stores['main'] = store
+        m = await page(); rows = "[...document.querySelectorAll('#chatlist .chatitem')].map(r => r.querySelector('.title').textContent + '|' + r.classList.contains('current'))"
+        await m.click('#chatsbtn'); await m.wait_for_function("document.querySelectorAll('#chatlist .chatitem').length === 1", timeout=10000)
+        check('a stored single chat (main) shows up in the list (migration), marked current', await m.evaluate(rows) == ['old request 0|true'] and not await m.evaluate("document.getElementById('chatlist').hidden") and await m.evaluate("document.getElementById('chatlog').hidden"))
+        await until(lambda: idx['data'] and idx['data']['chats'][0]['id'] == 'main'); check('the list is saved to the server with the main entry', idx['data']['chats'][0]['id'] == 'main' and idx['data']['chats'][0]['count'] == 2, idx)
+        await m.click('#chatsbtn'); check('the Chats button swaps back to the transcript', await m.evaluate("document.getElementById('chatlist').hidden") and 'old reply 1' in await m.evaluate(LOG))
+        await ask(m, 'second turn', 'Done: second turn'); await m.wait_for_timeout(800)
+        check('each saved turn updates its list entry (count, same title)', idx['data']['chats'][0]['count'] == 3 and idx['data']['chats'][0]['title'] == 'old request 0', idx['data'])
+        n = len(puts); sv = json.dumps(store['data'])
+        await m.fill('#chatinput', 'SLOW one'); await m.click('#chatsend'); await m.wait_for_timeout(400)
+        check('New chat and Chats are locked while a turn runs', await m.evaluate("document.getElementById('chatnew').disabled && document.getElementById('chatsbtn').disabled"))
+        await m.wait_for_function("[...document.querySelectorAll('#chatlog .msg')].some(x => x.textContent.includes('Done: SLOW one')) && !document.getElementById('chatsend').disabled", timeout=30000); await m.wait_for_timeout(500); sv = json.dumps(store['data'])
+        dn = len(dialogs); await m.click('#chatnew'); await m.wait_for_timeout(500)
+        check('New chat gives an empty transcript with no confirm', await m.evaluate(LOG) == '' and len(dialogs) == dn)
+        check('New chat keeps the old chat on the server and locally', json.dumps(store['data']) == sv and 'SLOW one' in sv and await m.evaluate(f"localStorage.getItem('{HK}')") is not None and len(puts) == n + 1, (len(puts), n))
+        n = len(calls); await ask(m, 'brand new chat', 'Done: brand new chat'); await m.wait_for_timeout(800)
+        cur = await m.evaluate("localStorage.getItem('palace1-chat-current')")
+        check('the first request of a new chat is a first message again', len(calls[n]) == 1 and plan_in(calls[n][0]))
+        check('the new chat has its own id and blob, the old one is untouched', re.fullmatch(r'[a-z0-9-]{8,40}', cur or '') and cur in stores and 'brand new chat' in json.dumps(stores[cur]['data']) and 'brand new chat' not in json.dumps(store['data']), cur)
+        check('the list has both chats, the new one first and current', [c['id'] for c in idx['data']['chats']] == [cur, 'main'] and idx['data']['chats'][0]['title'] == 'brand new chat', idx['data'])
+        await reload(m); check('a reload stays on the new chat', 'brand new chat' in await m.evaluate(LOG) and 'old request' not in await m.evaluate(LOG))
+        await m.click('#chatsbtn'); await m.wait_for_function("document.querySelectorAll('#chatlist .chatitem').length === 2", timeout=10000)
+        check('list rows: newest first, current marked', await m.evaluate(rows) == ['brand new chat|true', 'old request 0|false'], await m.evaluate(rows))
+        await m.click('#chatlist .chatitem:nth-child(2) .chatopen'); await m.wait_for_function("document.getElementById('chatlog').innerText.includes('second turn')", timeout=10000)
+        check('opening an old chat shows its transcript and hides the list', 'brand new chat' not in await m.evaluate(LOG) and await m.evaluate("document.getElementById('chatlist').hidden"))
+        n = len(calls); await ask(m, 'continue old', 'Done: continue old'); await m.wait_for_timeout(800)
+        check('continuing: earlier turns are sent and the message carries the full plan again', not bad and strict(calls[n]) is None and len(calls[n]) > 3 and calls[n][0]['content'] == 'old request 0' and plan_in(calls[n][-1]) and 'outdated' in calls[n][-1]['content'], bad)
+        check('the continued chat is saved in its own blob', 'continue old' in json.dumps(store['data']) and 'continue old' not in json.dumps(stores[cur]['data']))
+        await reload(m); check('a reload stays on the opened chat', 'continue old' in await m.evaluate(LOG))
+        # the list is merged when another device wrote it meanwhile
+        idx.update(rev=idx['rev'] + 1, data={'chats': idx['data']['chats'] + [{'id': 'foreign-chat1', 'title': 'Other device', 'updated': 1, 'count': 1}]})
+        await ask(m, 'merge the list', 'Done: merge the list'); await until(lambda: any(c['id'] == 'foreign-chat1' for c in idx['data']['chats']) and idx['data']['chats'][0]['count'] >= 5)
+        check('409 on the list: merged by id, both entries kept', {'foreign-chat1', 'main', cur} <= {c['id'] for c in idx['data']['chats']} and not any(c['id'] == 'main' and c['count'] < 5 for c in idx['data']['chats']), idx['data'])
+        idx.update(rev=idx['rev'] + 1, data={'chats': [c for c in idx['data']['chats'] if c['id'] != 'foreign-chat1']})
+        # a second device sees the same list
+        d2 = await page(); await d2.click('#chatsbtn'); await d2.wait_for_function("document.querySelectorAll('#chatlist .chatitem').length === 2", timeout=10000)
+        check('another device shows the same chats', sorted(await d2.evaluate(rows)) == ['brand new chat|false', 'old request 0|true'], await d2.evaluate(rows))
+        await m.goto(sys.argv[1], timeout=120000); await m.wait_for_selector('#loader[hidden]', state='attached', timeout=240000); await m.click('#chatBtn')   # page() parked this page
+        # opening a chat whose server copy cannot be read (and has no local copy) keeps the current chat
+        idx.update(rev=idx['rev'] + 1, data={'chats': idx['data']['chats'] + [{'id': 'ghost-chat-1', 'title': 'Ghost chat', 'updated': 9999999999999, 'count': 1}]})
+        await m.click('#chatsbtn'); await m.wait_for_function("[...document.querySelectorAll('#chatlist .title')].some(t => t.textContent === 'Ghost chat')", timeout=10000)
+        mode['v'] = '500'; k = await m.evaluate("localStorage.getItem('palace1-chat-current')")
+        await m.evaluate("[...document.querySelectorAll('#chatlist .chatopen')].find(b => b.textContent.includes('Ghost chat')).click()"); await m.wait_for_function("document.getElementById('chatlog').innerText.includes('Could not open that chat')", timeout=15000); mode['v'] = 'ok'
+        check('open-chat load failure: note shown, previous chat and its transcript kept', await m.evaluate("localStorage.getItem('palace1-chat-current')") == k and 'continue old' in await m.evaluate(LOG) and not await m.evaluate("document.getElementById('chatsend').disabled"))
+        idx.update(rev=idx['rev'] + 1, data={'chats': [c for c in idx['data']['chats'] if c['id'] != 'ghost-chat-1']})
+        # delete: another chat, then the current one
+        await m.click('#chatsbtn'); await m.wait_for_function("document.querySelectorAll('#chatlist .chatitem').length === 2", timeout=10000)
+        dn = len(dialogs); await m.click('#chatlist .chatitem:nth-child(2) .chatdel'); await m.wait_for_function("document.querySelectorAll('#chatlist .chatitem').length === 1", timeout=10000); await m.wait_for_timeout(500)
+        check('delete asks for a confirm, empties the blob and removes the list entry', len(dialogs) == dn + 1 and stores[cur]['data'] is None and [c['id'] for c in idx['data']['chats']] == ['main'] and 'continue old' in await m.evaluate(LOG + " + document.getElementById('chatlog').innerText"), idx['data'])
+        await m.click('#chatlist .chatitem .chatdel'); await m.wait_for_function("document.querySelector('#chatlist .chatitem') === null", timeout=10000); await m.wait_for_timeout(500)
+        nxt = await m.evaluate("localStorage.getItem('palace1-chat-current')")
+        check('deleting the current chat starts a new empty one', await m.evaluate("document.getElementById('chatlog').innerText") == '' and nxt not in (cur, 'main', None) and store['data'] is None and idx['data']['chats'] == [] and await m.evaluate(f"localStorage.getItem('{HK}')") is None, (nxt, idx['data']))
+        n = len(calls); await m.click('#chatsbtn'); await m.click('#chatsbtn'); await ask(m, 'after deleting', 'Done: after deleting'); check('the first message after a delete is a first message', len(calls[n]) == 1 and plan_in(calls[n][0]))
+        # New chat with an empty chat does nothing
+        k = await m.evaluate("localStorage.getItem('palace1-chat-current')"); await m.evaluate("document.getElementById('chatnew').click()"); check('New chat on a chat that already has messages starts another', await m.evaluate("localStorage.getItem('palace1-chat-current')") != k)
+        k = await m.evaluate("localStorage.getItem('palace1-chat-current')"); await m.evaluate("document.getElementById('chatnew').click()"); check('New chat on an empty chat keeps the id', await m.evaluate("localStorage.getItem('palace1-chat-current')") == k)
 
         # no server: 503 and 404 fall back to the local copy
         for code in ('503', '404'):
             mode['v'] = code; e = await page(); await ask(e, 'offline ' + code, 'Done: offline ' + code); await reload(e)
             check(f'{code}: history is kept locally and survives a reload', 'offline ' + code in await e.evaluate(LOG))
+            await e.click('#chatsbtn'); await e.wait_for_function("document.querySelectorAll('#chatlist .chatitem').length >= 1", timeout=10000)
+            check(f'{code}: the chat list works locally too', await e.evaluate("document.querySelector('#chatlist .title').textContent") == 'offline ' + code)
             await e.evaluate("document.getElementById('chatnew').click()"); await e.wait_for_timeout(500); mode['v'] = 'ok'
         mode['v'] = 'ok'; g = await page(None); await ask(g, 'no route', 'Done: no route'); await reload(g); check('no history route at all (dev server): history kept locally', 'no route' in await g.evaluate(LOG))
         check('no strict-mock rejections, no page errors', not bad and not errs, (bad, errs[:5]))

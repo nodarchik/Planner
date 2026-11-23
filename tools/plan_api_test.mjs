@@ -61,4 +61,21 @@ delete process.env.BLOB_READ_WRITE_TOKEN; r = await call('GET'); check('no token
   r = await hc('GET', null, { 'x-chat-password': 'pw' }); check('history: GET with the password works', r.code === 200 && r.json.rev >= 1); delete process.env.CHAT_PASSWORD;
   delete process.env.BLOB_READ_WRITE_TOKEN; r = await hc('GET'); check('history: no token gives 503', r.code === 503);
 }
+// per chat id: one blob per chat, the index, id "main" = the old single path, bad ids 400
+{ process.env.BLOB_READ_WRITE_TOKEN = 'test'; const paths = {}, bl = { ...stub, async get(p) { return p in paths ? { statusCode: 200, stream: new Response(paths[p]).body, blob: { etag: '"e' + paths[p].length + '"' } } : null; }, async put(p, body) { paths[p] = body; return { etag: '"e' + body.length + '"' }; } };
+  const h = createHandler(bl, HISTORY), hc = async (method, query, body) => { const out = {}; await h({ method, body, query, headers: {} }, { setHeader() {}, status(c) { out.code = c; return this; }, json(j) { out.json = j; return this; } }); return out; };
+  const d = n => ({ messages: [{ role: 'user', content: n }], log: [['user', n]] });
+  r = await hc('PUT', { id: 'abcdefgh1' }, { rev: 0, data: d('one') }); check('history id: PUT writes chat/<id>.json', r.code === 200 && Object.keys(paths).join() === 'chat/abcdefgh1.json');
+  r = await hc('PUT', {}, { rev: 0, data: d('main') }); check('history: no id maps to chat/palace1.json (old clients)', r.code === 200 && 'chat/palace1.json' in paths);
+  r = await hc('GET', { id: 'main' }); check('history: id main reads chat/palace1.json', r.code === 200 && r.json.data.log[0][1] === 'main');
+  r = await hc('GET', { id: 'abcdefgh1' }); check('history id: GET reads its own chat', r.json.data.log[0][1] === 'one');
+  r = await hc('GET', { id: 'zzzzzzzz2' }); check('history id: an unknown id is an empty chat', r.code === 200 && r.json.rev === 0 && r.json.data === null);
+  r = await hc('PUT', { id: 'abcdefgh1' }, { rev: 0, data: d('stale') }); check('history id: rev is checked per chat (409)', r.code === 409 && r.json.rev === 1);
+  r = await hc('PUT', { index: '1' }, { rev: 0, data: { chats: [{ id: 'main', title: 'a', updated: 1, count: 2 }] } }); check('history index: PUT writes chat/index.json', r.code === 200 && 'chat/index.json' in paths && r.json.data.chats.length === 1);
+  r = await hc('GET', { index: '1' }); check('history index: GET returns the list', r.json.rev === 1 && r.json.data.chats[0].id === 'main');
+  for (const bad of ['..%2Fx', '../plan/palace1', 'ABCDEFGH1', 'short', 'a'.repeat(41), 'abc def gh', ['abcdefgh1', 'abcdefgh2']]) { r = await hc('GET', { id: bad }); check('history id: invalid id ' + JSON.stringify(bad).slice(0, 24) + ' gives 400', r.code === 400); }
+  r = await hc('PUT', { id: '../x' }, { rev: 0, data: null }); check('history id: PUT with an invalid id gives 400 and writes nothing', r.code === 400 && Object.keys(paths).length === 3);
+  r = await hc('GET', { index: '2' }); check('history index: index other than 1 gives 400', r.code === 400);
+  r = await hc('PUT', { id: 'abcdefgh1' }, { rev: 1, data: null }); r = await hc('GET', { id: 'abcdefgh1' }); check('history id: data null clears that chat only', r.json.data === null && (await hc('GET', {})).json.data.log[0][1] === 'main');
+  delete process.env.BLOB_READ_WRITE_TOKEN; }
 process.exit(fails ? 1 : 0);
