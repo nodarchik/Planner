@@ -60,7 +60,8 @@ function tick(now) {
     if (state.photoRendering && state.pt) {
       const inside = isInside();
       if (state.ceiling) { state.ceiling.visible = inside; state.lastCeil = inside; }
-      renderer.toneMappingExposure = (state.night ? 1.25 : 1.0) * (inside ? (state.night ? .75 : 6) : (state.night ? 1.3 : .5));
+      // night inside .5 (was .75, set by eye when the denoiser still darkened the picture: at .75 a sixth of the living room clipped)
+      renderer.toneMappingExposure = (state.night ? 1.25 : 1.0) * (inside ? (state.night ? .5 : 6) : (state.night ? 1.3 : .5));
       photoTick(); // also re-uploads the scene when it changed (state.ptDirty)
     }
     return;
