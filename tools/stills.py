@@ -23,7 +23,7 @@ async def main():
             while not task.done():
                 await asyncio.wait([task], timeout=10)
                 if task.done(): break
-                n = await pg.evaluate('window.__stillSamples || 0'); print(f'{v}: {n}/{n_s} samples, {time.time() - t0:.0f}s', flush=True)
+                n, pc = await pg.evaluate('[window.__stillSamples || 0, window.__photo.percent]'); print(f'{v}: {pc} %, {n}/{n_s} samples, {time.time() - t0:.0f}s', flush=True)
                 if time.time() - t0 > a.timeout: task.cancel(); timed_out = True; print(f'{v}: timeout after {a.timeout}s', flush=True); break
             failed = timed_out or task.exception()
             if failed:

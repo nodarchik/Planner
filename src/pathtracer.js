@@ -1,4 +1,4 @@
-import { DPR, V2, camera, controls, frame, markShadows, renderer, scene, stage, state, statusEl } from './scene.js';
+import { MOBILE, V2, camera, controls, frame, markShadows, renderer, scene, stage, state, statusEl } from './scene.js';
 import { composer } from './post.js';
 import { M } from './materials.js';
 import { setView } from './ui/views.js';
@@ -22,7 +22,14 @@ export function ptCamera() { lens(); if (state.pt) state.pt.updateCamera(); }
 
 /* ================= path tracer ("Photo render") ================= */
 
-const DEFAULT_SAMPLES = 32, DEFAULT_BOUNCES = 5, MAX_EDGE = 1440;
+const DEFAULT_SAMPLES = 32, DEFAULT_BOUNCES = 5;
+// Photo size = the window in device pixels (as sharp as the screen), capped by pixel count (render time, GPU memory: up to 95 bytes per pixel) and long edge
+const MAX_PIXELS = MOBILE ? 1e6 : 3.7e6, MAX_EDGE = MOBILE ? 2048 : 2880;
+// `budget` scales the pixel count of that size (0.5 = the retry after the GPU ran out of memory: half the pixels of the size that failed, whatever the window)
+const photoDims = budget => { const w = innerWidth * devicePixelRatio, h = innerHeight * devicePixelRatio, k = Math.min(1, Math.sqrt(MAX_PIXELS / (w * h)), MAX_EDGE / Math.max(w, h)) * Math.sqrt(budget);
+  return [Math.max(1, Math.round(w * k)), Math.max(1, Math.round(h * k))]; };
+// true when the GPU ran out of memory since the last call (lost context included)
+const gpuFull = () => { const gl = renderer.getContext(); let full = gl.isContextLost(); for (let e, i = 0; i < 8 && (e = gl.getError()); i++) if (e === gl.OUT_OF_MEMORY) full = true; return full; };
 // window / rail / shower glass use clear alpha so sunlight reaches rooms cleanly; clearcoat breaks in the path tracer so it is off in Photo
 const GLASS_ALPHA = { glassWin: 0, glassRail: 0, glassShower: .1 };
 // decorative glass, tinted glass and pool water keep thin-walled/index transmission during path tracing
@@ -62,11 +69,19 @@ function ptGlass(on) {
   }
   ptMats(on);
 }
+// guide buffers for the denoiser (surface colour, normals, depth) at the canvas size, always with the glass as in the 3D view
+// so every capture of a Photo session sees the same materials (and no new shader variants are compiled for it)
+function captureGuide() {
+  const on = glassKept.size > 0 || matKept.size > 0;
+  if (on) ptGlass(false);
+  try { denoiser.capture(scene, camera, renderer.domElement.width, renderer.domElement.height, skipMats()); }
+  finally { if (on) ptGlass(true); }
+}
 // day sky 3x stronger in Photo: the room is lit only through the windows, the raster view gets unoccluded sky light everywhere
 export function ptSetScene() { ptMats(true); lens(); scene.environmentIntensity = state.night ? 1 : 3; state.pt.setScene(scene, ptCam); }
 export function rebuildPT() { state.dirty = true; if (state.photo) state.ptDirty = true; }
 
-const photoBtn = $('photo'), photoBar = $('photobar'), photoImg = $('photoImg'), photoText = $('photoText'), photoProg = $('photoProg');
+const photoBtn = $('photo'), photoBar = $('photobar'), photoImg = $('photoImg'), photoStage = $('photoStage'), photoNum = $('photoNum'), photoProg = $('photoProg');
 const photoStop = $('photoStop'), photoMore = $('photoMore'), photoSave = $('photoSave'), photoClose = $('photoClose');
 const focalSel = $('focal'), fstopSel = $('fstop');
 const LOCK_IDS = ['view', 'wfull', 'wcut', 'mday', 'mnight', 'sunMonth', 'sunTime', 'tlab', 'tdim', 'tfur', 'style', 'walk', 'move'];
@@ -74,17 +89,37 @@ const lockToolbar = on => { for (const id of LOCK_IDS) { const el = $(id); if (e
 
 let snap = null, runId = 0, passId = 0, targetSamples = DEFAULT_SAMPLES, stopRequested = false, photoDone = false, saving = false;
 let photoUrl = null, photoSize = [0, 0], headlessReq = null;
+let finishing = false, focusStop = false, lastSamples = 0, rearm = null;
+// one percentage for the whole render: loading the renderer 0-3, preparing the scene 3-10, sampling up to 97, denoising 97, encoding 99, 100 = image ready.
+// It never goes back within a pass; "+32 samples", a lens change and a restart of the accumulation (scene re-uploaded) start a new pass.
+// Screen readers hear the stage names only (#photoStage is the live region) and read the value from the <progress>: the numbers
+// change about 120 times per render, so they sit outside it (#photoNum) and the status line is not live while Photo is on.
+let pct = 0, stageName = '', passLo = 0, passFrom = 0;
+function progress(p, name, samples) {
+  pct = Math.max(pct, Math.min(100, Math.floor(p))); stageName = name;
+  const line = `${headlessReq ? 'Still' : 'Photo'} · ${pct} % · ${samples || name.toLowerCase()}`;
+  if (statusEl.textContent !== line) statusEl.textContent = line;
+  if (headlessReq) return;
+  const num = samples ? ` · ${pct} % · ${samples}` : ` · ${pct} %`;
+  if (photoStage.textContent !== name) photoStage.textContent = name;
+  if (photoNum.textContent !== num) photoNum.textContent = num;
+  photoProg.max = 100; photoProg.value = pct;
+}
+function sampling() {
+  const s = state.pt.samples;
+  if (!s && state.pt.isCompiling) return progress(passLo, 'Compiling shaders');
+  progress(passLo + (97 - passLo) * Math.min(1, Math.max(0, (s - passFrom) / Math.max(1e-6, targetSamples - passFrom))), 'Rendering photo', `${Math.min(targetSamples, Math.floor(s))} / ${targetSamples} samples`);
+}
 const revokePhotoUrl = () => { if (photoUrl) { URL.revokeObjectURL(photoUrl); photoUrl = null; } photoImg.removeAttribute('src'); };
 
-function beginPass() {
+function beginPass(lo = 0) {
   passId++; revokePhotoUrl();
   photoImg.hidden = true; photoSave.hidden = photoMore.hidden = photoStop.hidden = true;
-  photoDone = stopRequested = saving = false;
+  photoDone = stopRequested = saving = finishing = false;
   targetSamples = headlessReq?.samples || DEFAULT_SAMPLES;
   window.__photoSamples = window.__stillSamples = 0;
-  photoProg.max = targetSamples; photoProg.value = 0;
-  photoText.textContent = `Rendering photo · 0 / ${targetSamples} samples`;
-  statusEl.textContent = `Photo · 0 / ${targetSamples} samples`;
+  passLo = lo; passFrom = lastSamples = 0; if (!lo) pct = 0;
+  denoiser?.reset(); sampling();
   state.photoRendering = true;
 }
 
@@ -95,7 +130,7 @@ function exitPhoto() {
   denoiser?.dispose(); denoiser = null;
   photoImg.hidden = true; photoBar.hidden = true;
   photoStop.hidden = photoMore.hidden = photoSave.hidden = true;
-  stopRequested = photoDone = saving = false;
+  stopRequested = photoDone = saving = finishing = false; rearm = null; pct = 0; stageName = '';
   ptGlass(false); scene.environmentIntensity = 1;
   state.photo = false; state.photoRendering = false; state.photoFov = null;
   if (snap) {
@@ -103,6 +138,8 @@ function exitPhoto() {
     renderer.setPixelRatio(s.pr); renderer.setSize(s.size.x, s.size.y);
     camera.aspect = s.aspect; camera.fov = s.fov; camera.updateProjectionMatrix();
     if (state.pt) { state.pt.renderScale = s.scale; state.pt.bounces = s.bounces; }
+    // the path tracer holds three float targets at the Photo size (48 bytes per pixel, 178 MB at 3.7 MP): give them back, the next Photo sizes them again
+    try { state.pt?._pathTracer.setSize(1, 1); state.pt?._lowResPathTracer.setSize(1, 1); } catch (e) { console.warn(e); }
     camera.position.copy(s.pos); controls.target.copy(s.target);
     controls.enabled = s.enabled; controls.enableDamping = s.damping; controls.update();
   } else controls.enabled = true;
@@ -110,7 +147,7 @@ function exitPhoto() {
   stage.inert = false; document.body.classList.remove('photo-mode');
   lockToolbar(false);
   const inBar = document.activeElement && photoBar.contains(document.activeElement);
-  photoBtn.setAttribute('aria-pressed', 'false'); statusEl.textContent = '';
+  photoBtn.setAttribute('aria-pressed', 'false'); statusEl.textContent = ''; statusEl.setAttribute('aria-live', 'polite');
   syncLights(); markShadows(); dispatchEvent(new Event('resize'));
   if (inBar) photoBtn.focus();
 }
@@ -118,44 +155,48 @@ function exitPhoto() {
 // called from main.js render loop while Photo render is actively refining samples
 export function photoTick() {
   if (!state.photo || !state.photoRendering || !state.pt || saving) return false;
-  state.pt.renderSample();
-  const n = Math.floor(state.pt.samples);
+  const pt = state.pt;
+  // the scene changed during Photo (an edit, models or scanned maps arriving): the denoiser divides by the guide, so it is taken again with the upload
+  if (state.ptDirty) { state.ptDirty = false; if (denoiser) captureGuide(); ptSetScene(); }
+  // the accumulation restarted (scene or camera update): a new pass for the percentage, new sample halves; a pending "Denoising" frame or Finish now is dropped
+  if (pt.samples < lastSamples) { lastSamples = 0; finishing = stopRequested = false; denoiser?.reset(); passFrom = 0; pct = passLo; }
+  if (finishing) { finishing = false; develop(); return true; }
+  pt.renderSample();
+  const s = pt.samples, n = Math.floor(s);
+  if (rearm && s > 0) { const again = rearm; rearm = null; if (gpuFull()) { again(); return true; } }
+  lastSamples = s;
+  if (s === n && n > 0 && !(n & (n - 1))) denoiser?.snapshot(pt.target.texture, n); // halves for the noise estimate
   window.__photoSamples = window.__stillSamples = n;
-  const shown = Math.min(targetSamples, n);
-  photoProg.value = shown;
+  sampling();
+  if (!headlessReq && n >= 1 && photoStop.hidden) photoStop.hidden = false;
+  if (n < 1 || (s < targetSamples && !stopRequested)) return true; // never less than one whole sample (tiles: part of the picture would be missing)
+  focusStop = document.activeElement === photoStop; photoStop.hidden = true;
+  finishing = true; progress(97, 'Denoising'); // shown for one frame, the filter runs on the next tick
+  return true;
+}
+// denoise the accumulated image onto the canvas, then hand it over (PNG blob on screen, data URL for a scripted still)
+function develop() {
+  const n = Math.floor(state.pt.samples);
+  denoiser?.run(state.pt.target.texture, renderer.toneMappingExposure, { samples: state.pt.samples, dof: state.fstop > 0 });
+  state.photoRendering = false;
   if (headlessReq) {
-    statusEl.textContent = `Still · ${shown} / ${targetSamples} samples`;
-    if (state.pt.samples < targetSamples && !stopRequested) return true;
-    const h = headlessReq; headlessReq = null; state.photoRendering = false;
-    denoiser?.run(state.pt.target.texture, renderer.toneMappingExposure, state.fstop > 0);
-    try { h.resolve(renderer.domElement.toDataURL('image/png')); } catch (e) { h.reject(e); }
-    return true;
+    const h = headlessReq; let url;
+    try { url = renderer.domElement.toDataURL('image/png'); } catch (e) { headlessReq = null; h.reject(e); return; }
+    progress(100, 'Photo ready'); headlessReq = null; h.resolve(url);
+    return;
   }
-  photoText.textContent = `Rendering photo · ${n} / ${targetSamples} samples`;
-  statusEl.textContent = `Photo · ${n} / ${targetSamples} samples`;
-  if (n >= 1 && photoStop.hidden) photoStop.hidden = false;
-  if (state.pt.samples < targetSamples && !stopRequested) return true;
-  saving = true; state.photoRendering = false;
+  saving = true; progress(99, 'Saving image');
   const myPass = ++passId, w = renderer.domElement.width, h = renderer.domElement.height;
-  const focusStop = document.activeElement === photoStop;
-  photoStop.hidden = true;
-  photoText.textContent = 'Denoising image…';
-  denoiser?.run(state.pt.target.texture, renderer.toneMappingExposure, state.fstop > 0);
+  const ready = (text, focus) => { saving = false; photoDone = true; photoMore.hidden = false; progress(100, 'Photo ready'); photoNum.textContent = ''; photoStage.textContent = text; statusEl.textContent = `Photo ready · ${n} samples`; if (focusStop) focus.focus(); };
   try {
     renderer.domElement.toBlob(blob => {
       if (myPass !== passId || !state.photo) return;
-      saving = false;
-      if (!blob) { photoDone = true; photoMore.hidden = false; photoText.textContent = `Photo finished · ${n} samples`; if (focusStop) photoClose.focus(); return; }
+      if (!blob) return ready(`Photo finished · ${n} samples`, photoClose);
       revokePhotoUrl(); photoUrl = URL.createObjectURL(blob); photoSize = [w, h];
-      photoImg.src = photoUrl; photoImg.hidden = false; photoDone = true;
-      photoProg.value = targetSamples;
-      photoMore.hidden = photoSave.hidden = false;
-      photoText.textContent = `Photo ready · ${w}×${h} · ${n} samples`;
-      statusEl.textContent = `Photo ready · ${n} samples`;
-      if (focusStop) photoSave.focus();
+      photoImg.src = photoUrl; photoImg.hidden = false; photoSave.hidden = false;
+      ready(`Photo ready · ${w}×${h} · ${n} samples`, photoSave);
     }, 'image/png');
-  } catch (e) { saving = false; photoDone = true; photoMore.hidden = false; if (focusStop) photoClose.focus(); }
-  return true;
+  } catch (e) { ready(`Photo finished · ${n} samples`, photoClose); }
 }
 
 function setLens(focal, fstop) {
@@ -164,7 +205,7 @@ function setLens(focal, fstop) {
   if (!state.photo || !state.pt || headlessReq) return;
   camera.fov = focal ? focalFov(focal, camera.aspect) : (state.photoFov ?? camera.fov);
   camera.updateProjectionMatrix();
-  if (focalChanged && denoiser) denoiser.capture(scene, camera, renderer.domElement.width, renderer.domElement.height, skipMats());
+  if (focalChanged && denoiser) captureGuide();
   ptCamera();
   beginPass();
   state.dirty = true;
@@ -184,24 +225,23 @@ export async function setPhoto(on, opts = {}) {
   snap = { pr: renderer.getPixelRatio(), size: renderer.getSize(new V2()), aspect: camera.aspect, fov: baseFov, pos: camera.position.clone(), target: controls.target.clone(), enabled: prevEnabled, damping: prevDamping, scale: state.pt?.renderScale ?? 1, bounces: state.pt?.bounces ?? DEFAULT_BOUNCES };
   state.photo = true; state.photoRendering = false; state.photoFov = baseFov;
   stage.inert = true; document.body.classList.add('photo-mode'); lockToolbar(true); state.syncDims?.();
-  photoBtn.setAttribute('aria-pressed', 'true');
+  photoBtn.setAttribute('aria-pressed', 'true'); statusEl.setAttribute('aria-live', 'off');
   headlessReq = opts.headless || null;
   if (!headlessReq) {
     revokePhotoUrl(); photoImg.hidden = true; photoStop.hidden = photoMore.hidden = photoSave.hidden = true;
-    photoProg.removeAttribute('value');
-    photoBar.hidden = false; photoText.textContent = 'Loading renderer…'; statusEl.textContent = 'Loading renderer…';
-    photoClose.focus();
+    photoBar.hidden = false; photoClose.focus();
   }
+  pct = 0; progress(0, 'Loading renderer');
   try {
     if (!state.pt) {
-      statusEl.textContent = 'Loading renderer…'; await frame();
+      await frame();
       if (myRun !== runId || !state.photo) return;
       const [mod, dn] = await Promise.all([import('three-gpu-pathtracer'), import('./denoise.js')]);
       if (myRun !== runId || !state.photo) return;
       ptCam = new mod.PhysicalCamera(camera.fov, camera.aspect, camera.near, camera.far);
       ptCam.filmGauge = camera.filmGauge;
       state.pt = new mod.WebGLPathTracer(renderer);
-      state.pt.tiles.set(2, 2); state.pt.bounces = DEFAULT_BOUNCES; state.pt.transmissiveBounces = 4; state.pt.filterGlossyFactor = .5; state.pt.minSamples = 1; state.pt.renderDelay = 0; state.pt.fadeDuration = 0; state.pt.renderScale = 1;
+      state.pt.bounces = DEFAULT_BOUNCES; state.pt.filterGlossyFactor = .25; state.pt.minSamples = 1; state.pt.renderDelay = 0; state.pt.fadeDuration = 0; state.pt.renderScale = 1;
       state.pt.rasterizeSceneCallback = () => composer.render();
       denoiser = dn.createDenoiser(renderer);
     } else if (!denoiser) {
@@ -209,31 +249,44 @@ export async function setPhoto(on, opts = {}) {
       if (myRun !== runId || !state.photo) return;
       denoiser = createDenoiser(renderer);
     }
-    if (!headlessReq) photoText.textContent = 'Preparing scene…';
-    statusEl.textContent = 'Preparing scene…';
+    progress(3, 'Preparing scene');
     await frame(); if (myRun !== runId || !state.photo) return;
     await frame(); if (myRun !== runId || !state.photo) return;
     setFast(false);
-    const rw0 = innerWidth * Math.min(DPR, 1.25), rh0 = innerHeight * Math.min(DPR, 1.25);
-    const k = Math.min(1, MAX_EDGE / Math.max(rw0, rh0));
-    const rw = opts.w || Math.max(1, Math.round(rw0 * k)), rh = opts.h || Math.max(1, Math.round(rh0 * k));
-    renderer.setPixelRatio(1); renderer.setSize(rw, rh, false);
-    if (!opts.w) { renderer.domElement.style.width = `${innerWidth}px`; renderer.domElement.style.height = `${innerHeight}px`; }
-    camera.aspect = rw / rh;
-    camera.fov = state.focal ? focalFov(state.focal, camera.aspect) : baseFov;
-    camera.updateProjectionMatrix();
-    state.pt.renderScale = 1;
-    state.pt.bounces = opts.bounces || DEFAULT_BOUNCES;
-    denoiser.capture(scene, camera, rw, rh, skipMats());
-    ptGlass(true); syncLights(); ptSetScene(); state.ptDirty = false;
-    beginPass();
-  } catch (err) {
-    console.warn(err);
-    const rej = headlessReq?.reject; headlessReq = null;
-    if (state.photo) exitPhoto();
-    statusEl.textContent = 'Photo render unavailable on this device';
-    rej?.(err);
-  }
+    // size, guide buffers, scene upload; `budget` 0.5 = second try with half the pixels after the GPU ran out of memory
+    const arm = async budget => {
+      const [rw, rh] = opts.w ? [opts.w, opts.h] : photoDims(budget);
+      renderer.setPixelRatio(1); renderer.setSize(rw, rh, false);
+      if (!opts.w) { renderer.domElement.style.width = `${innerWidth}px`; renderer.domElement.style.height = `${innerHeight}px`; }
+      camera.aspect = rw / rh;
+      camera.fov = state.focal ? focalFov(state.focal, camera.aspect) : baseFov;
+      camera.updateProjectionMatrix();
+      const t = Math.min(4, Math.max(2, Math.ceil(Math.sqrt(rw * rh / 2.5e5)))); // about 0.25 MP per frame keeps the page and the percentage moving
+      state.pt.tiles.set(t, t); state.pt.renderScale = 1;
+      state.pt.bounces = opts.bounces || DEFAULT_BOUNCES;
+      // the library keeps its random numbers in a table bounces + transmissiveBounces + 5 wide but reads columns 0-16 of it; with 5 + 4 + 5 = 14
+      // the lobe choice (column 15) read outside the table, got the same value for every sample of a pixel, and glossy reflections never converged
+      state.pt.transmissiveBounces = Math.max(4, 12 - state.pt.bounces);
+      gpuFull(); captureGuide();
+      if (gpuFull()) throw new Error('GPU out of memory');
+      progress(5, 'Preparing scene'); await frame(); if (myRun !== runId || !state.photo) return false;
+      ptGlass(true); syncLights(); ptSetScene(); state.ptDirty = false;
+      progress(10, 'Preparing scene');
+      return true;
+    };
+    const start = async budget => { const ok = await arm(budget); if (ok) beginPass(10); return ok; };
+    // one retry; when the first samples of the retry run out of memory too, Photo ends with the message
+    const half = async () => { console.warn('Photo render: GPU out of memory, trying half the pixels'); state.photoRendering = false; if (await start(.5)) rearm = () => fail(new Error('GPU out of memory at half the pixels')); };
+    try { if (await start(1) && !opts.w) rearm = () => half().catch(fail); } // photoTick calls rearm when the first samples ran out of memory
+    catch (err) { if (opts.w || myRun !== runId || !state.photo) throw err; await half(); }
+  } catch (err) { fail(err); }
+}
+function fail(err) {
+  console.warn(err);
+  const rej = headlessReq?.reject; headlessReq = null;
+  if (state.photo) exitPhoto();
+  statusEl.textContent = 'Photo render unavailable on this device';
+  rej?.(err);
 }
 
 photoBtn.onclick = () => setPhoto(!state.photo);
@@ -245,9 +298,7 @@ photoMore.onclick = () => {
   photoImg.hidden = true; photoMore.hidden = photoSave.hidden = true;
   photoStop.hidden = false; photoDone = stopRequested = false;
   targetSamples = Math.max(targetSamples, Math.floor(state.pt.samples)) + DEFAULT_SAMPLES;
-  photoProg.max = targetSamples; photoProg.value = Math.floor(state.pt.samples);
-  photoText.textContent = `Rendering photo · ${Math.floor(state.pt.samples)} / ${targetSamples} samples`;
-  statusEl.textContent = `Photo · ${Math.floor(state.pt.samples)} / ${targetSamples} samples`;
+  passLo = pct = 0; passFrom = state.pt.samples; sampling(); // a new pass: the percentage covers the added samples
   state.photoRendering = true; photoStop.focus();
 };
 photoSave.onclick = () => {
@@ -276,5 +327,8 @@ window.__photo = {
   get done() { return photoDone; },
   get samples() { return window.__photoSamples || 0; },
   get target() { return targetSamples; },
+  get percent() { return pct; }, // 0-100, see progress()
+  get stage() { return stageName; },
+  get size() { return [renderer.domElement.width, renderer.domElement.height]; },
   finish() { if (state.photoRendering) stopRequested = true; },
 };

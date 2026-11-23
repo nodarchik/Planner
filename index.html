@@ -19,8 +19,8 @@
 <div id="stage" role="main" aria-label="3D apartment viewport"></div>
 <img id="photoImg" class="photo-img" alt="Path-traced realistic render of the current view" hidden>
 <div id="photobar" class="photobar" role="region" aria-label="Photo render" hidden>
-  <span id="photoText" class="photo-text" role="status" aria-live="polite">Preparing realistic render…</span>
-  <progress id="photoProg" class="photo-prog" max="32" aria-label="Photo render progress"></progress>
+  <span id="photoText" class="photo-text"><span id="photoStage" role="status" aria-live="polite">Preparing realistic render…</span><span id="photoNum" aria-hidden="true"></span></span>
+  <progress id="photoProg" class="photo-prog" max="100" value="0" aria-label="Photo render progress"></progress>
   <div class="pcam" id="pcam">
     <select id="focal" class="sel" aria-label="Focal length"><option value="0">Lens: Auto</option><option value="18">18 mm</option><option value="24">24 mm</option><option value="35">35 mm</option><option value="50">50 mm</option></select>
     <select id="fstop" class="sel" aria-label="Aperture (focus on the orbit target)" title="Depth of field in Photo render; focus stays on the orbit target"><option value="0">DOF: Off</option><option value="1.4">f/1.4</option><option value="2.8">f/2.8</option><option value="5.6">f/5.6</option><option value="11">f/11</option></select>

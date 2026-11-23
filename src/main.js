@@ -20,7 +20,7 @@ import { showToast } from './ui/toast.js';
 import './ui/chat.js';
 import './products-hook.js';
 import { initFast } from './fast.js';
-import { focalFov, photoTick, ptSetScene, rebuildPT } from './pathtracer.js';
+import { focalFov, photoTick, rebuildPT } from './pathtracer.js';
 
 // extent of the ceilings: the camera counts as inside (wide lens, ceiling shown) within it
 const ROOF = bbox(plan.ceilings.flatMap(c => [[c.rect[0], c.rect[1]], [c.rect[2], c.rect[3]]]));
@@ -60,9 +60,9 @@ function tick(now) {
     if (state.photoRendering && state.pt) {
       const inside = isInside();
       if (state.ceiling) { state.ceiling.visible = inside; state.lastCeil = inside; }
-      renderer.toneMappingExposure = (state.night ? 1.25 : 1.0) * (inside ? (state.night ? .75 : 6) : (state.night ? 1.3 : .5));
-      if (state.ptDirty) { state.ptDirty = false; ptSetScene(); }
-      photoTick();
+      // night inside .5 (was .75, set by eye when the denoiser still darkened the picture: at .75 a sixth of the living room clipped)
+      renderer.toneMappingExposure = (state.night ? 1.25 : 1.0) * (inside ? (state.night ? .5 : 6) : (state.night ? 1.3 : .5));
+      photoTick(); // also re-uploads the scene when it changed (state.ptDirty)
     }
     return;
   }
