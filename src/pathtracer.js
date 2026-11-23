@@ -25,7 +25,8 @@ export function ptCamera() { lens(); if (state.pt) state.pt.updateCamera(); }
 const DEFAULT_SAMPLES = 32, DEFAULT_BOUNCES = 5;
 // Photo size = the window in device pixels (as sharp as the screen), capped by pixel count (render time, GPU memory: up to 95 bytes per pixel) and long edge
 const MAX_PIXELS = MOBILE ? 1e6 : 3.7e6, MAX_EDGE = MOBILE ? 2048 : 2880;
-const photoDims = budget => { const w = innerWidth * devicePixelRatio, h = innerHeight * devicePixelRatio, k = Math.min(1, Math.sqrt(MAX_PIXELS * budget / (w * h)), MAX_EDGE / Math.max(w, h));
+// `budget` scales the pixel count of that size (0.5 = the retry after the GPU ran out of memory: half the pixels of the size that failed, whatever the window)
+const photoDims = budget => { const w = innerWidth * devicePixelRatio, h = innerHeight * devicePixelRatio, k = Math.min(1, Math.sqrt(MAX_PIXELS / (w * h)), MAX_EDGE / Math.max(w, h)) * Math.sqrt(budget);
   return [Math.max(1, Math.round(w * k)), Math.max(1, Math.round(h * k))]; };
 // true when the GPU ran out of memory since the last call (lost context included)
 const gpuFull = () => { const gl = renderer.getContext(); let full = gl.isContextLost(); for (let e, i = 0; i < 8 && (e = gl.getError()); i++) if (e === gl.OUT_OF_MEMORY) full = true; return full; };
@@ -67,6 +68,14 @@ function ptGlass(on) {
     glassKept.clear();
   }
   ptMats(on);
+}
+// guide buffers for the denoiser (surface colour, normals, depth) at the canvas size, always with the glass as in the 3D view
+// so every capture of a Photo session sees the same materials (and no new shader variants are compiled for it)
+function captureGuide() {
+  const on = glassKept.size > 0 || matKept.size > 0;
+  if (on) ptGlass(false);
+  try { denoiser.capture(scene, camera, renderer.domElement.width, renderer.domElement.height, skipMats()); }
+  finally { if (on) ptGlass(true); }
 }
 // day sky 3x stronger in Photo: the room is lit only through the windows, the raster view gets unoccluded sky light everywhere
 export function ptSetScene() { ptMats(true); lens(); scene.environmentIntensity = state.night ? 1 : 3; state.pt.setScene(scene, ptCam); }
@@ -129,6 +138,8 @@ function exitPhoto() {
     renderer.setPixelRatio(s.pr); renderer.setSize(s.size.x, s.size.y);
     camera.aspect = s.aspect; camera.fov = s.fov; camera.updateProjectionMatrix();
     if (state.pt) { state.pt.renderScale = s.scale; state.pt.bounces = s.bounces; }
+    // the path tracer holds three float targets at the Photo size (48 bytes per pixel, 178 MB at 3.7 MP): give them back, the next Photo sizes them again
+    try { state.pt?._pathTracer.setSize(1, 1); state.pt?._lowResPathTracer.setSize(1, 1); } catch (e) { console.warn(e); }
     camera.position.copy(s.pos); controls.target.copy(s.target);
     controls.enabled = s.enabled; controls.enableDamping = s.damping; controls.update();
   } else controls.enabled = true;
@@ -144,18 +155,21 @@ function exitPhoto() {
 // called from main.js render loop while Photo render is actively refining samples
 export function photoTick() {
   if (!state.photo || !state.photoRendering || !state.pt || saving) return false;
-  if (finishing) { finishing = false; develop(); return true; }
   const pt = state.pt;
+  // the scene changed during Photo (an edit, models or scanned maps arriving): the denoiser divides by the guide, so it is taken again with the upload
+  if (state.ptDirty) { state.ptDirty = false; if (denoiser) captureGuide(); ptSetScene(); }
+  // the accumulation restarted (scene or camera update): a new pass for the percentage, new sample halves; a pending "Denoising" frame or Finish now is dropped
+  if (pt.samples < lastSamples) { lastSamples = 0; finishing = stopRequested = false; denoiser?.reset(); passFrom = 0; pct = passLo; }
+  if (finishing) { finishing = false; develop(); return true; }
   pt.renderSample();
   const s = pt.samples, n = Math.floor(s);
   if (rearm && s > 0) { const again = rearm; rearm = null; if (gpuFull()) { again(); return true; } }
-  if (s < lastSamples) denoiser?.reset(); // the accumulation restarted (scene or camera update)
   lastSamples = s;
   if (s === n && n > 0 && !(n & (n - 1))) denoiser?.snapshot(pt.target.texture, n); // halves for the noise estimate
   window.__photoSamples = window.__stillSamples = n;
   sampling();
   if (!headlessReq && n >= 1 && photoStop.hidden) photoStop.hidden = false;
-  if (s < targetSamples && !stopRequested) return true;
+  if (n < 1 || (s < targetSamples && !stopRequested)) return true; // never less than one whole sample (tiles: part of the picture would be missing)
   focusStop = document.activeElement === photoStop; photoStop.hidden = true;
   finishing = true; progress(97, 'Denoising'); // shown for one frame, the filter runs on the next tick
   return true;
@@ -191,7 +205,7 @@ function setLens(focal, fstop) {
   if (!state.photo || !state.pt || headlessReq) return;
   camera.fov = focal ? focalFov(focal, camera.aspect) : (state.photoFov ?? camera.fov);
   camera.updateProjectionMatrix();
-  if (focalChanged && denoiser) denoiser.capture(scene, camera, renderer.domElement.width, renderer.domElement.height, skipMats());
+  if (focalChanged && denoiser) captureGuide();
   ptCamera();
   beginPass();
   state.dirty = true;
@@ -253,7 +267,7 @@ export async function setPhoto(on, opts = {}) {
       // the library keeps its random numbers in a table bounces + transmissiveBounces + 5 wide but reads columns 0-16 of it; with 5 + 4 + 5 = 14
       // the lobe choice (column 15) read outside the table, got the same value for every sample of a pixel, and glossy reflections never converged
       state.pt.transmissiveBounces = Math.max(4, 12 - state.pt.bounces);
-      gpuFull(); denoiser.capture(scene, camera, rw, rh, skipMats());
+      gpuFull(); captureGuide();
       if (gpuFull()) throw new Error('GPU out of memory');
       progress(5, 'Preparing scene'); await frame(); if (myRun !== runId || !state.photo) return false;
       ptGlass(true); syncLights(); ptSetScene(); state.ptDirty = false;
@@ -261,7 +275,8 @@ export async function setPhoto(on, opts = {}) {
       return true;
     };
     const start = async budget => { const ok = await arm(budget); if (ok) beginPass(10); return ok; };
-    const half = () => { console.warn('Photo render: GPU out of memory, trying half the pixels'); state.photoRendering = false; return start(.5); };
+    // one retry; when the first samples of the retry run out of memory too, Photo ends with the message
+    const half = async () => { console.warn('Photo render: GPU out of memory, trying half the pixels'); state.photoRendering = false; if (await start(.5)) rearm = () => fail(new Error('GPU out of memory at half the pixels')); };
     try { if (await start(1) && !opts.w) rearm = () => half().catch(fail); } // photoTick calls rearm when the first samples ran out of memory
     catch (err) { if (opts.w || myRun !== runId || !state.photo) throw err; await half(); }
   } catch (err) { fail(err); }

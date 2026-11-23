@@ -32,7 +32,8 @@ async def main():
         await ev("""() => { const $ = id => document.getElementById(id); window.__trace = []; let last = '';
           (function rec() { const r = [__photo.percent, __photo.stage, $('photoText').textContent, $('photoProg').value, $('photoProg').max, $('status').textContent], k = r.join('|');
             if (k !== last) { last = k; window.__trace.push(r); } requestAnimationFrame(rec); })(); }""")
-        async def trace():
+        async def trace():  # two frames first: the recorder runs per frame and must have seen the latest state (done is set outside a frame)
+            await ev('new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))')
             t = await ev('window.__trace.splice(0)'); return t
         rising = lambda t: all(a[0] <= b[0] for a, b in zip(t, t[1:]))
         RX = re.compile(r'^Rendering photo · (\d+) % · (\d+) / (\d+) samples$')
@@ -68,6 +69,24 @@ async def main():
               await pg.is_visible('#photobar') and await pg.is_visible('#photoProg') and
               await ev("document.getElementById('view').disabled && document.getElementById('walk').disabled && document.getElementById('stage').inert") and
               not await pg.is_visible('#hint'))
+
+        check('screen readers get the stage names, not every step',
+              await ev("""(() => { const $ = id => document.getElementById(id), st = $('photoStage'), num = $('photoNum');
+                return st.getAttribute('role') === 'status' && !$('photoText').hasAttribute('role') && !$('photoText').hasAttribute('aria-live') && num.getAttribute('aria-hidden') === 'true' &&
+                  !st.contains(num) && st.textContent === 'Rendering photo' && /^ · \\d+ % · \\d+ \\/ 32 samples$/.test(num.textContent) && $('status').getAttribute('aria-live') === 'off'; })()"""))
+
+        # The scene is uploaded again mid-render (an edit, models arriving): samples restart, the percentage restarts with them
+        n0 = await ev('window.__photo.samples'); full = await ev('window.__photo.size')
+        await ev('__editor.select(null)')
+        await pg.wait_for_function(f'window.__photo.samples < {n0}', timeout=480000, polling=50)
+        await pg.wait_for_function('window.__photo.samples >= 1', timeout=480000, polling=100)
+        tr = [(r, RX.match(r[2])) for r in t1[-1:] + await trace() if r[1] == 'Rendering photo']
+        cut = next((i for i in range(1, len(tr)) if int(tr[i][1][2]) < int(tr[i - 1][1][2])), None)
+        after = tr[cut:] if cut else []
+        check('restart of the accumulation: percentage follows the samples again',
+              bool(after) and int(after[0][1][2]) == 0 and all(10 + 87 * int(m[2]) // 32 <= r[0] <= 10 + 87 * (int(m[2]) + 1) // 32 and r[3] == r[0] for r, m in after) and rising([r for r, m in after]),
+              [r[2] for r, m in tr[max(0, (cut or 1) - 2):][:6]])
+        t1 = [r for r, m in after] or t1
 
         # Try moving the camera by drag, wheel, WASD and view change while Photo render runs
         s0 = await ev('window.__photo.samples')
@@ -124,7 +143,7 @@ async def main():
         await pg.keyboard.press('Escape')
         check('Esc exits Photo render and unlocks UI',
               not await ev('__photo.on') and not await pg.is_visible('#photobar') and not await pg.is_visible('#photoImg') and
-              not await ev("document.getElementById('view').disabled || document.getElementById('stage').inert"))
+              not await ev("document.getElementById('view').disabled || document.getElementById('stage').inert") and await ev("document.getElementById('status').getAttribute('aria-live')") == 'polite')
 
         # Orbit works again
         await pg.mouse.move(W / 2, H / 2)
@@ -135,6 +154,16 @@ async def main():
         await pg.wait_for_function(f'(window.__frames || 0) > {f2} + 4')
         cam_unlocked = await ev('__bindings.cam')
         check('camera orbits again after exiting Photo render', max(abs(a - b) for a, b in zip(cam_unlocked, cam_photo['c'])) > 0.05, (cam_photo['c'], cam_unlocked))
+
+        # GPU out of memory at the first samples (faked: getError reports it once): one retry with half the pixels of the size that failed
+        await ev('new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))')
+        await ev("""() => { const real = WebGL2RenderingContext.prototype.getError; window.__oom = true;
+          WebGL2RenderingContext.prototype.getError = function () { if (window.__oom && /^(Rendering|Compiling)/.test(__photo.stage)) { window.__oom = false; return this.OUT_OF_MEMORY; } return real.call(this); }; }""")
+        await pg.click('#photo')
+        await pg.wait_for_function('window.__photo.on && window.__oom === false && window.__photo.rendering && window.__photo.samples >= 1', timeout=480000, polling=100)
+        small = await ev('window.__photo.size')
+        check('GPU out of memory: retry renders half the pixels of the failed size', abs(small[0] * small[1] / (full[0] * full[1]) - .5) < .02 and await ev('__photo.on'), (full, small))
+        await pg.keyboard.press('Escape')
 
         # Scripted still hook
         await trace()
