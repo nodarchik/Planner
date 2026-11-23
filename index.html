@@ -128,8 +128,9 @@
   </details>
 </section>
 <section class="chatpanel" id="chatpanel" aria-label="Assistant" hidden>
-  <div class="chathead"><h2 class="panel-title">Assistant</h2><select id="chatmodel" aria-label="Model" title="Model for the next request"></select><button id="chatundo" type="button" disabled title="Undo the last plan edit">Undo</button><button id="chatnew" type="button" title="Clear this conversation on all devices (the plan keeps its edits)">New chat</button><button id="chatclose" type="button" aria-label="Close assistant" title="Close assistant (Esc)">✕</button></div>
+  <div class="chathead"><h2 class="panel-title">Assistant</h2><select id="chatmodel" aria-label="Model" title="Model for the next request"></select><button id="chatundo" type="button" disabled title="Undo the last plan edit">Undo</button><button id="chatsbtn" type="button" aria-pressed="false" title="Show older chats">Chats</button><button id="chatnew" type="button" title="Start a new chat (the old one stays in Chats)">New chat</button><button id="chatclose" type="button" aria-label="Close assistant" title="Close assistant (Esc)">✕</button></div>
   <div class="chatlog" id="chatlog" aria-live="polite"></div>
+  <div class="chatlog" id="chatlist" aria-label="Chats" hidden></div>
   <form class="chatpw" id="chatpw" hidden>
     <label class="sr-only" for="chatpwinput">Chat password</label>
     <input id="chatpwinput" type="password" placeholder="Chat password" autocomplete="current-password">

@@ -15,7 +15,7 @@ import { camera, controls, state } from '../scene.js';
 import { enter as walkEnter, leave as walkLeave, walkError, walkTo } from './walk.js';
 import { setPhoto } from '../pathtracer.js';
 import { CHAT_MODELS, DEFAULT_MODEL } from '../chat-models.js';
-import { load, save, fresh, watch, trim, repair, dropPhotos, MAX_LOG, STOP_TEXT } from './chathistory.js';
+import { load, save, fresh, watch, trim, repair, dropPhotos, loadIndex, localIndex, drop, chatId, setChat, newChatId, MAX_LOG, STOP_TEXT } from './chathistory.js';
 import { bindingsInfo } from './bindings.js';
 import { PRODUCTS, ensureProducts, productSize } from '../plan/products.js';
 import { setFast } from '../fast.js';
@@ -24,7 +24,7 @@ const $ = id => document.getElementById(id), panel = $('chatpanel'), log = $('ch
 const NO_ID = ['slabs', 'floors', 'ceilings']; // lists whose entries are addressed by index
 const PWKEY = 'palace1-chat-password', MODELKEY = 'palace1-chat-model', labelOf = id => (CHAT_MODELS.find(m => m.id === id) || { label: id }).label;
 let model = DEFAULT_MODEL; try { const m = localStorage.getItem(MODELKEY); if (CHAT_MODELS.some(c => c.id === m)) model = m; } catch (e) {}
-let history = [], entries = [], synced = null, busy = false, pending = [], ready = Promise.resolve(); // history = API conversation, entries = visible transcript [class, text]
+let history = [], entries = [], synced = null, busy = false, listOpen = false, pending = [], ready = Promise.resolve(); // history = API conversation, entries = visible transcript [class, text]
 
 const keysByType = () => { const by = {}; for (const it of plan.items) for (const g of itemGroups.get(it.id) || []) for (const k of lookKeys(g)) (by[it.type] ||= new Set()).add(k); return by; };
 const context = () => ['Furniture catalog (type → variant index: design; opts = extra fields in the item "opts" object, W = overall width in m):',
@@ -121,6 +121,19 @@ async function post(messages) {
   if (r.status === 401) { try { localStorage.removeItem(PWKEY); } catch (e) {} $('chatpw').hidden = false; $('chatpwinput').focus(); throw new Error('Enter the chat password below, then send again.'); }
   if (!r.ok) throw new Error(data.error || `HTTP ${r.status}`); return data;
 }
+const lock = on => { sendBtn.disabled = $('chatmodel').disabled = $('chatnew').disabled = $('chatsbtn').disabled = on; }; // a turn running blocks sending, the model select and switching chats
+// chat list: swaps the transcript for the saved chats (title and date as text only)
+function showList(open) { listOpen = open; log.hidden = open; $('chatlist').hidden = !open; $('chatsbtn').setAttribute('aria-pressed', String(open)); }
+function drawList(chats) {
+  const box = $('chatlist'); box.textContent = '';
+  if (!chats.length) { const n = document.createElement('div'); n.className = 'msg note'; n.textContent = 'No saved chats yet.'; box.appendChild(n); return; }
+  for (const c of chats) { const row = document.createElement('div'), open = document.createElement('button'), del = document.createElement('button'), t = document.createElement('span'), d = document.createElement('span'), now = c.id === chatId();
+    row.className = 'chatitem' + (now ? ' current' : ''); open.type = del.type = 'button'; open.className = 'chatopen'; del.className = 'chatdel'; t.className = 'title'; d.className = 'when';
+    t.textContent = c.title; d.textContent = `${new Date(c.updated).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })} · ${c.count} request${c.count === 1 ? '' : 's'}${now ? ' · current' : ''}`;
+    if (now) open.setAttribute('aria-current', 'true'); open.append(t, d); open.onclick = () => openChat(c.id);
+    del.textContent = '✕'; del.setAttribute('aria-label', 'Delete chat: ' + c.title); del.title = 'Delete this chat'; del.onclick = () => removeChat(c); row.append(open, del); box.appendChild(row); } }
+function openChat(id) { if (busy) return; showList(false); if (id === chatId()) return; setChat(id); restore(null); ready = load(id).then(d => { if (chatId() === id) restore(d); }); } // the next message carries the full plan again (restore)
+async function removeChat(c) { if (busy || !confirm(`Delete the chat "${c.title}"? This cannot be undone.`)) return; await drop(c.id); if (c.id === chatId()) { setChat(newChatId()); restore(null); } drawList(localIndex()); }
 // photos: decoded, scaled to 1568 px and re-encoded as JPEG here; a 96 px thumbnail goes to the transcript
 const MAX_PHOTOS = 4;
 async function shrink(file) {
@@ -134,7 +147,7 @@ async function addPhotos(files) {
   for (const f of [...files].filter(f => f.type.startsWith('image/'))) {
     if (pending.length >= MAX_PHOTOS) { say('note error', `At most ${MAX_PHOTOS} photos per message.`, false); break; }
     try { pending.push(await shrink(f)); drawPending(); } catch (e) { say('note error', `Could not read the photo ${f.name || ''}; skipped.`, false); } } }
-async function send() { const text = input.value.trim(); if ((!text && !pending.length) || busy) return; await ready; if (busy) return; busy = true; sendBtn.disabled = $('chatmodel').disabled = true; input.value = '';
+async function send() { const text = input.value.trim(); if ((!text && !pending.length) || busy) return; await ready; if (busy) return; busy = true; lock(true); if (listOpen) showList(false); input.value = '';
   const photos = pending, thumbs = photos.map(p => p.thumb), req = text || '(see the attached photos)'; pending = []; drawPending();
   const pre = [add('user', text, '', thumbs), add('note', 'Thinking…')]; // shown at once; the check below can take up to 2 s
   const [other] = await Promise.all([fresh(), ensureProducts()]); pre.forEach(n => n.remove()); if (other) { other.commit(); restore(other.data); say('note', 'Chat updated from another device.', false); } // another device changed the chat since this one loaded
@@ -165,7 +178,7 @@ async function send() { const text = input.value.trim(); if ((!text && !pending.
     history = repair(history); // never keep an unanswered tool_use
     if (history.length > base.length) synced = JSON.stringify(plan);
   } catch (e) { say('note error', e.message); if (history.length > base.length + 1) say('note', 'This request was left out of the conversation; the plan keeps the edits already applied.'); history = base; }
-  wait.remove(); persist(); busy = false; sendBtn.disabled = $('chatmodel').disabled = false; input.focus(); }
+  wait.remove(); persist(); busy = false; lock(false); input.focus(); }
 
 function setChatOpen(open) {
   panel.hidden = !open;
@@ -188,7 +201,8 @@ if ($('chatBtn')) { const off = !!import.meta.env.VITE_NO_ASSETS; $('chatBtn').h
   panel.addEventListener('paste', ev => { const f = imgs(ev.clipboardData); if (f && f.length) { ev.preventDefault(); addPhotos(f); } });
   panel.addEventListener('dragover', ev => { if (ev.dataTransfer && [...ev.dataTransfer.types].includes('Files')) ev.preventDefault(); });
   panel.addEventListener('drop', ev => { const f = imgs(ev.dataTransfer); if (f && f.length) { ev.preventDefault(); addPhotos(f); } });
-  $('chatnew').onclick = () => { if (busy || !(history.length || entries.length) || !confirm('Clear this conversation on all devices? The plan keeps its edits.')) return; restore(null); persist(); };
+  $('chatnew').onclick = () => { if (busy) return; showList(false); if (!(history.length || entries.length)) return; setChat(newChatId()); restore(null); input.focus(); }; // the old chat stays in the list
+  $('chatsbtn').onclick = async () => { if (busy) return; if (listOpen) { showList(false); return; } showList(true); drawList(localIndex()); const chats = await loadIndex(); if (listOpen) drawList(chats); };
   if ($('chatundo')) $('chatundo').onclick = () => { if (!busy) editHistory('undo', 1); };
   const savePw = () => { try { localStorage.setItem(PWKEY, $('chatpwinput').value); } catch (e) {} $('chatpw').hidden = true; $('chatpwinput').value = ''; $('chatpwinput').type = 'password'; if ($('chatpwtoggle')) { $('chatpwtoggle').setAttribute('aria-pressed', 'false'); $('chatpwtoggle').setAttribute('aria-label', 'Show password'); $('chatpwtoggle').textContent = 'Show'; } input.focus(); };
   if ($('chatpw').tagName === 'FORM') $('chatpw').onsubmit = ev => { ev.preventDefault(); savePw(); }; else $('chatpwsave').onclick = savePw;
