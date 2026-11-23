@@ -14,7 +14,8 @@ async function call(method, body, ms = 8000) {
   try { const r = await fetch(URL, { method, headers, body: body && JSON.stringify(body), cache: 'no-store', signal: ctl.signal }); let j = null; try { j = await r.json(); } catch (e) {} return { status: r.status, j: j && Number.isInteger(j.rev) ? j : null }; }
   catch (e) { return { status: 0, j: null }; } finally { clearTimeout(t); } }
 
-const plain = m => m.role === 'user' && typeof m.content === 'string', uses = m => Array.isArray(m.content) ? m.content.filter(b => b && b.type === 'tool_use').map(b => b.id) : [], results = m => Array.isArray(m.content) ? m.content.filter(b => b && b.type === 'tool_result').map(b => b.tool_use_id) : [];
+const photoMsg = m => Array.isArray(m.content) && m.content.length > 0 && m.content.every(b => b && (b.type === 'text' || b.type === 'image')); // a user message of text and photo blocks (memory only)
+const plain = m => m.role === 'user' && (typeof m.content === 'string' || photoMsg(m)), uses = m => Array.isArray(m.content) ? m.content.filter(b => b && b.type === 'tool_use').map(b => b.id) : [], results = m => Array.isArray(m.content) ? m.content.filter(b => b && b.type === 'tool_result').map(b => b.tool_use_id) : [];
 // old thinking blocks are never kept: a block is bound to the exact history before it, so cutting or editing that history later makes the API reject it (removing them all is allowed)
 const clean = m => { if (!m || typeof m !== 'object' || !['user', 'assistant'].includes(m.role)) return null; let c = m.content;
   if (Array.isArray(c)) c = c.filter(b => b && typeof b === 'object' && b.type !== 'thinking' && b.type !== 'redacted_thinking' && !(b.type === 'text' && !String(b.text || '').trim()));
@@ -33,18 +34,26 @@ export function repair(h) {
   if (out.length && plain(out[out.length - 1])) out.pop(); // a request without its answer is dropped
   if (out.length && out[out.length - 1].role === 'user') out.push({ role: 'assistant', content: [{ type: 'text', text: STOP_TEXT }] }); // a stored turn always ends with an assistant message
   return out; }
-const size = h => JSON.stringify(h).length;
+const size = h => JSON.stringify(h, (k, v) => v && v.type === 'image' ? '[photo]' : v).length; // photos count as their placeholder
+// stored form of a user message with photos: its text plus one [photo: name] line each, never the pixels
+const storable = m => { if (m.role !== 'user' || !photoMsg(m)) return m; const t = m.content.filter(b => b.type === 'text').map(b => b.text); return { role: 'user', content: [t[t.length - 1], ...t.slice(0, -1)].join('\n') }; };
+// when the request would pass the server cap, the oldest photos are replaced by a text block
+export function dropPhotos(h, cap = 3.4e6) {
+  for (let i = 0; i < h.length && JSON.stringify(h).length > cap; i++) if (Array.isArray(h[i].content) && h[i].content.some(b => b.type === 'image')) { h = h.slice(); h[i] = { ...h[i], content: h[i].content.map(b => b.type === 'image' ? { type: 'text', text: '[photo not kept]' } : b) }; }
+  return h; }
 // drop the oldest whole turns (cut at a plain user message) once the conversation nears the server limits; returns the same list if nothing to cut
 export function trim(h) {
   if (h.length <= MAX_MSGS && size(h) <= MAX_BYTES) return h;
   const cuts = h.map((m, i) => i && plain(m) ? i : 0).filter(Boolean); if (!cuts.length) return h;
   const at = cuts.find(i => h.length - i <= KEEP_MSGS && size(h.slice(i)) <= KEEP_BYTES) ?? cuts[cuts.length - 1]; return h.slice(at); }
-export const cleanLog = l => (Array.isArray(l) ? l : []).filter(e => Array.isArray(e) && CLASSES.includes(e[0]) && typeof e[1] === 'string').map(e => typeof e[2] === 'string' && e[2] ? [e[0], e[1].slice(0, MAX_TEXT), e[2].slice(0, 60)] : [e[0], e[1].slice(0, MAX_TEXT)]).slice(-MAX_LOG);
-export const cleanData = d => d && typeof d === 'object' ? { messages: repair(d.messages), log: cleanLog(d.log) } : null;
+const THUMB = /^data:image\/jpeg;base64,[A-Za-z0-9+/]+={0,2}$/, MAX_THUMB = 12000, MAX_THUMBS = 4; // log thumbnails: small JPEG data URLs only
+const thumbs = e => e[0] === 'user' && Array.isArray(e[3]) ? e[3].filter(t => typeof t === 'string' && t.length <= MAX_THUMB && THUMB.test(t)).slice(0, MAX_THUMBS) : [];
+export const cleanLog = l => (Array.isArray(l) ? l : []).filter(e => Array.isArray(e) && CLASSES.includes(e[0]) && typeof e[1] === 'string').map(e => { const th = thumbs(e), by = typeof e[2] === 'string' ? e[2].slice(0, 60) : '', t = e[1].slice(0, MAX_TEXT); return th.length ? [e[0], t, by, th] : by ? [e[0], t, by] : [e[0], t]; }).slice(-MAX_LOG);
+export const cleanData = d => d && typeof d === 'object' ? { messages: repair(d.messages).map(storable), log: cleanLog(d.log) } : null;
 
 const bytes = d => new TextEncoder().encode(JSON.stringify(d)).length;
 // keep one PUT under the server cap (2 MB): the oldest transcript lines go first
-const fit = d => { const out = { messages: d.messages, log: cleanLog(d.log) }; while (out.log.length && bytes(out) > MAX_PUT) out.log.shift(); return out; };
+const fit = d => { const out = { messages: d.messages.map(storable), log: cleanLog(d.log) }; while (out.log.length && bytes(out) > MAX_PUT) out.log.shift(); return out; };
 const note = text => { if (!OFF) showToast(text, { ms: 5000 }); };
 const setLocalOnly = on => { if (!OFF) badge = toggleBadge(badge, 'chatlocalbadge', 'Chat saved on this device only', on, 'chat-local'); };
 

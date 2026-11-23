@@ -15,7 +15,7 @@ import { camera, controls, state } from '../scene.js';
 import { enter as walkEnter, leave as walkLeave, walkError, walkTo } from './walk.js';
 import { setPhoto } from '../pathtracer.js';
 import { CHAT_MODELS, DEFAULT_MODEL } from '../chat-models.js';
-import { load, save, fresh, watch, trim, repair, MAX_LOG, STOP_TEXT } from './chathistory.js';
+import { load, save, fresh, watch, trim, repair, dropPhotos, MAX_LOG, STOP_TEXT } from './chathistory.js';
 import { bindingsInfo } from './bindings.js';
 import { PRODUCTS, ensureProducts, productSize } from '../plan/products.js';
 import { setFast } from '../fast.js';
@@ -24,7 +24,7 @@ const $ = id => document.getElementById(id), panel = $('chatpanel'), log = $('ch
 const NO_ID = ['slabs', 'floors', 'ceilings']; // lists whose entries are addressed by index
 const PWKEY = 'palace1-chat-password', MODELKEY = 'palace1-chat-model', labelOf = id => (CHAT_MODELS.find(m => m.id === id) || { label: id }).label;
 let model = DEFAULT_MODEL; try { const m = localStorage.getItem(MODELKEY); if (CHAT_MODELS.some(c => c.id === m)) model = m; } catch (e) {}
-let history = [], entries = [], synced = null, busy = false, ready = Promise.resolve(); // history = API conversation, entries = visible transcript [class, text]
+let history = [], entries = [], synced = null, busy = false, pending = [], ready = Promise.resolve(); // history = API conversation, entries = visible transcript [class, text]
 
 const keysByType = () => { const by = {}; for (const it of plan.items) for (const g of itemGroups.get(it.id) || []) for (const k of lookKeys(g)) (by[it.type] ||= new Set()).add(k); return by; };
 const context = () => ['Furniture catalog (type → variant index: design; opts = extra fields in the item "opts" object, W = overall width in m):',
@@ -38,10 +38,11 @@ const context = () => ['Furniture catalog (type → variant index: design; opts 
   'item.look = { partKey: { fin, color } } recolours one part of an item. Part keys and finishes:', ...styleInfo(),
   'Part keys found on the built items, by item type (other designs of a type may differ; a key an item does not have is ignored): ' + Object.entries(keysByType()).map(([t, k]) => `${t}: ${[...k].join(' ')}`).join('; ')].join('\n');
 
-function add(cls, text, by) { const d = document.createElement('div'); d.className = 'msg ' + cls; d.textContent = text; if (by) d.dataset.model = by; log.appendChild(d); while (log.children.length > MAX_LOG) log.firstElementChild.remove(); log.scrollTop = log.scrollHeight; return d; }
-function say(cls, text, keep = true, by = '') { if (keep) entries = [...entries, by ? [cls, text, by] : [cls, text]].slice(-MAX_LOG); return add(cls, text, by); } // by = model label, display data only (never sent to the API)
+function add(cls, text, by, thumbs) { const d = document.createElement('div'); d.className = 'msg ' + cls; d.textContent = text; if (by) d.dataset.model = by;
+  if (thumbs && thumbs.length) { const row = document.createElement('div'); row.className = 'thumbs'; for (const t of thumbs) { const im = document.createElement('img'); im.alt = 'attached photo'; im.src = t; row.appendChild(im); } d.appendChild(row); } log.appendChild(d); while (log.children.length > MAX_LOG) log.firstElementChild.remove(); log.scrollTop = log.scrollHeight; return d; }
+function say(cls, text, keep = true, by = '', thumbs = null) { if (keep) entries = [...entries, thumbs && thumbs.length ? [cls, text, by, thumbs] : by ? [cls, text, by] : [cls, text]].slice(-MAX_LOG); return add(cls, text, by, thumbs); } // by = model label, display data only (never sent to the API); thumbs = small JPEG data URLs of a user line
 // stored or adopted conversation: the next request carries the full current plan again (synced = null)
-function restore(d) { history = d ? d.messages : []; entries = d ? d.log : []; synced = null; log.textContent = ''; entries.forEach(([c, t, by]) => add(c, t, by)); }
+function restore(d) { history = d ? d.messages : []; entries = d ? d.log : []; synced = null; log.textContent = ''; entries.forEach(([c, t, by, th]) => add(c, t, by, th)); }
 const persist = () => save(history.length || entries.length ? { messages: history, log: entries } : null);
 
 // one batch from Claude → plan edits. Throws on the first invalid edit; tryEdit then restores the plan.
@@ -114,21 +115,36 @@ function runTool(block) {
 }
 async function post(messages) {
   const headers = { 'content-type': 'application/json' }; let pw = null; try { pw = localStorage.getItem(PWKEY); } catch (e) {} if (pw) headers['x-chat-password'] = pw;
-  let r; try { r = await fetch('/api/chat', { method: 'POST', headers, body: JSON.stringify({ messages, model }) }); } catch (e) { throw new Error('Could not reach the assistant.'); }
+  let r; try { r = await fetch('/api/chat', { method: 'POST', headers, body: JSON.stringify({ messages: dropPhotos(messages), model }) }); } catch (e) { throw new Error('Could not reach the assistant.'); }
   if (r.status === 404) throw new Error('The assistant runs only on the deployed site (Vercel), not in this build.');
   const data = await r.json().catch(() => ({ error: `HTTP ${r.status}` }));
   if (r.status === 401) { try { localStorage.removeItem(PWKEY); } catch (e) {} $('chatpw').hidden = false; $('chatpwinput').focus(); throw new Error('Enter the chat password below, then send again.'); }
   if (!r.ok) throw new Error(data.error || `HTTP ${r.status}`); return data;
 }
-async function send() { const text = input.value.trim(); if (!text || busy) return; await ready; if (busy) return; busy = true; sendBtn.disabled = $('chatmodel').disabled = true; input.value = '';
-  const pre = [add('user', text), add('note', 'Thinking…')]; // shown at once; the check below can take up to 2 s
+// photos: decoded, scaled to 1568 px and re-encoded as JPEG here; a 96 px thumbnail goes to the transcript
+const MAX_PHOTOS = 4;
+async function shrink(file) {
+  const bmp = await createImageBitmap(file);
+  try { const jpg = (max, q) => { const k = Math.min(1, max / Math.max(bmp.width, bmp.height)), c = document.createElement('canvas'), x = c.getContext('2d'); c.width = Math.max(1, Math.round(bmp.width * k)); c.height = Math.max(1, Math.round(bmp.height * k)); x.fillStyle = '#fff'; x.fillRect(0, 0, c.width, c.height); x.drawImage(bmp, 0, 0, c.width, c.height); return c.toDataURL('image/jpeg', q); };
+    return { name: (file.name || 'photo').replace(/[\r\n[\]]/g, ' ').slice(0, 60), data: jpg(1568, 0.8).split(',')[1], thumb: jpg(96, 0.7) }; } finally { if (bmp.close) bmp.close(); } }
+function drawPending() {
+  const row = $('chatthumbs'); row.textContent = ''; row.hidden = !pending.length;
+  pending.forEach((p, i) => { const w = document.createElement('span'), im = document.createElement('img'), x = document.createElement('button'); w.className = 'chatthumb'; im.src = p.thumb; im.alt = p.name; x.type = 'button'; x.textContent = '✕'; x.setAttribute('aria-label', 'Remove photo ' + p.name); x.onclick = () => { pending.splice(i, 1); drawPending(); }; w.append(im, x); row.appendChild(w); }); }
+async function addPhotos(files) {
+  for (const f of [...files].filter(f => f.type.startsWith('image/'))) {
+    if (pending.length >= MAX_PHOTOS) { say('note error', `At most ${MAX_PHOTOS} photos per message.`, false); break; }
+    try { pending.push(await shrink(f)); drawPending(); } catch (e) { say('note error', `Could not read the photo ${f.name || ''}; skipped.`, false); } } }
+async function send() { const text = input.value.trim(); if ((!text && !pending.length) || busy) return; await ready; if (busy) return; busy = true; sendBtn.disabled = $('chatmodel').disabled = true; input.value = '';
+  const photos = pending, thumbs = photos.map(p => p.thumb), req = text || '(see the attached photos)'; pending = []; drawPending();
+  const pre = [add('user', text, '', thumbs), add('note', 'Thinking…')]; // shown at once; the check below can take up to 2 s
   const [other] = await Promise.all([fresh(), ensureProducts()]); pre.forEach(n => n.remove()); if (other) { other.commit(); restore(other.data); say('note', 'Chat updated from another device.', false); } // another device changed the chat since this one loaded
-  say('user', text);
+  say('user', text, true, '', thumbs);
   const cut = trim(history); if (cut !== history) { history = cut; synced = null; } // oldest turns dropped near the server limits
-  let content = text;
-  if (!history.length) content = `${context()}\n\nCurrent plan (palace1.json):\n${JSON.stringify(plan)}\n\nRequest: ${text}`;
-  else if (!synced) content = `${context()}\n\nCurrent plan (palace1.json), the state right now; any plan or edit list earlier in this conversation is outdated:\n${JSON.stringify(plan)}\n\nRequest: ${text}`;
-  else { const manual = describe(JSON.parse(synced), plan); if (manual.length) content = `Edits made by hand in the editor since your last turn:\n${manual.join('\n')}\n\nRequest: ${text}`; }
+  let content = req;
+  if (!history.length) content = `${context()}\n\nCurrent plan (palace1.json):\n${JSON.stringify(plan)}\n\nRequest: ${req}`;
+  else if (!synced) content = `${context()}\n\nCurrent plan (palace1.json), the state right now; any plan or edit list earlier in this conversation is outdated:\n${JSON.stringify(plan)}\n\nRequest: ${req}`;
+  else { const manual = describe(JSON.parse(synced), plan); if (manual.length) content = `Edits made by hand in the editor since your last turn:\n${manual.join('\n')}\n\nRequest: ${req}`; }
+  if (photos.length) content = [...photos.flatMap(p => [{ type: 'text', text: `[photo: ${p.name}]` }, { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: p.data } }]), { type: 'text', text: content }];
   const base = history.slice(); // base = the conversation to fall back to if this request fails
   history = [...base, { role: 'user', content }];
   const wait = say('note', 'Thinking…', false);
@@ -167,6 +183,11 @@ if ($('chatBtn')) { const off = !!import.meta.env.VITE_NO_ASSETS; $('chatBtn').h
   panel.onkeydown = ev => { if (ev.key === 'Escape' && !ev.isComposing && ev.keyCode !== 229) { ev.stopPropagation(); setChatOpen(false); $('chatBtn').focus(); } };
   if ($('chatform')) $('chatform').onsubmit = ev => { ev.preventDefault(); send(); }; else sendBtn.onclick = send;
   input.onkeydown = ev => { if (ev.key !== 'Escape') ev.stopPropagation(); if (ev.isComposing || ev.keyCode === 229) return; if (ev.key === 'Enter' && !ev.shiftKey) { ev.preventDefault(); send(); } };
+  $('chatattach').onclick = () => $('chatfile').click(); $('chatfile').onchange = () => { addPhotos($('chatfile').files); $('chatfile').value = ''; };
+  const imgs = dt => dt && [...dt.files].filter(f => f.type.startsWith('image/'));
+  panel.addEventListener('paste', ev => { const f = imgs(ev.clipboardData); if (f && f.length) { ev.preventDefault(); addPhotos(f); } });
+  panel.addEventListener('dragover', ev => { if (ev.dataTransfer && [...ev.dataTransfer.types].includes('Files')) ev.preventDefault(); });
+  panel.addEventListener('drop', ev => { const f = imgs(ev.dataTransfer); if (f && f.length) { ev.preventDefault(); addPhotos(f); } });
   $('chatnew').onclick = () => { if (busy || !(history.length || entries.length) || !confirm('Clear this conversation on all devices? The plan keeps its edits.')) return; restore(null); persist(); };
   if ($('chatundo')) $('chatundo').onclick = () => { if (!busy) editHistory('undo', 1); };
   const savePw = () => { try { localStorage.setItem(PWKEY, $('chatpwinput').value); } catch (e) {} $('chatpw').hidden = true; $('chatpwinput').value = ''; $('chatpwinput').type = 'password'; if ($('chatpwtoggle')) { $('chatpwtoggle').setAttribute('aria-pressed', 'false'); $('chatpwtoggle').setAttribute('aria-label', 'Show password'); $('chatpwtoggle').textContent = 'Show'; } input.focus(); };

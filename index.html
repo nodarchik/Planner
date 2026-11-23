@@ -137,6 +137,9 @@
     <button id="chatpwsave" type="submit">Save</button>
   </form>
   <form class="chatrow" id="chatform">
+    <div class="chatthumbs" id="chatthumbs" hidden></div>
+    <button id="chatattach" type="button" aria-label="Attach photos" title="Attach photos as reference samples (or paste or drop them here)">Photo</button>
+    <input id="chatfile" type="file" accept="image/*" multiple hidden>
     <label class="sr-only" for="chatinput">Request</label>
     <textarea id="chatinput" rows="2" placeholder="e.g. make the B2 wardrobe 1.80 wide" enterkeyhint="send"></textarea>
     <button id="chatsend" type="submit">Send</button>

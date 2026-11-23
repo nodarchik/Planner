@@ -7,7 +7,7 @@ HK = 'palace1-chat-history-v1'
 LOG = "document.getElementById('chatlog').innerText"
 
 def strict(ms):   # what the Claude API and api/chat.js would accept; returns an error text or None
-    if not ms or len(ms) > 200 or len(json.dumps(ms)) > 1_500_000: return 'size'
+    if not ms or len(ms) > 200 or len(json.dumps(ms)) > 3_500_000: return 'size'
     if ms[0]['role'] != 'user' or not isinstance(ms[0]['content'], str): return 'first message'
     think = lambda m: isinstance(m['content'], list) and any(b.get('type') in ('thinking', 'redacted_thinking') for b in m['content'])
     turn0 = max(i for i, m in enumerate(ms) if m['role'] == 'user' and (isinstance(m['content'], str) or any(b.get('type') == 'text' for b in m['content'])))

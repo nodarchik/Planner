@@ -262,6 +262,42 @@ async def main():
         await pg.evaluate("localStorage.removeItem('palace1-plan-patch-v1')")
         errs.clear()
         check('no page errors', not errs, errs[:5])
+        # ---- photo attachments ----
+        import base64, io, tempfile
+        from PIL import Image
+        tmp = tempfile.mkdtemp(); paths = []
+        for n, (w, h, c) in enumerate([(3000, 2000, (200, 30, 30)), (400, 300, (30, 120, 220)), (64, 64, (20, 160, 60)), (80, 50, (240, 200, 0)), (50, 50, (90, 90, 90))]):
+            f = os.path.join(tmp, f'p{n}.png'); Image.new('RGB', (w, h), c).save(f); paths.append(f)
+        ph = await b.new_page(viewport={'width': 1200, 'height': 720}); pb = []
+        async def pmock(route): pb.append(json.loads(route.request.post_data)); await route.fulfill(json={"content": [{"type": "text", "text": "Seen."}], "stop_reason": "end_turn"})
+        await ph.route('**/api/chat', pmock); await ph.goto(sys.argv[1]); await ph.wait_for_selector('#loader[hidden]', state='attached', timeout=240000); await ph.click('#chatBtn')
+        await ph.set_input_files('#chatfile', paths[:2]); await ph.wait_for_function("document.querySelectorAll('#chatthumbs .chatthumb').length === 2", timeout=15000)
+        check('attached photos show as thumbnails above the input', not await ph.evaluate("document.getElementById('chatthumbs').hidden"))
+        await ph.click('#chatthumbs .chatthumb:nth-child(2) button'); check('a thumbnail can be removed', await ph.evaluate("document.querySelectorAll('#chatthumbs .chatthumb').length") == 1)
+        await ph.set_input_files('#chatfile', [paths[1]]); await ph.fill('#chatinput', 'like these photos'); await ph.click('#chatsend')
+        await ph.wait_for_function("[...document.querySelectorAll('#chatlog .msg.bot')].some(m => m.textContent.includes('Seen.'))", timeout=60000)
+        c0 = pb[0]['messages'][0]['content']; imgs = [x for x in c0 if x['type'] == 'image']
+        check('request carries image blocks then the text block', isinstance(c0, list) and len(imgs) == 2 and c0[-1]['type'] == 'text' and 'like these photos' in c0[-1]['text'] and 'Furniture catalog' in c0[-1]['text'], [x['type'] for x in c0])
+        im0 = Image.open(io.BytesIO(base64.b64decode(imgs[0]['source']['data'])))
+        check('photos are JPEG, long edge at most 1568 px, body under the server cap', imgs[0]['source']['media_type'] == 'image/jpeg' and im0.format == 'JPEG' and max(im0.size) == 1568 and len(json.dumps(pb[0]['messages'])) < 3_500_000, (im0.format, im0.size))
+        check('a photo line names the file', any(x['type'] == 'text' and x['text'].startswith('[photo: p') for x in c0))
+        check('the log line has thumbnails and the input strip is empty', await ph.evaluate("document.querySelectorAll('#chatlog .msg.user .thumbs img').length") == 2 and await ph.evaluate("document.getElementById('chatthumbs').hidden"))
+        await ph.fill('#chatinput', 'and now?'); await ph.click('#chatsend'); await ph.wait_for_function("document.querySelectorAll('#chatlog .msg.bot').length === 2", timeout=60000)
+        check('follow-up in the same session still carries the earlier photos', sum(1 for m in pb[1]['messages'] if isinstance(m['content'], list) for x in m['content'] if x['type'] == 'image') == 2)
+        await ph.wait_for_timeout(300); st = await ph.evaluate("localStorage.getItem('palace1-chat-history-v1')")
+        check('stored conversation has no photo data, only [photo: name] lines', st and '"image"' not in st and 'base64' not in st.replace('data:image/jpeg;base64,', '') and '[photo: p' in st and 'like these photos' in st)
+        await ph.reload(); await ph.wait_for_selector('#loader[hidden]', state='attached', timeout=240000); await ph.click('#chatBtn'); await ph.wait_for_timeout(500)
+        check('thumbnails come back after a reload', await ph.evaluate("document.querySelectorAll('#chatlog .msg.user .thumbs img').length") == 2)
+        await ph.fill('#chatinput', 'after reload'); await ph.click('#chatsend'); await ph.wait_for_function("document.querySelectorAll('#chatlog .msg.bot').length === 3", timeout=60000)
+        check('after a reload the model gets the old turn as text only', not any(x['type'] == 'image' for m in pb[2]['messages'] if isinstance(m['content'], list) for x in m['content']) and '[photo: p' in json.dumps(pb[2]['messages'][0]) and isinstance(pb[2]['messages'][0]['content'], str))
+        await ph.set_input_files('#chatfile', paths); await ph.wait_for_timeout(1500)
+        check('at most 4 photos per message', await ph.evaluate("document.querySelectorAll('#chatthumbs .chatthumb').length") == 4 and 'At most 4 photos' in await ph.evaluate("document.getElementById('chatlog').innerText"))
+        await ph.click('#chatsend'); await ph.wait_for_function("document.querySelectorAll('#chatlog .msg.bot').length === 4", timeout=60000)
+        check('a message with photos and no text is sent', any(x['type'] == 'text' and 'attached photos' in x['text'] for x in pb[3]['messages'][-1]['content']))
+        await ph.set_input_files('#chatfile', [{'name': 'broken.png', 'mimeType': 'image/png', 'buffer': b'not an image'}]); await ph.wait_for_timeout(800)
+        check('a file that cannot be decoded is skipped with a note', await ph.evaluate("document.querySelectorAll('#chatthumbs .chatthumb').length") == 0 and 'Could not read' in await ph.evaluate("document.getElementById('chatlog').innerText"))
+        check('no page errors with photos', not errs, errs[:5])
+        await ph.close()
         await b.close()
     sys.exit(1 if fails else 0)
 asyncio.run(main())

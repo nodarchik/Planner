@@ -8,6 +8,7 @@ import { CHAT_MODELS, DEFAULT_MODEL } from '../src/chat-models.js';
 const SYSTEM = `You edit the plan of one real apartment ("Palace 1", Tbilisi) inside its 3D web app. The owner types plain requests ("make the closet 1.30 m", "rotate the bed to face the balcony", "move the dining table 20 cm east"). You answer by calling apply_changes; the app rebuilds the model and returns the result of its automatic checks.
 
 The first user message contains the full plan JSON and the furniture catalog. Later tool results and messages tell you what changed; keep track of the current state from them.
+The owner may attach photos (each follows a "[photo: name]" line): treat them as style or reference samples for the plan, not as measurements.
 
 Plan conventions
 - Coordinates in metres: x east, y south, origin at the north-west inner corner of bedroom 1. Heights are separate fields. Show dimensions with 2 decimals.
@@ -98,6 +99,7 @@ TOOLS.push({
   }
 });
 
+const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
 const bad = (res, code, error) => res.status(code).json({ error });
 const sha = v => createHash('sha256').update(String(v ?? '')).digest();
 const sameKey = (a, b) => timingSafeEqual(sha(a), sha(b));
@@ -115,7 +117,9 @@ export const createHandler = newClient => async function handler(req, res) {
   if (!process.env.ANTHROPIC_API_KEY) return bad(res, 500, 'ANTHROPIC_API_KEY is not set in the Vercel project (Settings → Environment Variables); add it and redeploy.');
   const messages = req.body && req.body.messages;
   if (!Array.isArray(messages) || !messages.length || messages.length > 200 || messages[0].role !== 'user') return bad(res, 400, 'messages must be a non-empty conversation starting with the user');
-  if (JSON.stringify(messages).length > 1_500_000) return bad(res, 413, 'conversation too long; start a new chat');
+  if (JSON.stringify(messages).length > 3_500_000) return bad(res, 413, 'conversation too long; start a new chat');
+  const badPhoto = b => b && b.type === 'image' && !(b.source && b.source.type === 'base64' && IMAGE_TYPES.includes(b.source.media_type) && typeof b.source.data === 'string' && /^[A-Za-z0-9+/]+={0,2}$/.test(b.source.data));
+  if (messages.some(m => m && m.role === 'user' && Array.isArray(m.content) && m.content.some(badPhoto))) return bad(res, 400, 'photos must be base64 JPEG, PNG, GIF or WebP');
   const chosen = CHAT_MODELS.find(m => m.id === (req.body.model ?? DEFAULT_MODEL));
   if (!chosen) return bad(res, 400, 'model must be one of: ' + CHAT_MODELS.map(m => m.id).join(', '));
   try {
