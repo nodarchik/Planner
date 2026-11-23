@@ -306,6 +306,7 @@ async def main():
         k = len(pb); await ph.set_input_files('#chatfile', noise); await ph.wait_for_function("document.querySelectorAll('#chatthumbs .chatthumb').length === 3", timeout=30000)
         await ph.fill('#chatinput', 'too many big photos'); await ph.click('#chatsend'); await ph.wait_for_function("document.getElementById('chatlog').innerText.includes('too large to send')", timeout=30000)
         check('over the cap: not sent, a note asks for fewer or smaller photos, nothing replaced', len(pb) == k and 'photo not kept' not in json.dumps(pb))
+        check('over the cap: the text and the 3 thumbnails are back in the input, no user line left', await ph.evaluate("document.getElementById('chatinput').value") == 'too many big photos' and await ph.evaluate("document.querySelectorAll('#chatthumbs .chatthumb').length") == 3 and 'too many big photos' not in await ph.evaluate("document.getElementById('chatlog').innerText") and not await ph.evaluate("document.getElementById('chatsend').disabled"))
         check('no page errors with photos', not errs, errs[:5])
         await ph.close()
         await b.close()

@@ -149,11 +149,11 @@ async function addPhotos(files) {
   for (const f of [...files].filter(f => f.type.startsWith('image/'))) {
     if (pending.length >= MAX_PHOTOS) { say('note error', `At most ${MAX_PHOTOS} photos per message.`, false); break; }
     try { const p = await shrink(f); if (pending.length >= MAX_PHOTOS) { say('note error', `At most ${MAX_PHOTOS} photos per message.`, false); break; } pending.push(p); drawPending(); } catch (e) { say('note error', `Could not read the photo ${f.name || ''}; skipped.`, false); } } }
-async function send() { const text = input.value.trim(); if ((!text && !pending.length) || busy) return; busy = true; lock(true); await ready; if (listOpen) showList(false); input.value = '';
+async function send() { const text = input.value.trim(); if ((!text && !pending.length) || busy) return; busy = true; lock(true); try { await ready; } catch (e) {} if (listOpen) showList(false); input.value = '';
   const photos = pending, thumbs = photos.map(p => p.thumb), req = text || '(see the attached photos)'; pending = []; drawPending();
   const pre = [add('user', text, '', thumbs), add('note', 'Thinking…')]; // shown at once; the check below can take up to 2 s
   const [other] = await Promise.all([fresh(), ensureProducts()]); pre.forEach(n => n.remove()); if (other) { other.commit(); restore(other.data); say('note', 'Chat updated from another device.', false); } // another device changed the chat since this one loaded
-  say('user', text, true, '', thumbs);
+  const userLine = say('user', text, true, '', thumbs), userEntry = entries[entries.length - 1];
   const cut = trim(history); if (cut !== history) { history = cut; synced = null; } // oldest turns dropped near the server limits
   let content = req;
   if (!history.length) content = `${context()}\n\nCurrent plan (palace1.json):\n${JSON.stringify(plan)}\n\nRequest: ${req}`;
@@ -179,7 +179,8 @@ async function send() { const text = input.value.trim(); if ((!text && !pending.
     if (last === 'tool_use') { say('note', STOP_TEXT); history.push({ role: 'assistant', content: [{ type: 'text', text: STOP_TEXT }] }); } // close the turn: the stored conversation ends with an assistant message
     history = repair(history); // never keep an unanswered tool_use
     if (history.length > base.length) synced = JSON.stringify(plan);
-  } catch (e) { say('note error', e.message); if (history.length > base.length + 1) say('note', 'This request was left out of the conversation; the plan keeps the edits already applied.'); history = base; }
+  } catch (e) { if (history.length === base.length + 1) { userLine.remove(); entries = entries.filter(x => x !== userEntry); input.value = text; pending = photos; drawPending(); } // no answer arrived: the message goes back into the input
+    say('note error', e.message); if (history.length > base.length + 1) say('note', 'This request was left out of the conversation; the plan keeps the edits already applied.'); history = base; }
   wait.remove(); persist(); busy = false; lock(false); input.focus(); }
 
 function setChatOpen(open) {
